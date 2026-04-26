@@ -2,6 +2,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import Markdown from 'react-native-markdown-display';
 import { Colors, Typography, Radius } from '../../constants/theme';
 
 const KlaudiaAvatar = require('../../assets/klaudia.jpg');
@@ -53,7 +54,7 @@ export function ChatBubble({ role, content, timestamp, imageUri }: Props) {
           {imageUri && (
             <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" />
           )}
-          <Text style={styles.textAI}>{content}</Text>
+          <Markdown style={markdownStyles}>{content}</Markdown>
         </View>
 
         {/* Action buttons */}
@@ -97,6 +98,116 @@ export function ChatBubble({ role, content, timestamp, imageUri }: Props) {
   );
 }
 
+// Sesuaikan warna dengan theme app kamu
+const markdownStyles = StyleSheet.create({
+  body: {
+    color: Colors.textPrimary,
+    fontSize: 14,
+    lineHeight: 20,
+    margin: 0,
+  },
+  // Bold (**text**)
+  strong: {
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  // Italic (*text*)
+  em: {
+    fontStyle: 'italic',
+    color: Colors.textPrimary,
+  },
+  // Inline code (`code`)
+  code_inline: {
+    backgroundColor: Colors.border,
+    color: Colors.accent,
+    fontFamily: 'Courier',
+    fontSize: 13,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  // Code block (```code```)
+  fence: {
+    backgroundColor: Colors.border,
+    borderRadius: 8,
+    padding: 10,
+    marginVertical: 6,
+  },
+  code_block: {
+    color: Colors.textPrimary,
+    fontFamily: 'Courier',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  // Heading
+  heading1: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 6,
+    marginTop: 4,
+  },
+  heading2: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+    marginTop: 4,
+  },
+  heading3: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+    marginTop: 4,
+  },
+  // List
+  bullet_list: {
+    marginVertical: 4,
+  },
+  ordered_list: {
+    marginVertical: 4,
+  },
+  list_item: {
+    flexDirection: 'row',
+    marginVertical: 1,
+  },
+  bullet_list_icon: {
+    color: Colors.textSecondary,
+    marginRight: 6,
+    lineHeight: 20,
+  },
+  ordered_list_icon: {
+    color: Colors.textSecondary,
+    marginRight: 6,
+    lineHeight: 20,
+  },
+  // Blockquote
+  blockquote: {
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.accent,
+    paddingLeft: 10,
+    marginVertical: 4,
+    opacity: 0.85,
+  },
+  // Horizontal rule
+  hr: {
+    backgroundColor: Colors.border,
+    height: 1,
+    marginVertical: 8,
+  },
+  // Paragraph — hapus margin default agar tidak ada spasi berlebih
+  paragraph: {
+    marginTop: 0,
+    marginBottom: 4,
+  },
+  // Link
+  link: {
+    color: Colors.accent,
+    textDecorationLine: 'underline',
+  },
+});
+
 const styles = StyleSheet.create({
   // User bubble
   wrapperUser: {
@@ -139,7 +250,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(221, 221, 221, 0.85)',
     overflow: 'hidden',
     flexShrink: 0,
-    marginBottom: 20, // align with action buttons row
+    marginBottom: 20,
   },
   avatar: {
     width: '100%',
@@ -155,10 +266,6 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4,
     borderWidth: 1,
     borderColor: Colors.border,
-  },
-  textAI: {
-    ...Typography.body,
-    color: Colors.textPrimary,
   },
 
   // Shared
