@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList,
-  StyleSheet, Animated, Pressable, ActivityIndicator,
+  StyleSheet, Animated, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography } from '../../constants/theme';
@@ -21,21 +21,51 @@ type Props = {
   currentSessionId?: number;
 };
 
+const DRAWER_WIDTH_PCT = 0.45; // 45% of screen — must match styles.drawer width
+
 export function SessionDrawer({ visible, onClose, onSelectSession, currentSessionId }: Props) {
-  const slideAnim = useRef(new Animated.Value(1)).current; // 1 = hidden (right), 0 = visible
+  const slideAnim = useRef(new Animated.Value(1)).current; // 1 = off-screen right, 0 = visible
+  const overlayAnim = useRef(new Animated.Value(0)).current;
+  const [mounted, setMounted] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Animate in/out
   useEffect(() => {
-    Animated.spring(slideAnim, {
-      toValue: visible ? 0 : 1,
-      useNativeDriver: true,
-      tension: 65,
-      friction: 11,
-    }).start();
-
-    if (visible) fetchSessions();
+    if (visible) {
+      // Mount first, then animate in
+      setMounted(true);
+      fetchSessions();
+      Animated.parallel([
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 65,
+          friction: 11,
+        }),
+        Animated.timing(overlayAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Animate out, then unmount
+      Animated.parallel([
+        Animated.spring(slideAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 65,
+          friction: 11,
+        }),
+        Animated.timing(overlayAnim, {
+          toValue: 0,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) setMounted(false);
+      });
+    }
   }, [visible]);
 
   const fetchSessions = async () => {
@@ -60,26 +90,29 @@ export function SessionDrawer({ visible, onClose, onSelectSession, currentSessio
     outputRange: ['0%', '100%'],
   });
 
-  if (!visible && slideAnim._value === 1) return null;
+  if (!mounted) return null;
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents={visible ? 'auto' : 'none'}>
-      {/* Backdrop */}
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Animated.View
-          style={[
-            styles.backdropInner,
-            { opacity: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) },
-          ]}
-        />
-      </Pressable>
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      {/* ── Dark overlay (visual only, no touch blocking) ── */}
+      <Animated.View
+        style={[styles.overlayDim, { opacity: overlayAnim }]}
+        pointerEvents="none"
+      />
 
-      {/* Drawer */}
+      {/* ── Backdrop tap area — only the LEFT side (non-drawer area) ── */}
+      <TouchableOpacity
+        style={styles.backdropTapArea}
+        onPress={onClose}
+        activeOpacity={1}
+      />
+
+      {/* ── Drawer ── */}
       <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
         {/* Header */}
         <View style={styles.drawerHeader}>
           <Text style={styles.drawerTitle}>Riwayat Chat</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+          <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={12}>
             <Ionicons name="close" size={20} color={Colors.textSecondary} />
           </TouchableOpacity>
         </View>
@@ -118,14 +151,15 @@ export function SessionDrawer({ visible, onClose, onSelectSession, currentSessio
                     style={{ marginTop: 2 }}
                   />
                   <View style={styles.sessionInfo}>
-                    <Text style={[styles.sessionName, isActive && styles.sessionNameActive]} numberOfLines={1}>
+                    <Text
+                      style={[styles.sessionName, isActive && styles.sessionNameActive]}
+                      numberOfLines={1}
+                    >
                       {item.session_name || `Session ${item.session_id}`}
                     </Text>
                     <Text style={styles.sessionDate}>{formatDate(item.updated_at)}</Text>
                   </View>
-                  {isActive && (
-                    <View style={styles.activeDot} />
-                  )}
+                  {isActive && <View style={styles.activeDot} />}
                 </TouchableOpacity>
               );
             }}
@@ -137,13 +171,22 @@ export function SessionDrawer({ visible, onClose, onSelectSession, currentSessio
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  backdropInner: {
+  // Full-screen semi-transparent dim — visual only, no touch interception
+  overlayDim: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
+
+  // Tap-to-close area: covers LEFT side only (the 55% not occupied by drawer)
+  // This ensures drawer touches never hit this handler
+  backdropTapArea: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    right: '45%', // matches drawer width
+  },
+
   drawer: {
     position: 'absolute',
     right: 0,

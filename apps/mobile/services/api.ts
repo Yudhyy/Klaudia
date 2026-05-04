@@ -1,4 +1,4 @@
-const BASE_URL = 'http://192.168.1.117:8000/v1';
+const BASE_URL = 'http://10.210.2.127:8000/v1';
 
 export const api = {
   // Chat
