@@ -1,16 +1,18 @@
-import { useState, useRef, useCallback } from 'react';
+// app/(tabs)/index.tsx
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
-  View, FlatList, KeyboardAvoidingView,
-  Platform, StyleSheet, Text, Image,
-  ActivityIndicator, TouchableOpacity,
+  View, FlatList, KeyboardAvoidingView, Platform,
+  StyleSheet, Text, Image, TouchableOpacity, Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ChatBubble } from '../../components/ui/ChatBubble';
-import { ChatInput } from '../../components/ui/ChatInput';
+import { ChatInput, type Attachment } from '../../components/ui/ChatInput';
 import { SessionDrawer } from '../../components/ui/SessionDrawer';
-import { api } from '../../services/api';
+import { streamMessage, getSession, type SSEEvent } from '../../services/api';
 import { Colors, Typography } from '../../constants/theme';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type Message = {
   id: string;
@@ -18,21 +20,110 @@ type Message = {
   content: string;
   timestamp: string;
   imageUri?: string;
+  streaming?: boolean;
 };
 
-type Attachment = {
-  uri: string;
-  name: string;
-  type: 'image' | 'pdf';
-  base64?: string;
-};
+type StatusLine = { text: string } | null;
+
+// ─── Pipeline status → user-friendly Indonesian label ────────────────────────
+
+const GSHEETS_READ  = new Set(['list_sheets', 'get_sheet_formulas', 'get_sheet_data', 'get_spreadsheet_info', 'get_multiple_sheet_data']);
+const GSHEETS_WRITE = new Set(['update_cells', 'batch_update_cells', 'append_rows', 'add_rows', 'add_columns']);
+const GSHEETS_SHEET = new Set(['create_sheet', 'rename_sheet', 'copy_sheet', 'batch_update']);
+const GSHEETS_CLEAR = new Set(['clear_range', 'delete_sheet']);
+const SQLITE_OPS    = new Set(['get_document', 'list_documents', 'create_document', 'update_document_status', 'get_extraction', 'save_extraction', 'get_session_files', 'list_pages', 'get_page', 'create_page', 'update_page']);
+
+function eventToStatus(event: SSEEvent): StatusLine {
+  switch (event.type) {
+    case 'guardrail':
+      return null;
+
+    case 'extraction': {
+      const name = event.file_name ?? 'file';
+      switch (event.status) {
+        case 'processing': return { text: `📄 Extracting ${name}...` };
+        case 'queueing':   return { text: `📄 Queueing ${name}...` };
+        case 'queued':     return { text: `📄 ${name} received, waiting for its turn...` };
+        case 'page_done':  return { text: '📄 Processing page...' };
+        case 'rejected':   return { text: `⚠️ ${event.reason ?? 'File could not be processed'}` };
+        default:           return null;
+      }
+    }
+
+    case 'step': {
+      switch (event.node) {
+        case 'sql_agent':        return { text: '🔍 Searching transaction data...' };
+        case 'data_entry_team':  return { text: '📊 Organizing spreadsheet...' };
+        default:                 return null;
+      }
+    }
+
+    case 'tool': {
+      const t = event.name;
+      if (GSHEETS_READ.has(t))  return { text: '📖 Reading spreadsheet...' };
+      if (GSHEETS_WRITE.has(t)) return { text: '✏️ Writing to spreadsheet...' };
+      if (GSHEETS_SHEET.has(t)) return { text: '📋 Organizing sheet...' };
+      if (GSHEETS_CLEAR.has(t)) return { text: '🗑 Clearing data...' };
+      if (SQLITE_OPS.has(t))    return { text: '🔍 Reading saved receipts...' };
+      return { text: '⚙️ Processing...' };
+    }
+
+    default:
+      return null;
+  }
+}
+
+// ─── StatusStrip ──────────────────────────────────────────────────────────────
+
+function StatusStrip({ status }: { status: StatusLine }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(opacity, {
+      toValue: status ? 1 : 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  }, [status]);
+
+  return (
+    <Animated.View style={[strip.container, { opacity }]} pointerEvents="none">
+      <Text style={strip.text} numberOfLines={1}>
+        {status?.text ?? ''}
+      </Text>
+    </Animated.View>
+  );
+}
+
+const strip = StyleSheet.create({
+  container: {
+    paddingHorizontal: 20,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(204,255,0,0.03)',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(204,255,0,0.12)',
+  },
+  text: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+  },
+});
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const INITIAL_MESSAGE: Message = {
   id: '0',
   role: 'assistant',
-  content: 'Halo! Saya Klaudia 👋 Upload struk belanjaan kamu dan saya akan proses otomatis.',
+  content: 'Hello! I am Klaudia 👋 Upload your receipts or share your ledger details, and I will record them with absolute precision.',
   timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
 };
+
+function formatTime() {
+  return new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+}
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
@@ -42,10 +133,20 @@ export default function ChatScreen() {
   const [attachment, setAttachment] = useState<Attachment | null>(null);
   const [sessionId, setSessionId] = useState<number | undefined>();
   const [loading, setLoading] = useState(false);
-  const listRef = useRef<FlatList>(null);
+  const [status, setStatus] = useState<StatusLine>(null);
 
-  const formatTime = () =>
-    new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  const listRef = useRef<FlatList>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => { abortRef.current?.abort(); };
+  }, []);
+
+  const scrollToBottom = useCallback((animated = true) => {
+    setTimeout(() => listRef.current?.scrollToEnd({ animated }), 50);
+  }, []);
+
+  // ── Load a past session ───────────────────────────────────────────────────
 
   const handleSelectSession = useCallback(async (id: number) => {
     if (id === 0) {
@@ -54,7 +155,7 @@ export default function ChatScreen() {
       return;
     }
     try {
-      const data = await api.getSession(id);
+      const data = await getSession(id);
       setSessionId(id);
       const loaded: Message[] = data.messages.map((m: any, i: number) => ({
         id: i.toString(),
@@ -65,64 +166,134 @@ export default function ChatScreen() {
         }),
       }));
       setMessages(loaded.length > 0 ? loaded : [INITIAL_MESSAGE]);
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 100);
+      scrollToBottom(false);
     } catch {
-      // keep current
+      // keep current session on error
     }
-  }, []);
+  }, [scrollToBottom]);
+
+  // ── Send ──────────────────────────────────────────────────────────────────
 
   const handleSend = useCallback(async () => {
-    if (!input.trim() && !attachment) return;
-    if (loading) return;
+    if ((!input.trim() && !attachment) || loading) return;
 
+    // 1. Optimistic user bubble
+    //    • imageUri only set for display — the image was already picked
+    //    • content: use text if present, else empty (image stands alone)
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input.trim() || `📎 ${attachment?.name}`,
+      content: input.trim(),
       timestamp: formatTime(),
       imageUri: attachment?.type === 'image' ? attachment.uri : undefined,
     };
-
     setMessages(prev => [...prev, userMsg]);
+
+    const sentInput = input.trim();
+    const sentAttachment = attachment;
+
+    // Clear composer immediately
     setInput('');
     setAttachment(null);
     setLoading(true);
+    scrollToBottom();
+
+    // 2. Streaming assistant placeholder
+    const streamingId = (Date.now() + 1).toString();
+    setMessages(prev => [...prev, {
+      id: streamingId,
+      role: 'assistant',
+      content: '',
+      timestamp: formatTime(),
+      streaming: true,
+    }]);
+    scrollToBottom();
+
+    // 3. Payload
+    const attachments = sentAttachment?.base64 ? [{
+      filename: sentAttachment.name,
+      content_type: sentAttachment.type === 'pdf' ? 'application/pdf' : 'image/jpeg',
+      data: sentAttachment.base64,
+    }] : [];
+
+    const payload = {
+      messages: [{
+        role: 'user' as const,
+        content: sentInput || sentAttachment?.name || '',
+        attachments,
+      }],
+      session_id: sessionId,
+    };
+
+    // 4. Stream
+    abortRef.current = new AbortController();
 
     try {
-      const attachments = attachment?.base64 ? [{
-        filename: attachment.name,
-        content_type: attachment.type === 'pdf' ? 'application/pdf' : 'image/jpeg',
-        data: attachment.base64,
-      }] : [];
+      await streamMessage(
+        payload,
+        (event: SSEEvent) => {
+          const newStatus = eventToStatus(event);
+          if (newStatus !== undefined) setStatus(newStatus);
 
-      const response = await api.sendMessage({
-        messages: [{
-          role: 'user',
-          content: input.trim() || attachment?.name || '',
-          attachments,
-        }],
-        session_id: sessionId,
-      });
+          switch (event.type) {
+            case 'session':
+              setSessionId(event.session_id);
+              break;
 
-      setSessionId(response.session_id);
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: response.message.content,
-        timestamp: formatTime(),
-      }]);
-    } catch {
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: '⚠️ Gagal menghubungi server. Coba lagi.',
-        timestamp: formatTime(),
-      }]);
-    } finally {
+            case 'token':
+              setMessages(prev =>
+                prev.map(m =>
+                  m.id === streamingId
+                    ? { ...m, content: m.content + event.text }
+                    : m
+                )
+              );
+              scrollToBottom();
+              break;
+
+            case 'done':
+              setMessages(prev =>
+                prev.map(m =>
+                  m.id === streamingId
+                    ? { ...m, content: event.content, streaming: false, timestamp: formatTime() }
+                    : m
+                )
+              );
+              setStatus(null);
+              setLoading(false);
+              scrollToBottom();
+              break;
+
+            case 'error':
+              setMessages(prev =>
+                prev.map(m =>
+                  m.id === streamingId
+                    ? { ...m, content: `⚠️ ${event.message}`, streaming: false, timestamp: formatTime() }
+                    : m
+                )
+              );
+              setStatus(null);
+              setLoading(false);
+              break;
+          }
+        },
+        abortRef.current.signal,
+      );
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === streamingId
+            ? { ...m, content: '⚠️ Gagal menghubungi server. Coba lagi.', streaming: false }
+            : m
+        )
+      );
+      setStatus(null);
       setLoading(false);
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     }
-  }, [input, attachment, sessionId, loading]);
+  }, [input, attachment, sessionId, loading, scrollToBottom]);
+
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -130,10 +301,7 @@ export default function ChatScreen() {
       <View style={styles.header}>
         <View style={styles.headerSide} />
         <Text style={styles.headerTitle}>AI Chat</Text>
-        <TouchableOpacity
-          style={styles.headerSide}
-          onPress={() => setDrawerOpen(true)}
-        >
+        <TouchableOpacity style={styles.headerSide} onPress={() => setDrawerOpen(true)}>
           <Ionicons name="menu" size={22} color={Colors.textPrimary} />
         </TouchableOpacity>
       </View>
@@ -143,25 +311,7 @@ export default function ChatScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={80}
       >
-        {/* Attachment preview */}
-        {attachment && (
-          <View style={styles.attachPreview}>
-            <View style={styles.attachRow}>
-              {attachment.type === 'image'
-                ? <Image source={{ uri: attachment.uri }} style={styles.attachThumb} />
-                : <Text style={styles.attachPDF}>📄 {attachment.name}</Text>
-              }
-              <TouchableOpacity
-                onPress={() => setAttachment(null)}
-                style={styles.attachClose}
-              >
-                <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* Messages */}
+        {/* Messages list */}
         <FlatList
           ref={listRef}
           style={styles.flex}
@@ -171,33 +321,29 @@ export default function ChatScreen() {
             <ChatBubble
               role={item.role}
               content={item.content}
-              timestamp={item.timestamp}
+              timestamp={item.streaming ? undefined : item.timestamp}
               imageUri={item.imageUri}
+              streaming={item.streaming}
             />
           )}
           contentContainerStyle={styles.list}
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
         />
 
-        {/* Loading */}
-        {loading && (
-          <View style={styles.loadingRow}>
-            <ActivityIndicator size="small" color={Colors.accent} />
-            <Text style={styles.loadingText}>Klaudia sedang berpikir...</Text>
-          </View>
-        )}
+        {/* Status strip */}
+        <StatusStrip status={status} />
 
-        {/* Input */}
+        {/* Input — attachment lives inside ChatInput now */}
         <ChatInput
           value={input}
           onChangeText={setInput}
           onSend={handleSend}
           onAttachment={setAttachment}
+          onRemoveAttachment={() => setAttachment(null)}
+          attachment={attachment}
           disabled={loading}
         />
       </KeyboardAvoidingView>
 
-      {/* Session Drawer */}
       <SessionDrawer
         visible={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -208,6 +354,8 @@ export default function ChatScreen() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   flex: { flex: 1 },
@@ -215,40 +363,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
-  headerSide: {
-    width: 32,
-    alignItems: 'flex-end',
-  },
+  headerSide: { width: 32, alignItems: 'flex-end' },
   headerTitle: { ...Typography.header, color: Colors.textPrimary },
-  list: { paddingVertical: 16 },
-  loadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-  },
-  loadingText: { color: Colors.textSecondary, fontSize: 12 },
-  attachPreview: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    padding: 10,
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.accent,
-  },
-  attachRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  attachThumb: { width: 80, height: 60, borderRadius: 8 },
-  attachPDF: { color: Colors.textPrimary, fontSize: 13, flex: 1 },
-  attachClose: { padding: 4 },
+  list: { paddingVertical: 16, paddingBottom: 8 },
 });

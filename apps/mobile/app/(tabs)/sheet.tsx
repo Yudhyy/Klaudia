@@ -26,7 +26,7 @@ interface SpreadsheetInfo {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const BASE_URL = 'http://10.210.2.127:8000/v1';
+const BASE_URL = 'http://10.66.158.29:8000/v1';
 
 const CELL_MIN_WIDTH = 110;
 const CELL_HEIGHT = 38;
