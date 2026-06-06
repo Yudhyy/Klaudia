@@ -21,7 +21,7 @@ type Props = {
   currentSessionId?: number;
 };
 
-const DRAWER_WIDTH_PCT = 0.45; // 45% of screen — must match styles.drawer width
+const DRAWER_WIDTH_PCT = 0.85; // 85% of screen — must match styles.drawer width
 
 export function SessionDrawer({ visible, onClose, onSelectSession, currentSessionId }: Props) {
   const slideAnim = useRef(new Animated.Value(1)).current; // 1 = off-screen right, 0 = visible
@@ -123,7 +123,7 @@ export function SessionDrawer({ visible, onClose, onSelectSession, currentSessio
           onPress={() => { onSelectSession(0); onClose(); }}
         >
           <Ionicons name="add" size={16} color="#000" />
-          <Text style={styles.newChatText}>Chat Baru</Text>
+          <Text style={styles.newChatText}>New Chat</Text>
         </TouchableOpacity>
 
         {/* Session List */}
