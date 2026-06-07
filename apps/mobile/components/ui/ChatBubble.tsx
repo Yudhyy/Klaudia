@@ -72,7 +72,6 @@ export function ChatBubble({ role, content, timestamp, imageUri, streaming }: Pr
 
   return (
     <View style={styles.wrapperAI}>
-      {/* Avatar — top-aligned, not bottom-aligned */}
       <View style={styles.avatarContainer}>
         <Image source={KlaudiaAvatar} style={styles.avatar} resizeMode="cover" />
       </View>
@@ -132,26 +131,147 @@ export function ChatBubble({ role, content, timestamp, imageUri, streaming }: Pr
 }
 
 // ─── Markdown styles ──────────────────────────────────────────────────────────
+//
+// react-native-markdown-display injects its own default stylesheet.
+// For dark mode, three defaults are destructive and MUST be explicitly overridden:
+//
+//   blockquote        → default backgroundColor: '#fff6' (white tint) → renders as opaque block
+//   blockquote_text   → default color: inherit from light theme        → unreadable
+//   table, th, td     → default borders and backgrounds assume light bg
+//   hr                → default backgroundColor: '#000' (visible on light, invisible on dark)
+//   fence / code_block → default backgroundColor: '#f6f8fa' (GitHub light) → white box on dark
+//
+// Rule: ALWAYS set backgroundColor explicitly on every container node.
+// Never rely on library defaults in a dark-only app.
+
+const BLOCKQUOTE_BG   = 'rgba(204,255,0,0.06)';  // very faint accent tint — readable, non-intrusive
+const BLOCKQUOTE_BAR  = Colors.accent;             // #CCFF00 left bar
+const CODE_BG         = '#111113';                 // near-black, clearly distinct from bubble #252528
+const TABLE_BORDER    = 'rgba(255,255,255,0.10)';
 
 const markdownStyles = StyleSheet.create({
-  body:            { color: Colors.textPrimary, fontSize: 14, lineHeight: 21, margin: 0 },
-  strong:          { fontWeight: '700', color: Colors.textPrimary },
-  em:              { fontStyle: 'italic', color: Colors.textPrimary },
-  code_inline:     { backgroundColor: 'rgba(255,255,255,0.08)', color: Colors.accent, fontFamily: 'Courier', fontSize: 13, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 },
-  fence:           { backgroundColor: '#111113', borderRadius: 8, padding: 12, marginVertical: 6, borderWidth: 1, borderColor: Colors.border },
-  code_block:      { color: Colors.textPrimary, fontFamily: 'Courier', fontSize: 12, lineHeight: 18 },
-  heading1:        { fontSize: 17, fontWeight: '700', color: Colors.textPrimary, marginBottom: 6, marginTop: 6 },
-  heading2:        { fontSize: 15, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4, marginTop: 4 },
-  heading3:        { fontSize: 14, fontWeight: '600', color: Colors.textPrimary, marginBottom: 4, marginTop: 4 },
-  bullet_list:     { marginVertical: 3 },
-  ordered_list:    { marginVertical: 3 },
-  list_item:       { flexDirection: 'row', marginVertical: 2 },
-  bullet_list_icon:{ color: Colors.accent, marginRight: 8, lineHeight: 21, fontSize: 12 },
-  ordered_list_icon:{ color: Colors.textSecondary, marginRight: 6, lineHeight: 21 },
-  blockquote:      { borderLeftWidth: 2, borderLeftColor: Colors.accent, paddingLeft: 10, marginVertical: 4, opacity: 0.8 },
-  hr:              { backgroundColor: Colors.border, height: 1, marginVertical: 10 },
-  paragraph:       { marginTop: 0, marginBottom: 4 },
-  link:            { color: Colors.accent, textDecorationLine: 'underline' },
+  // ── Root
+  body: {
+    color: Colors.textPrimary,
+    fontSize: 14,
+    lineHeight: 21,
+    margin: 0,
+    backgroundColor: 'transparent', // must be explicit
+  },
+
+  // ── Text
+  strong:  { fontWeight: '700', color: Colors.textPrimary },
+  em:      { fontStyle: 'italic', color: Colors.textPrimary },
+  del:     { textDecorationLine: 'line-through', color: Colors.textSecondary },
+
+  // ── Paragraph
+  paragraph: { marginTop: 0, marginBottom: 6, backgroundColor: 'transparent' },
+
+  // ── Headings
+  heading1: { fontSize: 17, fontWeight: '700', color: Colors.textPrimary, marginBottom: 6, marginTop: 8, backgroundColor: 'transparent' },
+  heading2: { fontSize: 15, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4, marginTop: 6, backgroundColor: 'transparent' },
+  heading3: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary, marginBottom: 4, marginTop: 4, backgroundColor: 'transparent' },
+
+  // ── Blockquote — THE BUG FIX
+  // backgroundColor MUST be set here; the library default is a light tint
+  blockquote: {
+    backgroundColor: BLOCKQUOTE_BG,          // ← explicit dark-safe tint
+    borderLeftWidth: 3,
+    borderLeftColor: BLOCKQUOTE_BAR,
+    paddingLeft: 12,
+    paddingRight: 10,
+    paddingVertical: 8,
+    marginVertical: 6,
+    borderRadius: 4,
+  },
+  // The inner text wrapper the library generates — must also be transparent
+  // otherwise it renders over the blockquote background
+  blockquote_text: {
+    color: Colors.textPrimary,
+    fontSize: 13,
+    lineHeight: 20,
+    fontStyle: 'italic',
+    backgroundColor: 'transparent',          // ← critical: kills the white inner fill
+  },
+
+  // ── Code
+  code_inline: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    color: Colors.accent,
+    fontFamily: 'Courier',
+    fontSize: 13,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  fence: {
+    backgroundColor: CODE_BG,                // ← explicit, not library default (#f6f8fa)
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  code_block: {
+    color: Colors.textPrimary,
+    fontFamily: 'Courier',
+    fontSize: 12,
+    lineHeight: 18,
+    backgroundColor: 'transparent',          // ← sits inside fence which has its own bg
+  },
+
+  // ── Lists
+  bullet_list:        { marginVertical: 3, backgroundColor: 'transparent' },
+  ordered_list:       { marginVertical: 3, backgroundColor: 'transparent' },
+  list_item:          { flexDirection: 'row', marginVertical: 2, backgroundColor: 'transparent' },
+  bullet_list_icon:   { color: Colors.accent, marginRight: 8, lineHeight: 21, fontSize: 12 },
+  ordered_list_icon:  { color: Colors.textSecondary, marginRight: 6, lineHeight: 21 },
+
+  // ── Table
+  table: {
+    borderWidth: 1,
+    borderColor: TABLE_BORDER,
+    borderRadius: 6,
+    marginVertical: 8,
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
+  },
+  thead: { backgroundColor: 'rgba(255,255,255,0.04)' },
+  tbody: { backgroundColor: 'transparent' },
+  th: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)', // ← explicit, not library default
+    borderRightWidth: 1,
+    borderRightColor: TABLE_BORDER,
+  },
+  td: {
+    padding: 8,
+    borderTopWidth: 1,
+    borderTopColor: TABLE_BORDER,
+    borderRightWidth: 1,
+    borderRightColor: TABLE_BORDER,
+    backgroundColor: 'transparent',           // ← explicit
+  },
+  tr: {
+    flexDirection: 'row',
+    backgroundColor: 'transparent',
+  },
+  th_text: { color: Colors.textPrimary, fontWeight: '600', fontSize: 13 },
+  td_text: { color: Colors.textPrimary, fontSize: 13 },
+
+  // ── Divider
+  hr: {
+    backgroundColor: 'rgba(255,255,255,0.10)', // ← explicit; default is '#000' (invisible on dark)
+    height: 1,
+    marginVertical: 10,
+  },
+
+  // ── Link
+  link: { color: Colors.accent, textDecorationLine: 'underline' },
+  blocklink: { color: Colors.accent, textDecorationLine: 'underline' },
+
+  // ── Image (rare in chat, but cover it)
+  image: { borderRadius: 8, marginVertical: 4 },
 });
 
 // ─── Component styles ─────────────────────────────────────────────────────────
@@ -198,10 +318,10 @@ const styles = StyleSheet.create({
   // ── AI bubble
   wrapperAI: {
     flexDirection: 'row',
-    alignItems: 'flex-start',   // ← TOP-aligned avatar (was flex-end = bottom)
+    alignItems: 'flex-start',
     marginVertical: 2,
     marginLeft: 12,
-    marginRight: 48,            // keeps bubble away from right edge
+    marginRight: 48,
     gap: 8,
   },
   avatarContainer: {
@@ -210,22 +330,18 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
     flexShrink: 0,
-    marginTop: 2,               // small nudge so avatar aligns with first text line
+    marginTop: 2,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
   },
   avatar: { width: '100%', height: '100%' },
-
   aiContent: { flex: 1 },
-
-  // Surface is noticeably different from page background (#161618)
-  // Using #252528 gives ~15% lightness lift — clearly distinct without feeling washed out
   bubbleAI: {
     backgroundColor: '#252528',
     paddingHorizontal: 14,
     paddingVertical: 11,
     borderRadius: 18,
-    borderTopLeftRadius: 4,     // tail points toward avatar
+    borderTopLeftRadius: 4,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.07)',
   },
