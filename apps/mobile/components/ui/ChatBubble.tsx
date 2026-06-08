@@ -1,5 +1,5 @@
 // components/ui/ChatBubble.tsx
-import { View, Text, Image, StyleSheet, Pressable } from 'react-native';
+import { View, Text, Image, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -37,6 +37,205 @@ function SentImage({ uri }: { uri: string }) {
     </View>
   );
 }
+
+// ─── Custom table renderer ────────────────────────────────────────────────────
+//
+// react-native-markdown-display renders tables into fixed-width columns that
+// word-wrap text into vertical stacks — "Dat e", "Mer cha nt" etc.
+//
+// Solution: intercept the `table` AST node and render our own ScrollView-based
+// table instead. The `rules` prop accepts a map of token → render function.
+//
+// Column width strategy:
+//   • We scan all cells to find the max char length per column
+//   • Min width per column = max(80, charCount × 8) px — keeps short headers readable
+//   • Header cells use accent tint bg, bold text
+//   • Data cells alternate subtle row tints for scannability (zebra striping)
+
+function extractTextFromNode(node: any): string {
+  if (!node) return '';
+  if (typeof node === 'string') return node;
+  if (node.type === 'text') return node.content ?? '';
+  if (node.children) {
+    return node.children.map(extractTextFromNode).join('');
+  }
+  return '';
+}
+
+function TableRenderer({ node }: { node: any }) {
+  // Parse thead and tbody from AST
+  const thead = node.children?.find((c: any) => c.type === 'thead');
+  const tbody = node.children?.find((c: any) => c.type === 'tbody');
+
+  const headerRow = thead?.children?.[0]?.children ?? [];
+  const dataRows  = tbody?.children ?? [];
+
+  // Measure column widths: scan all cells, take max char count per col
+  const allRows = [
+    headerRow,
+    ...dataRows.map((r: any) => r.children ?? []),
+  ];
+  const colCount = headerRow.length;
+  const colWidths: number[] = Array(colCount).fill(0);
+
+  allRows.forEach((row: any[]) => {
+    row.forEach((cell: any, ci: number) => {
+      const text = extractTextFromNode(cell);
+      const len = text.length;
+      colWidths[ci] = Math.max(colWidths[ci], len);
+    });
+  });
+
+  // Convert char counts to pixel widths
+  // Heuristic: ~7.5px per char, minimum 72px, maximum 160px
+  const pixelWidths = colWidths.map(c => Math.min(160, Math.max(72, Math.ceil(c * 7.5))));
+
+  return (
+    <View style={table.wrapper}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={true}
+        indicatorStyle="white"
+        bounces={false}
+        contentContainerStyle={table.scrollContent}
+      >
+        <View>
+          {/* Header row */}
+          {headerRow.length > 0 && (
+            <View style={table.headerRow}>
+              {headerRow.map((cell: any, ci: number) => (
+                <View
+                  key={ci}
+                  style={[
+                    table.headerCell,
+                    { width: pixelWidths[ci] },
+                    ci < headerRow.length - 1 && table.cellBorderRight,
+                  ]}
+                >
+                  <Text style={table.headerText} numberOfLines={2}>
+                    {extractTextFromNode(cell)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Data rows */}
+          {dataRows.map((row: any, ri: number) => {
+            const cells = row.children ?? [];
+            const isEven = ri % 2 === 0;
+            return (
+              <View
+                key={ri}
+                style={[
+                  table.dataRow,
+                  isEven ? table.dataRowEven : table.dataRowOdd,
+                  ri === dataRows.length - 1 && table.lastRow,
+                ]}
+              >
+                {cells.map((cell: any, ci: number) => {
+                  // Check if cell has bold/strong children
+                  const rawText = extractTextFromNode(cell);
+                  const hasBold = cell.children?.some(
+                    (n: any) => n.type === 'strong' || n.children?.some((nn: any) => nn.type === 'strong')
+                  );
+                  return (
+                    <View
+                      key={ci}
+                      style={[
+                        table.dataCell,
+                        { width: pixelWidths[ci] },
+                        ci < cells.length - 1 && table.cellBorderRight,
+                      ]}
+                    >
+                      <Text
+                        style={[table.dataText, hasBold && table.dataBold]}
+                        numberOfLines={3}
+                      >
+                        {rawText}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const TABLE_BORDER    = 'rgba(255,255,255,0.10)';
+const TABLE_HEADER_BG = 'rgba(204,255,0,0.08)';
+const ROW_EVEN_BG     = 'rgba(255,255,255,0.02)';
+const ROW_ODD_BG      = 'transparent';
+
+const table = StyleSheet.create({
+  wrapper: {
+    marginVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: TABLE_BORDER,
+    overflow: 'hidden',
+    // Hint to user that content scrolls
+    backgroundColor: '#1A1A1C',
+  },
+  scrollContent: {
+    flexGrow: 0,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    backgroundColor: TABLE_HEADER_BG,
+    borderBottomWidth: 1,
+    borderBottomColor: TABLE_BORDER,
+  },
+  headerCell: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    justifyContent: 'center',
+  },
+  headerText: {
+    color: Colors.accent,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  dataRow: {
+    flexDirection: 'row',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: TABLE_BORDER,
+  },
+  dataRowEven: { backgroundColor: ROW_EVEN_BG },
+  dataRowOdd:  { backgroundColor: ROW_ODD_BG },
+  lastRow:     {},
+  dataCell: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    justifyContent: 'center',
+  },
+  dataText: {
+    color: Colors.textPrimary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  dataBold: {
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  cellBorderRight: {
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: TABLE_BORDER,
+  },
+});
+
+// ─── Markdown custom rules — inject TableRenderer for `table` token ──────────
+
+const markdownRules = {
+  table: (node: any, _children: any, _parent: any, _styles: any) => (
+    <TableRenderer key={node.key} node={node} />
+  ),
+};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -80,7 +279,14 @@ export function ChatBubble({ role, content, timestamp, imageUri, streaming }: Pr
         <View style={styles.bubbleAI}>
           {showDots
             ? <TypingDots />
-            : <Markdown style={markdownStyles}>{displayContent}</Markdown>
+            : (
+              <Markdown
+                style={markdownStyles}
+                rules={markdownRules}
+              >
+                {displayContent}
+              </Markdown>
+            )
           }
         </View>
 
@@ -97,7 +303,6 @@ export function ChatBubble({ role, content, timestamp, imageUri, streaming }: Pr
                 color={copied ? Colors.accent : Colors.textSecondary}
               />
             </Pressable>
-
             <Pressable
               onPress={() => setLiked(p => p === 'like' ? null : 'like')}
               style={({ pressed }) => [styles.actionBtn, pressed && styles.actionBtnPressed]}
@@ -109,7 +314,6 @@ export function ChatBubble({ role, content, timestamp, imageUri, streaming }: Pr
                 color={liked === 'like' ? Colors.accent : Colors.textSecondary}
               />
             </Pressable>
-
             <Pressable
               onPress={() => setLiked(p => p === 'dislike' ? null : 'dislike')}
               style={({ pressed }) => [styles.actionBtn, pressed && styles.actionBtnPressed]}
@@ -121,7 +325,6 @@ export function ChatBubble({ role, content, timestamp, imageUri, streaming }: Pr
                 color={liked === 'dislike' ? '#ef4444' : Colors.textSecondary}
               />
             </Pressable>
-
             {timestamp && <Text style={styles.timestamp}>{timestamp}</Text>}
           </View>
         )}
@@ -131,70 +334,41 @@ export function ChatBubble({ role, content, timestamp, imageUri, streaming }: Pr
 }
 
 // ─── Markdown styles ──────────────────────────────────────────────────────────
-//
-// react-native-markdown-display injects its own default stylesheet.
-// For dark mode, three defaults are destructive and MUST be explicitly overridden:
-//
-//   blockquote        → default backgroundColor: '#fff6' (white tint) → renders as opaque block
-//   blockquote_text   → default color: inherit from light theme        → unreadable
-//   table, th, td     → default borders and backgrounds assume light bg
-//   hr                → default backgroundColor: '#000' (visible on light, invisible on dark)
-//   fence / code_block → default backgroundColor: '#f6f8fa' (GitHub light) → white box on dark
-//
-// Rule: ALWAYS set backgroundColor explicitly on every container node.
-// Never rely on library defaults in a dark-only app.
+// `table` token is now handled by markdownRules above — no table styles needed here.
+// All other container nodes have explicit backgroundColor to defeat light-mode defaults.
 
-const BLOCKQUOTE_BG   = 'rgba(204,255,0,0.06)';  // very faint accent tint — readable, non-intrusive
-const BLOCKQUOTE_BAR  = Colors.accent;             // #CCFF00 left bar
-const CODE_BG         = '#111113';                 // near-black, clearly distinct from bubble #252528
-const TABLE_BORDER    = 'rgba(255,255,255,0.10)';
+const BLOCKQUOTE_BG = 'rgba(204,255,0,0.06)';
+const CODE_BG       = '#111113';
 
 const markdownStyles = StyleSheet.create({
-  // ── Root
-  body: {
-    color: Colors.textPrimary,
-    fontSize: 14,
-    lineHeight: 21,
-    margin: 0,
-    backgroundColor: 'transparent', // must be explicit
-  },
+  body:       { color: Colors.textPrimary, fontSize: 14, lineHeight: 21, margin: 0, backgroundColor: 'transparent' },
+  strong:     { fontWeight: '700', color: Colors.textPrimary },
+  em:         { fontStyle: 'italic', color: Colors.textPrimary },
+  del:        { textDecorationLine: 'line-through', color: Colors.textSecondary },
+  paragraph:  { marginTop: 0, marginBottom: 6, backgroundColor: 'transparent' },
 
-  // ── Text
-  strong:  { fontWeight: '700', color: Colors.textPrimary },
-  em:      { fontStyle: 'italic', color: Colors.textPrimary },
-  del:     { textDecorationLine: 'line-through', color: Colors.textSecondary },
-
-  // ── Paragraph
-  paragraph: { marginTop: 0, marginBottom: 6, backgroundColor: 'transparent' },
-
-  // ── Headings
   heading1: { fontSize: 17, fontWeight: '700', color: Colors.textPrimary, marginBottom: 6, marginTop: 8, backgroundColor: 'transparent' },
   heading2: { fontSize: 15, fontWeight: '700', color: Colors.textPrimary, marginBottom: 4, marginTop: 6, backgroundColor: 'transparent' },
   heading3: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary, marginBottom: 4, marginTop: 4, backgroundColor: 'transparent' },
 
-  // ── Blockquote — THE BUG FIX
-  // backgroundColor MUST be set here; the library default is a light tint
   blockquote: {
-    backgroundColor: BLOCKQUOTE_BG,          // ← explicit dark-safe tint
+    backgroundColor: BLOCKQUOTE_BG,
     borderLeftWidth: 3,
-    borderLeftColor: BLOCKQUOTE_BAR,
+    borderLeftColor: Colors.accent,
     paddingLeft: 12,
     paddingRight: 10,
     paddingVertical: 8,
     marginVertical: 6,
     borderRadius: 4,
   },
-  // The inner text wrapper the library generates — must also be transparent
-  // otherwise it renders over the blockquote background
   blockquote_text: {
     color: Colors.textPrimary,
     fontSize: 13,
     lineHeight: 20,
     fontStyle: 'italic',
-    backgroundColor: 'transparent',          // ← critical: kills the white inner fill
+    backgroundColor: 'transparent',
   },
 
-  // ── Code
   code_inline: {
     backgroundColor: 'rgba(255,255,255,0.08)',
     color: Colors.accent,
@@ -205,79 +379,30 @@ const markdownStyles = StyleSheet.create({
     borderRadius: 4,
   },
   fence: {
-    backgroundColor: CODE_BG,                // ← explicit, not library default (#f6f8fa)
+    backgroundColor: CODE_BG,
     borderRadius: 8,
     padding: 12,
     marginVertical: 6,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
   },
-  code_block: {
-    color: Colors.textPrimary,
-    fontFamily: 'Courier',
-    fontSize: 12,
-    lineHeight: 18,
-    backgroundColor: 'transparent',          // ← sits inside fence which has its own bg
-  },
+  code_block: { color: Colors.textPrimary, fontFamily: 'Courier', fontSize: 12, lineHeight: 18, backgroundColor: 'transparent' },
 
-  // ── Lists
-  bullet_list:        { marginVertical: 3, backgroundColor: 'transparent' },
-  ordered_list:       { marginVertical: 3, backgroundColor: 'transparent' },
-  list_item:          { flexDirection: 'row', marginVertical: 2, backgroundColor: 'transparent' },
-  bullet_list_icon:   { color: Colors.accent, marginRight: 8, lineHeight: 21, fontSize: 12 },
-  ordered_list_icon:  { color: Colors.textSecondary, marginRight: 6, lineHeight: 21 },
+  bullet_list:       { marginVertical: 3, backgroundColor: 'transparent' },
+  ordered_list:      { marginVertical: 3, backgroundColor: 'transparent' },
+  list_item:         { flexDirection: 'row', marginVertical: 2, backgroundColor: 'transparent' },
+  bullet_list_icon:  { color: Colors.accent, marginRight: 8, lineHeight: 21, fontSize: 12 },
+  ordered_list_icon: { color: Colors.textSecondary, marginRight: 6, lineHeight: 21 },
 
-  // ── Table
-  table: {
-    borderWidth: 1,
-    borderColor: TABLE_BORDER,
-    borderRadius: 6,
-    marginVertical: 8,
-    backgroundColor: 'transparent',
-    overflow: 'hidden',
-  },
-  thead: { backgroundColor: 'rgba(255,255,255,0.04)' },
-  tbody: { backgroundColor: 'transparent' },
-  th: {
-    padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.05)', // ← explicit, not library default
-    borderRightWidth: 1,
-    borderRightColor: TABLE_BORDER,
-  },
-  td: {
-    padding: 8,
-    borderTopWidth: 1,
-    borderTopColor: TABLE_BORDER,
-    borderRightWidth: 1,
-    borderRightColor: TABLE_BORDER,
-    backgroundColor: 'transparent',           // ← explicit
-  },
-  tr: {
-    flexDirection: 'row',
-    backgroundColor: 'transparent',
-  },
-  th_text: { color: Colors.textPrimary, fontWeight: '600', fontSize: 13 },
-  td_text: { color: Colors.textPrimary, fontSize: 13 },
-
-  // ── Divider
-  hr: {
-    backgroundColor: 'rgba(255,255,255,0.10)', // ← explicit; default is '#000' (invisible on dark)
-    height: 1,
-    marginVertical: 10,
-  },
-
-  // ── Link
-  link: { color: Colors.accent, textDecorationLine: 'underline' },
+  hr:        { backgroundColor: 'rgba(255,255,255,0.10)', height: 1, marginVertical: 10 },
+  link:      { color: Colors.accent, textDecorationLine: 'underline' },
   blocklink: { color: Colors.accent, textDecorationLine: 'underline' },
-
-  // ── Image (rare in chat, but cover it)
-  image: { borderRadius: 8, marginVertical: 4 },
+  image:     { borderRadius: 8, marginVertical: 4 },
 });
 
 // ─── Component styles ─────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  // ── User bubble
   wrapperUser: {
     alignSelf: 'flex-end',
     marginVertical: 2,
@@ -292,10 +417,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
   },
-  sentImage: {
-    width: 200,
-    height: 150,
-  },
+  sentImage: { width: 200, height: 150 },
   bubbleUser: {
     backgroundColor: Colors.accent,
     paddingHorizontal: 14,
@@ -303,19 +425,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderBottomRightRadius: 4,
   },
-  textUser: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#000',
-    fontWeight: '400',
-  },
-  timestampUser: {
-    fontSize: 10,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
+  textUser: { fontSize: 14, lineHeight: 20, color: '#000', fontWeight: '400' },
+  timestampUser: { fontSize: 10, color: Colors.textSecondary, marginTop: 2 },
 
-  // ── AI bubble
   wrapperAI: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -346,42 +458,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.07)',
   },
 
-  // ── Typing dots
-  dotsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingVertical: 5,
-    paddingHorizontal: 2,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.textSecondary,
-  },
+  dotsRow: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 5, paddingHorizontal: 2 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.textSecondary },
 
-  // ── Action bar
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 2,
-    paddingLeft: 2,
-  },
-  actionBtn: {
-    width: 28,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 6,
-  },
-  actionBtnPressed: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  timestamp: {
-    fontSize: 10,
-    color: Colors.textSecondary,
-    marginLeft: 4,
-  },
+  actions: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 2, paddingLeft: 2 },
+  actionBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', borderRadius: 6 },
+  actionBtnPressed: { backgroundColor: 'rgba(255,255,255,0.06)' },
+  timestamp: { fontSize: 10, color: Colors.textSecondary, marginLeft: 4 },
 });
