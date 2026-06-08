@@ -135,14 +135,29 @@ export function ChatInput({
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
     let base64: string | undefined;
-    try {
-      base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.Base64 });
-    } catch {
-      Alert.alert('Error', 'Failed to read PDF file. Please try again.');
-      return;
-    }
-    onAttachment({ uri: asset.uri, name: asset.name, type: 'pdf', base64 });
-  };
+  try {
+    // expo-file-system can't read drag-dropped files on iOS Simulator because
+    // the URI lands outside the app sandbox even after copyToCacheDirectory.
+    // fetch() goes through NSURLSession which handles cross-sandbox file:// URIs.
+    const response = await fetch(asset.uri);
+    const blob = await response.blob();
+    base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // strip the data URL prefix: "data:application/pdf;base64,"
+        resolve(result.split(',')[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    Alert.alert('Error', 'Failed to read PDF file. Please try again.');
+    return;
+  }
+
+  onAttachment({ uri: asset.uri, name: asset.name, type: 'pdf', base64 });
+};
 
   const canSend = !disabled && (value.trim().length > 0 || !!attachment);
 
