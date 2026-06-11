@@ -1,5 +1,6 @@
+import { Image } from 'expo-image';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import {
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -7,11 +8,10 @@ import {
   View,
 } from 'react-native';
 
-// ─── Design tokens (matching Klaudia App.html exactly) ────────────────────────
+// ─── Design tokens ─────────────────────────────────────────────────────────────
 const T = {
   bg: '#161618',
   surface: '#0C0C0E',
-  surface2: '#1C1C1F',
   accent: '#CCFF00',
   accentDim: 'rgba(204,255,0,0.15)',
   textPrimary: '#FFFFFF',
@@ -19,48 +19,57 @@ const T = {
   textMuted: '#71717A',
   success: '#16A34A',
   border: '#27272A',
+  borderSubtle: '#1F1F22',
 };
 
-// ─── SVG Icons (inline via Text — RN doesn't need svg lib for simple shapes) ──
-// Using unicode symbols that match the design intent cleanly
-// For production, swap with react-native-svg icons
+// ─── Types ─────────────────────────────────────────────────────────────────────
+type IconSpec =
+  | { lib: 'ionicons'; name: string }
+  | { lib: 'mci'; name: string };
 
-// ─── Menu items data ───────────────────────────────────────────────────────────
-const MENU_ITEMS = [
+type MenuItemDef = {
+  label: string;
+  iconBg: string;
+  iconColor: string;
+  icon: IconSpec;
+  isMCP?: boolean;
+};
+
+// ─── Menu data ─────────────────────────────────────────────────────────────────
+const PRIMARY_MENU: MenuItemDef[] = [
   {
     label: 'Settings',
-    iconBg: 'rgba(99,102,241,0.15)',
+    iconBg: 'rgba(99,102,241,0.18)',
     iconColor: '#818CF8',
-    icon: '⚙',
-    isMCP: false,
+    icon: { lib: 'ionicons', name: 'settings-sharp' },
   },
   {
     label: 'MCP Connection',
     iconBg: 'rgba(22,163,74,0.15)',
     iconColor: '#16A34A',
-    icon: '⬡',
+    icon: { lib: 'mci', name: 'lan-connect' },
     isMCP: true,
   },
   {
     label: 'Activity History',
-    iconBg: 'rgba(245,158,11,0.15)',
+    iconBg: 'rgba(245,158,11,0.18)',
     iconColor: '#F59E0B',
-    icon: '◷',
-    isMCP: false,
+    icon: { lib: 'ionicons', name: 'time-outline' },
   },
+];
+
+const SECONDARY_MENU: MenuItemDef[] = [
   {
     label: 'Contact Us',
-    iconBg: 'rgba(59,130,246,0.15)',
+    iconBg: 'rgba(59,130,246,0.18)',
     iconColor: '#60A5FA',
-    icon: '✉',
-    isMCP: false,
+    icon: { lib: 'ionicons', name: 'mail-outline' },
   },
   {
     label: 'Privacy Policy',
-    iconBg: 'rgba(161,161,170,0.1)',
+    iconBg: 'rgba(161,161,170,0.12)',
     iconColor: '#A1A1AA',
-    icon: '🔒',
-    isMCP: false,
+    icon: { lib: 'ionicons', name: 'shield-checkmark-outline' },
   },
 ];
 
@@ -70,40 +79,67 @@ const STATS = [
   { val: '3',   label: 'Sheets' },
 ];
 
-// ─── MCP badge row (GSheets + GDrive + Docs icons) ────────────────────────────
-function MCPBadges() {
-  const badges = [
-    { bg: 'rgba(22,163,74,0.2)', label: 'S', color: '#16A34A' },   // Sheets
-    { bg: 'rgba(59,130,246,0.2)', label: '▲', color: '#60A5FA' },  // Drive
-    { bg: 'rgba(245,158,11,0.2)', label: '≡', color: '#F59E0B' },  // Docs
-  ];
+// ─── Icon renderer ─────────────────────────────────────────────────────────────
+function MenuIcon({ icon, color }: { icon: IconSpec; color: string }) {
+  if (icon.lib === 'ionicons') {
+    return <Ionicons name={icon.name as any} size={20} color={color} />;
+  }
+  return <MaterialCommunityIcons name={icon.name as any} size={20} color={color} />;
+}
+
+// ─── MCP sub-row (Google Sheets · Connected) ───────────────────────────────────
+function MCPConnectedRow() {
   return (
     <View style={styles.mcpRow}>
-      {badges.map((b, i) => (
-        <View key={i} style={[styles.mcpBadge, { backgroundColor: b.bg }]}>
-          <Text style={{ color: b.color, fontSize: 10, fontWeight: '700' }}>{b.label}</Text>
-        </View>
-      ))}
+      <Image
+        source={require('../../assets/gsheet_macos.png')}
+        style={styles.mcpSheetIcon}
+        contentFit="contain"
+      />
+      <Text style={styles.mcpLabel}>Google Sheets</Text>
+      <View style={styles.mcpSep} />
       <Text style={styles.mcpConnected}>Connected</Text>
     </View>
   );
 }
 
 // ─── Single menu row ───────────────────────────────────────────────────────────
-function MenuItem({ item }: { item: typeof MENU_ITEMS[0] }) {
+function MenuRow({ item, isLast }: { item: MenuItemDef; isLast: boolean }) {
   return (
     <Pressable
-      style={({ pressed }) => [styles.menuItem, pressed && { opacity: 0.7 }]}
+      style={({ pressed }) => [
+        styles.menuItem,
+        !isLast && styles.menuItemDivider,
+        pressed && { opacity: 0.6 },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={item.label}
     >
+      {/* Icon wrap */}
       <View style={[styles.menuIconWrap, { backgroundColor: item.iconBg }]}>
-        <Text style={{ color: item.iconColor, fontSize: 16 }}>{item.icon}</Text>
+        <MenuIcon icon={item.icon} color={item.iconColor} />
       </View>
+
+      {/* Label + optional MCP sub-row */}
       <View style={styles.menuLabelWrap}>
         <Text style={styles.menuLabel}>{item.label}</Text>
-        {item.isMCP && <MCPBadges />}
+        {item.isMCP && <MCPConnectedRow />}
       </View>
-      <Text style={styles.chevron}>›</Text>
+
+      {/* Chevron */}
+      <Ionicons name="chevron-forward" size={16} color={T.textMuted} />
     </Pressable>
+  );
+}
+
+// ─── Menu group card ───────────────────────────────────────────────────────────
+function MenuGroup({ items }: { items: MenuItemDef[] }) {
+  return (
+    <View style={styles.menuCard}>
+      {items.map((item, i) => (
+        <MenuRow key={item.label} item={item} isLast={i === items.length - 1} />
+      ))}
+    </View>
   );
 }
 
@@ -114,20 +150,25 @@ export default function ProfileScreen() {
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="automatic"
       >
         {/* ── Title ── */}
         <Text style={styles.pageTitle}>Profile</Text>
 
         {/* ── Avatar block ── */}
         <View style={styles.avatarBlock}>
-          <View style={styles.avatarRing}>
-            <Image
-              source={require('../../assets/avatar.jpg')}
-              style={styles.avatarImg}
-            />
+          <View style={styles.avatarRingWrap}>
+            <View style={styles.avatarRing}>
+              <Image
+                source={require('../../assets/avatar.jpg')}
+                style={styles.avatarImg}
+                contentFit="cover"
+              />
+            </View>
+            <View style={styles.onlineDot} />
           </View>
-          <Text style={styles.userName}>Ryuuky</Text>
-          <Text style={styles.userEmail}>ryuuky@gmail.com</Text>
+          <Text style={styles.userName}>Yudhy McCodey</Text>
+          <Text style={styles.userEmail}>yudhymccodey@gmail.com</Text>
           <View style={styles.proBadge}>
             <Text style={styles.proBadgeText}>Pro Plan</Text>
           </View>
@@ -137,25 +178,28 @@ export default function ProfileScreen() {
         <View style={styles.statsCard}>
           {STATS.map((s, i) => (
             <View
-              key={i}
+              key={s.label}
               style={[styles.statCell, i < STATS.length - 1 && styles.statCellBorder]}
             >
-              <Text style={styles.statVal}>{s.val}</Text>
+              <Text style={[styles.statVal, { fontVariant: ['tabular-nums'] }]}>
+                {s.val}
+              </Text>
               <Text style={styles.statLabel}>{s.label}</Text>
             </View>
           ))}
         </View>
 
-        {/* ── Menu ── */}
-        <View style={styles.menuList}>
-          {MENU_ITEMS.map((item, i) => (
-            <MenuItem key={i} item={item} />
-          ))}
-        </View>
+        {/* ── Primary menu group ── */}
+        <MenuGroup items={PRIMARY_MENU} />
+
+        {/* ── Secondary menu group ── */}
+        <MenuGroup items={SECONDARY_MENU} />
 
         {/* ── Sign Out ── */}
         <Pressable
-          style={({ pressed }) => [styles.signOutBtn, pressed && { opacity: 0.7 }]}
+          style={({ pressed }) => [styles.signOutBtn, pressed && { opacity: 0.6 }]}
+          accessibilityRole="button"
+          accessibilityLabel="Sign Out"
         >
           <Text style={styles.signOutText}>Sign Out</Text>
         </Pressable>
@@ -171,7 +215,9 @@ const styles = StyleSheet.create({
     backgroundColor: T.bg,
   },
   scroll: {
+    paddingHorizontal: 20,
     paddingBottom: 100,
+    gap: 12,
   },
 
   // Title
@@ -181,39 +227,47 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     paddingTop: 60,
-    paddingBottom: 8,
+    paddingBottom: 4,
   },
 
-  // Avatar block
+  // Avatar
   avatarBlock: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 16,
     gap: 4,
+  },
+  avatarRingWrap: {
+    position: 'relative',
+    marginBottom: 10,
   },
   avatarRing: {
     width: 80,
     height: 80,
     borderRadius: 40,
     overflow: 'hidden',
-    borderWidth: 3,
+    borderWidth: 2.5,
     borderColor: T.border,
-    marginBottom: 10,
-    // Glow via shadow (iOS)
-    shadowColor: T.accent,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-  },
+    boxShadow: '0 0 18px rgba(204,255,0,0.3)',
+  } as any,
   avatarImg: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
+  },
+  onlineDot: {
+    position: 'absolute',
+    bottom: 3,
+    right: 3,
+    width: 13,
+    height: 13,
+    borderRadius: 99,
+    backgroundColor: T.success,
+    borderWidth: 2.5,
+    borderColor: T.bg,
   },
   userName: {
     color: T.textPrimary,
     fontSize: 20,
     fontWeight: '700',
-    marginTop: 2,
   },
   userEmail: {
     color: T.textSecondary,
@@ -223,23 +277,22 @@ const styles = StyleSheet.create({
   proBadge: {
     backgroundColor: T.accentDim,
     borderWidth: 1,
-    borderColor: 'rgba(204,255,0,0.2)',
+    borderColor: 'rgba(204,255,0,0.22)',
     borderRadius: 99,
     paddingHorizontal: 14,
-    paddingVertical: 4,
+    paddingVertical: 5,
     marginTop: 8,
   },
   proBadgeText: {
     color: T.accent,
     fontSize: 12,
     fontWeight: '600',
+    letterSpacing: 0.2,
   },
 
   // Stats
   statsCard: {
     flexDirection: 'row',
-    marginHorizontal: 20,
-    marginBottom: 20,
     backgroundColor: T.surface,
     borderWidth: 1,
     borderColor: T.border,
@@ -249,6 +302,7 @@ const styles = StyleSheet.create({
   statCell: {
     flex: 1,
     alignItems: 'center',
+    gap: 3,
   },
   statCellBorder: {
     borderRightWidth: 1,
@@ -262,73 +316,77 @@ const styles = StyleSheet.create({
   statLabel: {
     color: T.textSecondary,
     fontSize: 11,
-    marginTop: 2,
   },
 
-  // Menu
-  menuList: {
-    paddingHorizontal: 20,
-    gap: 8,
-    flexDirection: 'column',
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  // Menu card
+  menuCard: {
     backgroundColor: T.surface,
     borderWidth: 1,
     borderColor: T.border,
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 18,
+    overflow: 'hidden',
+  },
+
+  // Menu row
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 13,
     gap: 12,
-    marginBottom: 8,
+  },
+  menuItemDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: T.borderSubtle,
   },
   menuIconWrap: {
     width: 38,
     height: 38,
-    borderRadius: 11,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
   menuLabelWrap: {
     flex: 1,
+    gap: 4,
   },
   menuLabel: {
     color: T.textPrimary,
     fontSize: 14,
     fontWeight: '500',
   },
-  chevron: {
-    color: T.textMuted,
-    fontSize: 20,
-    lineHeight: 22,
-  },
 
-  // MCP badges
+  // MCP sub-row
   mcpRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 5,
+    gap: 5,
   },
-  mcpBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
+  mcpSheetIcon: {
+    width: 13,
+    height: 13,
+    borderRadius: 3,
+  },
+  mcpLabel: {
+    color: T.textSecondary,
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  mcpSep: {
+    width: 3,
+    height: 3,
+    borderRadius: 99,
+    backgroundColor: T.textMuted,
   },
   mcpConnected: {
     color: T.success,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '600',
-    marginLeft: 2,
   },
 
   // Sign out
   signOutBtn: {
-    marginHorizontal: 20,
-    marginTop: 16,
     backgroundColor: 'rgba(239,68,68,0.08)',
     borderWidth: 1,
     borderColor: 'rgba(239,68,68,0.2)',
