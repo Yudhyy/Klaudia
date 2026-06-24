@@ -27,7 +27,8 @@ interface SpreadsheetInfo {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const BASE_URL = 'http://192.168.110.147:8000/v1';
+const IP = process.env.EXPO_PUBLIC_BASE_URL ?? '192.168.1.4';
+const BASE_URL = `http://${IP}:8000/v1`;
 
 const CELL_MIN_WIDTH = 110;
 const CELL_HEIGHT = 38;
@@ -241,12 +242,17 @@ export default function SheetScreen() {
   const loadInfo = useCallback(async (currentActive: string | null) => {
     setError(null);
     setLoadingInfo(true);
+    setInfo(null);
     fadeAnim.setValue(0);
     try {
       const data = await fetchSpreadsheetInfo();
-      setInfo(data);
+      const normalized: SpreadsheetInfo = {
+        ...data,
+        sheets: Array.isArray(data.sheets) ? data.sheets : [],
+      };
+      setInfo(normalized);
 
-      const sheetTitles = data.sheets.map((s) => s.title);
+      const sheetTitles = normalized.sheets.map((s) => s.title);
       const stillExists = currentActive && sheetTitles.includes(currentActive);
       const targetSheet = stillExists ? currentActive : (sheetTitles[0] ?? null);
 
@@ -356,7 +362,7 @@ export default function SheetScreen() {
       </View>
 
       {/* ── Sheet Tabs ── */}
-      {info && info.sheets.length > 0 && (
+      {info && Array.isArray(info.sheets) && info.sheets.length > 0 && (
         <View style={styles.tabBar}>
           <ScrollView
             horizontal
