@@ -62,13 +62,45 @@ function extractTextFromNode(node: any): string {
   return '';
 }
 
+// ─── Markdown table blank-line normalization (defensive, not the main fix) ───
+//
+// Verified directly against markdown-it: a table immediately followed by
+// `---`/heading/list with NO blank line still parses correctly as separate
+// sibling nodes (markdown-it core handles GFM tables natively). This helper
+// is kept as a defensive no-op-in-practice normalization in case any markdown
+// source ever needs it, but it was NOT the cause of the empty-space-after-
+// table bug — see ScrollView style fix in TableRenderer below for that.
+function ensureBlankLineAfterTables(content: string): string {
+  const lines = content.split('\n');
+  const result: string[] = [];
+  const isTableRow = (line: string) => /^\s*\|.*\|\s*$/.test(line);
+
+  for (let i = 0; i < lines.length; i++) {
+    result.push(lines[i]);
+    const isLast = i === lines.length - 1;
+    if (!isLast && isTableRow(lines[i]) && !isTableRow(lines[i + 1]) && lines[i + 1].trim() !== '') {
+      result.push('');
+    }
+  }
+  return result.join('\n');
+}
+
 function TableRenderer({ node }: { node: any }) {
   // Parse thead and tbody from AST
   const thead = node.children?.find((c: any) => c.type === 'thead');
   const tbody = node.children?.find((c: any) => c.type === 'tbody');
 
   const headerRow = thead?.children?.[0]?.children ?? [];
-  const dataRows  = tbody?.children ?? [];
+  const rawDataRows = tbody?.children ?? [];
+
+  // Backstop: even with ensureBlankLineAfterTables, filter out any row where
+  // every cell is empty/whitespace. This guards against edge cases the line
+  // -based normalization doesn't catch (e.g. content arriving pre-normalized
+  // from a different source than ChatBubble's own pre-processing).
+  const dataRows = rawDataRows.filter((row: any) => {
+    const cells = row.children ?? [];
+    return cells.some((cell: any) => extractTextFromNode(cell).trim().length > 0);
+  });
 
   // Measure column widths: scan all cells, take max char count per col
   const allRows = [
@@ -87,81 +119,99 @@ function TableRenderer({ node }: { node: any }) {
   });
 
   // Convert char counts to pixel widths
-  // Heuristic: ~7.5px per char, minimum 72px, maximum 160px
-  const pixelWidths = colWidths.map(c => Math.min(160, Math.max(72, Math.ceil(c * 7.5))));
+  // Heuristic: ~7px per char, minimum 90px, maximum 150px.
+  // Wider min (90, up from 72) avoids ugly mid-word wraps like
+  // "Operasion/al" for longer Indonesian category labels.
+  const pixelWidths = colWidths.map(c => Math.min(150, Math.max(90, Math.ceil(c * 7))));
+  const tableContentWidth = pixelWidths.reduce((sum, w) => sum + w, 0);
+  // Only enable horizontal scroll if content is wider than the bubble can
+  // comfortably show. Otherwise the outer wrapper stretches to the bubble's
+  // full width (it has no explicit width of its own) while the inner content
+  // stays narrow — leaving dead background-colored space on the right, which
+  // is exactly the "cut off" look in the screenshot.
+  const needsScroll = tableContentWidth > 280;
 
-  return (
-    <View style={table.wrapper}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={true}
-        indicatorStyle="white"
-        bounces={false}
-        contentContainerStyle={table.scrollContent}
-      >
-        <View>
-          {/* Header row */}
-          {headerRow.length > 0 && (
-            <View style={table.headerRow}>
-              {headerRow.map((cell: any, ci: number) => (
+  const tableBody = (
+    <View style={!needsScroll ? { width: tableContentWidth } : undefined}>
+      {/* Header row */}
+      {headerRow.length > 0 && (
+        <View style={table.headerRow}>
+          {headerRow.map((cell: any, ci: number) => (
+            <View
+              key={ci}
+              style={[
+                table.headerCell,
+                { width: pixelWidths[ci] },
+                ci < headerRow.length - 1 && table.cellBorderRight,
+              ]}
+            >
+              <Text style={table.headerText} numberOfLines={2}>
+                {extractTextFromNode(cell)}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Data rows */}
+      {dataRows.map((row: any, ri: number) => {
+        const cells = row.children ?? [];
+        const isEven = ri % 2 === 0;
+        return (
+          <View
+            key={ri}
+            style={[
+              table.dataRow,
+              isEven ? table.dataRowEven : table.dataRowOdd,
+              ri === dataRows.length - 1 && table.lastRow,
+            ]}
+          >
+            {cells.map((cell: any, ci: number) => {
+              // Check if cell has bold/strong children
+              const rawText = extractTextFromNode(cell);
+              const hasBold = cell.children?.some(
+                (n: any) => n.type === 'strong' || n.children?.some((nn: any) => nn.type === 'strong')
+              );
+              return (
                 <View
                   key={ci}
                   style={[
-                    table.headerCell,
+                    table.dataCell,
                     { width: pixelWidths[ci] },
-                    ci < headerRow.length - 1 && table.cellBorderRight,
+                    ci < cells.length - 1 && table.cellBorderRight,
                   ]}
                 >
-                  <Text style={table.headerText} numberOfLines={2}>
-                    {extractTextFromNode(cell)}
+                  <Text
+                    style={[table.dataText, hasBold && table.dataBold]}
+                    numberOfLines={3}
+                  >
+                    {rawText}
                   </Text>
                 </View>
-              ))}
-            </View>
-          )}
+              );
+            })}
+          </View>
+        );
+      })}
+    </View>
+  );
 
-          {/* Data rows */}
-          {dataRows.map((row: any, ri: number) => {
-            const cells = row.children ?? [];
-            const isEven = ri % 2 === 0;
-            return (
-              <View
-                key={ri}
-                style={[
-                  table.dataRow,
-                  isEven ? table.dataRowEven : table.dataRowOdd,
-                  ri === dataRows.length - 1 && table.lastRow,
-                ]}
-              >
-                {cells.map((cell: any, ci: number) => {
-                  // Check if cell has bold/strong children
-                  const rawText = extractTextFromNode(cell);
-                  const hasBold = cell.children?.some(
-                    (n: any) => n.type === 'strong' || n.children?.some((nn: any) => nn.type === 'strong')
-                  );
-                  return (
-                    <View
-                      key={ci}
-                      style={[
-                        table.dataCell,
-                        { width: pixelWidths[ci] },
-                        ci < cells.length - 1 && table.cellBorderRight,
-                      ]}
-                    >
-                      <Text
-                        style={[table.dataText, hasBold && table.dataBold]}
-                        numberOfLines={3}
-                      >
-                        {rawText}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            );
-          })}
-        </View>
-      </ScrollView>
+  return (
+    <View style={table.wrapper}>
+      {needsScroll ? (
+        <ScrollView
+          horizontal
+          style={table.scrollView}
+          showsHorizontalScrollIndicator={true}
+          indicatorStyle="white"
+          bounces={false}
+          contentContainerStyle={table.scrollContent}
+        >
+          {tableBody}
+        </ScrollView>
+      ) : (
+        tableBody
+      )}
     </View>
   );
 }
@@ -178,8 +228,14 @@ const table = StyleSheet.create({
     borderWidth: 1,
     borderColor: TABLE_BORDER,
     overflow: 'hidden',
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
     // Hint to user that content scrolls
     backgroundColor: '#1A1A1C',
+  },
+  scrollView: {
+    flexGrow: 0,
+    flexShrink: 0,
   },
   scrollContent: {
     flexGrow: 0,
@@ -267,7 +323,10 @@ export function ChatBubble({ role, content, timestamp, imageUri, streaming }: Pr
 
   // ── AI bubble ────────────────────────────────────────────────────────────────
   const showDots = streaming && !content;
-  const displayContent = streaming && content ? content + ' ▌' : content;
+  const rawDisplayContent = streaming && content ? content + ' ▌' : content;
+  // Fix malformed tables (missing blank line terminator) before parsing —
+  // see ensureBlankLineAfterTables for why this is necessary.
+  const displayContent = ensureBlankLineAfterTables(rawDisplayContent);
 
   return (
     <View style={styles.wrapperAI}>
