@@ -118,18 +118,52 @@ function TableRenderer({ node }: { node: any }) {
     });
   });
 
-  // Convert char counts to pixel widths
-  // Heuristic: ~7px per char, minimum 90px, maximum 150px.
-  // Wider min (90, up from 72) avoids ugly mid-word wraps like
-  // "Operasion/al" for longer Indonesian category labels.
-  const pixelWidths = colWidths.map(c => Math.min(150, Math.max(90, Math.ceil(c * 7))));
+  // ── Column width: content-proportional, not a flat per-column floor ──
+  //
+  // Previous approach forced every column to a 90px floor regardless of
+  // content, so a "No" column (needs ~30px) ate the same space as long
+  // label columns — leaving short columns bloated and long columns starved.
+  // This is the "not tailored to text inside" problem.
+  //
+  // Fix: measure each column's own natural width from its longest cell
+  // (header or data), apply only a small per-column floor (just enough that
+  // a 1-2 char header like "No" doesn't get clipped), and let long columns
+  // take the space short columns don't need — up to the available bubble
+  // width. Only fall back to horizontal scroll if total content still
+  // exceeds what the bubble can show even after this fair distribution.
+  const CHAR_PX = 7;          // ~px per character at this font size
+  const COL_MIN = 36;         // floor: fits "No", a single digit, a short label
+  const COL_MAX = 180;        // ceiling: stop one column from dominating
+  const AVAILABLE_WIDTH = 280; // approx usable width inside the AI bubble
+
+  const naturalWidths = colWidths.map(c =>
+    Math.min(COL_MAX, Math.max(COL_MIN, Math.ceil(c * CHAR_PX) + 16 /* cell padding */))
+  );
+  const naturalTotal = naturalWidths.reduce((sum, w) => sum + w, 0);
+
+  let pixelWidths: number[];
+  let needsScroll: boolean;
+
+  if (naturalTotal <= AVAILABLE_WIDTH) {
+    // Content fits — distribute the unused remainder proportionally to
+    // columns that actually have room to grow (i.e. not already at COL_MAX),
+    // weighted by their natural width. This makes "Nama Sheet" expand to
+    // fill the bubble instead of leaving dead space, while "No" stays tight.
+    const slack = AVAILABLE_WIDTH - naturalTotal;
+    const growable = naturalWidths.map(w => (w < COL_MAX ? w : 0));
+    const growableTotal = growable.reduce((s, w) => s + w, 0);
+    pixelWidths = naturalWidths.map((w, i) =>
+      growableTotal > 0 ? w + Math.floor((growable[i] / growableTotal) * slack) : w
+    );
+    needsScroll = false;
+  } else {
+    // Even natural (untouched) widths exceed bubble width — genuinely needs
+    // horizontal scroll. Use natural widths as-is, no artificial floor bloat.
+    pixelWidths = naturalWidths;
+    needsScroll = true;
+  }
+
   const tableContentWidth = pixelWidths.reduce((sum, w) => sum + w, 0);
-  // Only enable horizontal scroll if content is wider than the bubble can
-  // comfortably show. Otherwise the outer wrapper stretches to the bubble's
-  // full width (it has no explicit width of its own) while the inner content
-  // stays narrow — leaving dead background-colored space on the right, which
-  // is exactly the "cut off" look in the screenshot.
-  const needsScroll = tableContentWidth > 280;
 
   const tableBody = (
     <View style={!needsScroll ? { width: tableContentWidth } : undefined}>
