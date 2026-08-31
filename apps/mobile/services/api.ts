@@ -1,13 +1,14 @@
-// services/api.ts
-const IP = process.env.EXPO_PUBLIC_BASE_URL ?? '192.168.1.4';
-const BASE = `http://${IP}:8000/v1`;
+const configuredApiUrl =
+  process.env.EXPO_PUBLIC_API_URL ??
+  process.env.EXPO_PUBLIC_BASE_URL ??
+  'http://localhost:8000/v1';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+export type JsonScalar = string | number | boolean | null;
 
 export type ApiAttachment = {
   filename: string;
   content_type: string;
-  data: string; // base64
+  data: string;
 };
 
 export type ApiMessage = {
@@ -19,13 +20,39 @@ export type ApiMessage = {
 export type SendMessagePayload = {
   messages: ApiMessage[];
   session_id?: number;
-  user_id?: number;
   user_name?: string;
+  spreadsheet_id?: string;
+};
+
+export type PendingApproval = {
+  approval_id: string;
+  action: string;
+  sheet: string | null;
+  summary: string;
+  rows_affected: number;
+  columns_affected: number;
 };
 
 export type SendMessageResponse = {
   session_id: number;
-  message: { role: string; content: string };
+  message: ApiMessage;
+  pending_approvals: PendingApproval[];
+};
+
+export type AuthSession = {
+  access_token: string;
+  token_type: 'bearer';
+  user_id: number;
+  username: string;
+};
+
+export type LoginInput = {
+  username: string;
+  password: string;
+};
+
+export type RegisterInput = LoginInput & {
+  email: string;
 };
 
 export type Session = {
@@ -44,195 +71,379 @@ export type SessionDetail = {
   }>;
 };
 
+export type SpreadsheetSummary = {
+  spreadsheetId: string;
+  name: string;
+};
+
 export type SpreadsheetInfo = {
   spreadsheetId: string;
   title: string;
-  sheets: Array<{ title: string; sheetId: number; index: number }>;
+  sheets: Array<{
+    title: string;
+    sheetId: number;
+    gridProperties: {
+      rowCount: number;
+      columnCount: number;
+    };
+  }>;
 };
 
-// SSE event types — merged form after parsing: { type, ...data }
-//
-// Wire format from backend (_format_sse in chat.py):
-//   event: token
-//   data: {"text": " hello"}
-//
-// We merge into: { type: "token", text: " hello" }
+export type ApprovalDecision = 'approve' | 'reject';
+
+export type ApprovalResolution = {
+  approval_id: string;
+  executed: boolean;
+  result?: unknown;
+};
+
 export type SSEEvent =
-  | { type: 'session';    session_id: number }
+  | { type: 'session'; session_id: number }
   | { type: 'guardrail'; stage: string; status: string; message?: string }
-  | { type: 'extraction'; status: string; file_name?: string; file_id?: string; pages?: number; summary?: string; reason?: string }
-  | { type: 'step';       node: string; next: string }
-  | { type: 'tool';       name: string }
-  | { type: 'token';      text: string }
-  | { type: 'done';       session_id: number; processing_time_ms: number; tools_used: string[]; content: string }
-  | { type: 'error';      message: string };
+  | {
+      type: 'extraction';
+      status: string;
+      file_name?: string;
+      file_id?: string;
+      pages?: number;
+      summary?: string;
+      reason?: string;
+    }
+  | { type: 'step'; node: string; next: string }
+  | { type: 'tool'; name: string }
+  | { type: 'token'; text: string }
+  | ({ type: 'approval_required' } & PendingApproval)
+  | {
+      type: 'done';
+      session_id: number;
+      processing_time_ms: number;
+      tools_used: string[];
+      content: string;
+      pending_approvals: PendingApproval[];
+    }
+  | { type: 'error'; message: string };
 
-// ─── SSE frame parser (shared between XHR onprogress chunks) ─────────────────
+type ApiClientOptions = {
+  baseUrl: string;
+  getAccessToken: () => string | null;
+  onUnauthorized?: () => void;
+  fetchImpl?: typeof fetch;
+  xhrFactory?: () => XMLHttpRequest;
+};
 
-function parseFrames(
+type ApiClient = {
+  login: (input: LoginInput) => Promise<AuthSession>;
+  register: (input: RegisterInput) => Promise<AuthSession>;
+  sendMessage: (payload: SendMessagePayload) => Promise<SendMessageResponse>;
+  streamMessage: (
+    payload: SendMessagePayload,
+    onEvent: (event: SSEEvent) => void,
+    signal?: AbortSignal,
+  ) => Promise<void>;
+  getSessions: () => Promise<{ sessions: Session[] }>;
+  getSession: (sessionId: number) => Promise<SessionDetail>;
+  getSpreadsheets: () => Promise<SpreadsheetSummary[]>;
+  getSpreadsheetInfo: (spreadsheetId?: string) => Promise<SpreadsheetInfo>;
+  getSheetData: (
+    sheetName: string,
+    spreadsheetId?: string,
+  ) => Promise<JsonScalar[][]>;
+  getApprovals: () => Promise<PendingApproval[]>;
+  resolveApproval: (
+    approvalId: string,
+    decision: ApprovalDecision,
+  ) => Promise<ApprovalResolution>;
+  health: () => Promise<unknown>;
+};
+
+const SSE_EVENT_NAMES = new Set<SSEEvent['type']>([
+  'session',
+  'guardrail',
+  'extraction',
+  'step',
+  'tool',
+  'token',
+  'approval_required',
+  'done',
+  'error',
+]);
+
+let accessToken: string | null = null;
+let unauthorizedHandler: (() => void) | undefined;
+
+/** Normalize a host or URL into the versioned Klaudia API base URL. */
+export function normalizeApiBaseUrl(configuredUrl: string): string {
+  const trimmedUrl = configuredUrl.trim().replace(/\/+$/, '');
+  if (!/^https?:\/\//i.test(trimmedUrl)) {
+    return `http://${trimmedUrl}:8000/v1`;
+  }
+  return trimmedUrl.endsWith('/v1') ? trimmedUrl : `${trimmedUrl}/v1`;
+}
+
+/** Store the bearer token used by the shared API client. */
+export function setApiAccessToken(token: string | null): void {
+  accessToken = token;
+}
+
+/** Register a callback for an expired or rejected bearer token. */
+export function setUnauthorizedHandler(handler?: () => void): void {
+  unauthorizedHandler = handler;
+}
+
+/** HTTP error with the response status retained for auth and UI decisions. */
+export class ApiError extends Error {
+  public readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+/** Parse complete SSE frames and return any unfinished trailing frame. */
+export function parseSseFrames(
   buffer: string,
-  onEvent: (e: SSEEvent) => void,
+  onEvent: (event: SSEEvent) => void,
 ): string {
-  // SSE frames are separated by a blank line (\n\n)
-  const frames = buffer.split('\n\n');
-  const remaining = frames.pop() ?? ''; // incomplete trailing frame
+  const normalizedBuffer = buffer.replace(/\r\n/g, '\n');
+  const frames = normalizedBuffer.split('\n\n');
+  const remainder = frames.pop() ?? '';
 
   for (const frame of frames) {
-    if (!frame.trim()) continue;
+    parseSseFrame(frame, onEvent);
+  }
+  return remainder;
+}
 
-    let eventType = 'message';
-    let dataStr = '';
+/** Create an API client with injectable transports for deterministic tests. */
+export function createApiClient(options: ApiClientOptions): ApiClient {
+  const baseUrl = normalizeApiBaseUrl(options.baseUrl);
+  const fetchImpl = options.fetchImpl ?? fetch;
 
-    for (const line of frame.split('\n')) {
-      if (line.startsWith('event:')) eventType = line.slice(6).trim();
-      else if (line.startsWith('data:')) dataStr = line.slice(5).trim();
+  async function request<T>(
+    path: string,
+    init?: RequestInit,
+    requiresAuth = true,
+  ): Promise<T> {
+    const headers = new Headers(init?.headers);
+    headers.set('Content-Type', 'application/json');
+    const token = options.getAccessToken();
+    if (requiresAuth && token) {
+      headers.set('Authorization', `Bearer ${token}`);
     }
 
-    if (!dataStr) continue;
-
-    try {
-      const data = JSON.parse(dataStr);
-      onEvent({ type: eventType, ...data } as SSEEvent);
-    } catch {
-      // malformed JSON in frame — skip
+    const response = await fetchImpl(`${baseUrl}${path}`, { ...init, headers });
+    if (!response.ok) {
+      if (response.status === 401 && requiresAuth) {
+        options.onUnauthorized?.();
+      }
+      throw new ApiError(response.status, await readErrorMessage(response));
     }
+    if (response.status === 204) {
+      return undefined as T;
+    }
+    return (await response.json()) as T;
   }
 
-  return remaining;
-}
+  function streamMessage(
+    payload: SendMessagePayload,
+    onEvent: (event: SSEEvent) => void,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(createAbortError());
+        return;
+      }
 
-// ─── Core fetch helper (non-streaming endpoints) ──────────────────────────────
+      const xhr = options.xhrFactory?.() ?? new XMLHttpRequest();
+      xhr.open('POST', `${baseUrl}/chat/stream`, true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      const token = options.getAccessToken();
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...init,
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status}: ${body || res.statusText}`);
+      let processedLength = 0;
+      let frameBuffer = '';
+      let settled = false;
+
+      const cleanup = (): void => {
+        signal?.removeEventListener('abort', abortRequest);
+      };
+
+      const finish = (): void => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve();
+      };
+
+      const fail = (error: Error): void => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(error);
+      };
+
+      function abortRequest(): void {
+        xhr.abort();
+      }
+
+      const readProgress = (): void => {
+        const nextChunk = xhr.responseText.slice(processedLength);
+        processedLength = xhr.responseText.length;
+        frameBuffer = parseSseFrames(frameBuffer + nextChunk, onEvent);
+      };
+
+      signal?.addEventListener('abort', abortRequest);
+      xhr.onprogress = readProgress;
+      xhr.onload = () => {
+        if (xhr.status < 200 || xhr.status >= 300) {
+          if (xhr.status === 401) {
+            options.onUnauthorized?.();
+          }
+          fail(new ApiError(xhr.status, `Request failed with status ${xhr.status}`));
+          return;
+        }
+        readProgress();
+        if (frameBuffer.trim()) {
+          parseSseFrames(`${frameBuffer}\n\n`, onEvent);
+        }
+        finish();
+      };
+      xhr.onerror = () => fail(new Error('Tidak dapat terhubung ke server Klaudia.'));
+      xhr.onabort = () => fail(createAbortError());
+      xhr.send(JSON.stringify(payload));
+    });
   }
-  return res.json() as Promise<T>;
+
+  return {
+    login: (input) =>
+      request<AuthSession>(
+        '/auth/login',
+        { method: 'POST', body: JSON.stringify(input) },
+        false,
+      ),
+    register: (input) =>
+      request<AuthSession>(
+        '/auth/register',
+        { method: 'POST', body: JSON.stringify(input) },
+        false,
+      ),
+    sendMessage: (payload) =>
+      request<SendMessageResponse>('/chat', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    streamMessage,
+    getSessions: () => request<{ sessions: Session[] }>('/sessions'),
+    getSession: (sessionId) => request<SessionDetail>(`/sessions/${sessionId}`),
+    getSpreadsheets: () => request<SpreadsheetSummary[]>('/spreadsheets'),
+    getSpreadsheetInfo: (spreadsheetId) =>
+      request<SpreadsheetInfo>(withQuery('/sheets/info', { spreadsheet_id: spreadsheetId })),
+    getSheetData: async (sheetName, spreadsheetId) => {
+      const response = await request<{ values?: JsonScalar[][] }>(
+        withQuery('/sheets/data', {
+          sheet: sheetName,
+          spreadsheet_id: spreadsheetId,
+        }),
+      );
+      return response.values ?? [];
+    },
+    getApprovals: () => request<PendingApproval[]>('/approvals'),
+    resolveApproval: (approvalId, decision) =>
+      request<ApprovalResolution>(`/approvals/${encodeURIComponent(approvalId)}`, {
+        method: 'POST',
+        body: JSON.stringify({ decision }),
+      }),
+    health: () => request<unknown>('/health', undefined, false),
+  };
 }
 
-// ─── Chat ─────────────────────────────────────────────────────────────────────
-
-const DEFAULT_USER = { user_id: 1, user_name: 'Ryuuky' };
-
-/** Non-streaming — POST /v1/chat */
-export async function sendMessage(payload: SendMessagePayload): Promise<SendMessageResponse> {
-  return apiFetch<SendMessageResponse>('/chat', {
-    method: 'POST',
-    body: JSON.stringify({ ...DEFAULT_USER, ...payload }),
-  });
-}
-
-/**
- * Streaming chat — POST /v1/chat/stream
- *
- * Uses XMLHttpRequest instead of fetch because React Native / Expo Go does
- * NOT support res.body (ReadableStream) — res.body is always null in RN's
- * fetch implementation. XHR's onprogress fires as chunks arrive with the
- * full cumulative responseText, which we slice to get only new bytes.
- *
- * Wire format from backend (_format_sse in chat.py):
- *   event: token
- *   data: {"text": " hello"}
- *
- * Each frame is merged into: { type: "token", text: " hello" }
- */
-export function streamMessage(
-  payload: SendMessagePayload,
+function parseSseFrame(
+  frame: string,
   onEvent: (event: SSEEvent) => void,
-  signal?: AbortSignal,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // Bail immediately if already aborted before we even open the request
-    if (signal?.aborted) {
-      reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
-      return;
+): void {
+  if (!frame.trim()) return;
+
+  let eventName = 'message';
+  const dataLines: string[] = [];
+  for (const line of frame.split('\n')) {
+    if (line.startsWith('event:')) {
+      eventName = line.slice(6).trim();
+    } else if (line.startsWith('data:')) {
+      dataLines.push(line.slice(5).trimStart());
     }
+  }
+  if (!isSseEventName(eventName) || dataLines.length === 0) return;
 
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', `${BASE}/chat/stream`, /* async */ true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-
-    // Wire AbortSignal → xhr.abort()
-    const onAbort = () => xhr.abort();
-    signal?.addEventListener('abort', onAbort);
-
-    const cleanup = () => signal?.removeEventListener('abort', onAbort);
-
-    // responseText is cumulative — track how many bytes we've already parsed
-    let processed = 0;
-    let buffer = '';
-
-    xhr.onprogress = () => {
-      const newChunk = xhr.responseText.slice(processed);
-      processed = xhr.responseText.length;
-      buffer += newChunk;
-      buffer = parseFrames(buffer, onEvent);
-    };
-
-    xhr.onload = () => {
-      // Flush any bytes that arrived after the last onprogress
-      const tail = xhr.responseText.slice(processed);
-      if (tail) parseFrames(tail, onEvent);
-      cleanup();
-      resolve();
-    };
-
-    xhr.onerror = () => {
-      cleanup();
-      reject(new Error('Network error — check BASE_URL and that the backend is reachable'));
-    };
-
-    xhr.onabort = () => {
-      cleanup();
-      reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
-    };
-
-    xhr.send(JSON.stringify({ ...DEFAULT_USER, ...payload }));
-  });
+  try {
+    const payload: unknown = JSON.parse(dataLines.join('\n'));
+    if (isRecord(payload)) {
+      onEvent({ ...payload, type: eventName } as SSEEvent);
+    }
+  } catch {
+    return;
+  }
 }
 
-// ─── Sessions ─────────────────────────────────────────────────────────────────
-
-export async function getSessions(): Promise<{ sessions: Session[] }> {
-  return apiFetch<{ sessions: Session[] }>('/sessions?user_id=1');
+function isSseEventName(value: string): value is SSEEvent['type'] {
+  return SSE_EVENT_NAMES.has(value as SSEEvent['type']);
 }
 
-export async function getSession(sessionId: number): Promise<SessionDetail> {
-  return apiFetch<SessionDetail>(`/sessions/${sessionId}`);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-// ─── Sheets ───────────────────────────────────────────────────────────────────
-
-export async function getSpreadsheetInfo(): Promise<SpreadsheetInfo> {
-  return apiFetch<SpreadsheetInfo>('/sheets/info');
+function withQuery(
+  path: string,
+  parameters: Record<string, string | undefined>,
+): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(parameters)) {
+    if (value !== undefined) query.set(key, value);
+  }
+  const encodedQuery = query.toString();
+  return encodedQuery ? `${path}?${encodedQuery}` : path;
 }
 
-export async function getSheetData(sheetName: string): Promise<string[][]> {
-  const json = await apiFetch<{ values?: string[][] }>(
-    `/sheets/data?sheet=${encodeURIComponent(sheetName)}`
-  );
-  return json.values ?? [];
+async function readErrorMessage(response: Response): Promise<string> {
+  try {
+    const payload: unknown = await response.json();
+    if (isRecord(payload) && typeof payload.detail === 'string') {
+      return payload.detail;
+    }
+  } catch {
+    return `Request failed with status ${response.status}`;
+  }
+  return `Request failed with status ${response.status}`;
 }
 
-// ─── Health ───────────────────────────────────────────────────────────────────
-
-export async function healthCheck(): Promise<unknown> {
-  return apiFetch('/health');
+function createAbortError(): Error {
+  return Object.assign(new Error('Aborted'), { name: 'AbortError' });
 }
 
-// ─── Barrel export (backward compat) ─────────────────────────────────────────
+export const API_BASE_URL = normalizeApiBaseUrl(configuredApiUrl);
 
-export const api = {
+export const api = createApiClient({
+  baseUrl: API_BASE_URL,
+  getAccessToken: () => accessToken,
+  onUnauthorized: () => unauthorizedHandler?.(),
+});
+
+export const {
+  login,
+  register,
   sendMessage,
   streamMessage,
   getSessions,
   getSession,
+  getSpreadsheets,
   getSpreadsheetInfo,
   getSheetData,
+  getApprovals,
+  resolveApproval,
   health: healthCheck,
-};
+} = api;
