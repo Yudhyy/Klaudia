@@ -186,6 +186,27 @@ test('ignores malformed SSE payloads instead of trusting their event names', () 
   assert.deepEqual(events, []);
 });
 
+test('accepts extraction progress with the numeric backend file id', () => {
+  const events: SSEEvent[] = [];
+
+  parseSseFrames(
+    'event: extraction\ndata: {"status":"queued","file_id":42,"pages":3}\n\n',
+    (event) => events.push(event),
+  );
+
+  assert.deepEqual(events, [
+    {
+      type: 'extraction',
+      status: 'queued',
+      file_name: undefined,
+      file_id: 42,
+      pages: 3,
+      summary: undefined,
+      reason: undefined,
+    },
+  ]);
+});
+
 test('streams chunked events with bearer auth and ledger scope', async () => {
   const transport = new MockXmlHttpRequest();
   const events: SSEEvent[] = [];
