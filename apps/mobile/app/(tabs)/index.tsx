@@ -1,308 +1,423 @@
-// app/(tabs)/index.tsx
-//
-// Keyboard approach:
-//   iOS  — KeyboardAvoidingView behavior='padding' with measured offset (reliable)
-//   Android — app.json sets windowSoftInputMode=adjustResize so the OS shrinks
-//             the window; we just need flex:1 and NO KAV interference
-//
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View, FlatList, KeyboardAvoidingView, Platform,
-  StyleSheet, Text, TouchableOpacity, Animated,
+  ActivityIndicator,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+
+import { Colors, Typography } from '../../constants/theme';
+import { useAuth } from '../../contexts/AuthContext';
+import { useSpreadsheet } from '../../contexts/SpreadsheetContext';
+import {
+  api,
+  type ApiAttachment,
+  type ApprovalDecision,
+  type PendingApproval,
+  type SSEEvent,
+} from '../../services/api';
+import { mergeApprovals } from '../../services/ledger';
+import { ApprovalCard } from '../../components/ui/ApprovalCard';
 import { ChatBubble } from '../../components/ui/ChatBubble';
 import { ChatInput, type Attachment } from '../../components/ui/ChatInput';
-import { SessionDrawer } from '../../components/ui/SessionDrawer';
-import { streamMessage, getSession, type SSEEvent } from '../../services/api';
-import { Colors, Typography } from '../../constants/theme';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type Message = {
+type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  timestamp: string;
+  timestamp?: string;
   imageUri?: string;
   streaming?: boolean;
 };
 
-type StatusLine = { text: string } | null;
-
-// ─── Pipeline status → friendly label ────────────────────────────────────────
-
-const GSHEETS_READ  = new Set(['list_sheets','get_sheet_formulas','get_sheet_data','get_spreadsheet_info','get_multiple_sheet_data']);
-const GSHEETS_WRITE = new Set(['update_cells','batch_update_cells','append_rows','add_rows','add_columns']);
-const GSHEETS_SHEET = new Set(['create_sheet','rename_sheet','copy_sheet','batch_update']);
-const GSHEETS_CLEAR = new Set(['clear_range','delete_sheet']);
-const SQLITE_OPS    = new Set(['get_document','list_documents','create_document','update_document_status','get_extraction','save_extraction','get_session_files','list_pages','get_page','create_page','update_page']);
-
-function eventToStatus(event: SSEEvent): StatusLine {
-  switch (event.type) {
-    case 'guardrail': return null;
-    case 'extraction': {
-      const name = event.file_name ?? 'file';
-      switch (event.status) {
-        case 'processing': return { text: `Extracting ${name}...` };
-        case 'queueing':   return { text: `Queueing ${name}...` };
-        case 'queued':     return { text: `${name} queued...` };
-        case 'page_done':  return { text: 'Processing page...' };
-        case 'rejected':   return { text: event.reason ?? 'File could not be processed' };
-        default:           return null;
-      }
-    }
-    case 'step': {
-      switch (event.node) {
-        case 'sql_agent':       return { text: 'Searching transactions...' };
-        case 'data_entry_team': return { text: 'Updating spreadsheet...' };
-        default:                return null;
-      }
-    }
-    case 'tool': {
-      const t = event.name;
-      if (GSHEETS_READ.has(t))  return { text: 'Reading spreadsheet...' };
-      if (GSHEETS_WRITE.has(t)) return { text: 'Writing to spreadsheet...' };
-      if (GSHEETS_SHEET.has(t)) return { text: 'Organizing sheets...' };
-      if (GSHEETS_CLEAR.has(t)) return { text: 'Clearing data...' };
-      if (SQLITE_OPS.has(t))    return { text: 'Reading saved receipts...' };
-      return { text: 'Processing...' };
-    }
-    default: return null;
-  }
-}
-
-// ─── StatusStrip ─────────────────────────────────────────────────────────────
-
-function StatusStrip({ status }: { status: StatusLine }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.timing(opacity, { toValue: status ? 1 : 0, duration: 180, useNativeDriver: true }).start();
-  }, [status]);
-  return (
-    <Animated.View style={[strip.container, { opacity }]} pointerEvents="none">
-      <Text style={strip.text} numberOfLines={1}>{status?.text ?? ''}</Text>
-    </Animated.View>
-  );
-}
-const strip = StyleSheet.create({
-  container: {
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-    backgroundColor: 'rgba(204,255,0,0.04)',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(204,255,0,0.15)',
-  },
-  text: { fontSize: 11, color: Colors.textSecondary, fontStyle: 'italic' },
-});
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const INITIAL_MESSAGE: Message = {
-  id: '0',
+const INITIAL_MESSAGE: ChatMessage = {
+  id: 'welcome',
   role: 'assistant',
-  content: 'Hello! I am Klaudia. Upload your receipts or describe your transactions, and I will record them with precision.',
-  timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+  content: 'Halo. Saya siap membantu membaca dan memperbarui ledger Anda.',
 };
 
-function formatTime() {
-  return new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-}
-
-// ─── Screen ──────────────────────────────────────────────────────────────────
-
-export default function ChatScreen() {
+export default function ChatScreen(): React.JSX.Element {
   const insets = useSafeAreaInsets();
-  const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [input, setInput] = useState('');
+  const { session } = useAuth();
+  const { activeSpreadsheet, isLoading: isLoadingSpreadsheet, error: spreadsheetError } =
+    useSpreadsheet();
+  const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
+  const [messageText, setMessageText] = useState('');
   const [attachment, setAttachment] = useState<Attachment | null>(null);
-  const [sessionId, setSessionId] = useState<number | undefined>();
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<StatusLine>(null);
-  const [headerHeight, setHeaderHeight] = useState(52);
+  const [sessionId, setSessionId] = useState<number>();
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [status, setStatus] = useState<string>();
+  const [error, setError] = useState<string>();
+  const [approvals, setApprovals] = useState<PendingApproval[]>([]);
+  const [resolvingApprovalId, setResolvingApprovalId] = useState<string>();
+  const resolvingApprovalRef = useRef<string | undefined>(undefined);
+  const abortController = useRef<AbortController | undefined>(undefined);
+  const messageSequence = useRef(0);
+  const listRef = useRef<FlatList<ChatMessage>>(null);
 
-  const listRef = useRef<FlatList>(null);
-  const abortRef = useRef<AbortController | null>(null);
-
-  useEffect(() => { return () => { abortRef.current?.abort(); }; }, []);
-
-  const scrollToBottom = useCallback((animated = true) => {
-    setTimeout(() => listRef.current?.scrollToEnd({ animated }), 50);
+  const nextMessageId = useCallback((prefix: string): string => {
+    messageSequence.current += 1;
+    return `${prefix}-${Date.now()}-${messageSequence.current}`;
   }, []);
 
-  const handleSelectSession = useCallback(async (id: number) => {
-    if (id === 0) {
-      setSessionId(undefined);
-      setMessages([{ ...INITIAL_MESSAGE, id: Date.now().toString(), timestamp: formatTime() }]);
+  useEffect(() => {
+    abortController.current?.abort();
+    setSessionId(undefined);
+    setMessages([INITIAL_MESSAGE]);
+    setApprovals([]);
+    setError(undefined);
+  }, [activeSpreadsheet?.spreadsheetId]);
+
+  useEffect(
+    () => () => {
+      abortController.current?.abort();
+    },
+    [],
+  );
+
+  const sendMessage = useCallback(async (): Promise<void> => {
+    const trimmedMessage = messageText.trim();
+    if (
+      isStreaming ||
+      activeSpreadsheet === null ||
+      (trimmedMessage.length === 0 && attachment === null)
+    ) {
       return;
     }
-    try {
-      const data = await getSession(id);
-      setSessionId(id);
-      const loaded: Message[] = data.messages.map((m: any, i: number) => ({
-        id: i.toString(),
-        role: m.sender,
-        content: m.message_text,
-        timestamp: new Date(m.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-      }));
-      setMessages(loaded.length > 0 ? loaded : [INITIAL_MESSAGE]);
-      scrollToBottom(false);
-    } catch { /* keep current */ }
-  }, [scrollToBottom]);
+    if (attachment !== null && attachment.base64 === undefined) {
+      setError('Lampiran gagal dibaca. Pilih ulang file lalu coba lagi.');
+      return;
+    }
 
-  const handleSend = useCallback(async () => {
-    if ((!input.trim() && !attachment) || loading) return;
-
-    const userMsg: Message = {
-      id: Date.now().toString(),
+    const requestText = trimmedMessage || 'Tolong proses lampiran ini.';
+    const sentAt = formatTimestamp(new Date().toISOString());
+    const userMessage: ChatMessage = {
+      id: nextMessageId('user'),
       role: 'user',
-      content: input.trim(),
-      timestamp: formatTime(),
+      content: requestText,
+      timestamp: sentAt,
       imageUri: attachment?.type === 'image' ? attachment.uri : undefined,
     };
-    setMessages(prev => [...prev, userMsg]);
+    const assistantMessageId = nextMessageId('assistant');
+    const apiAttachment = attachment === null ? undefined : toApiAttachment(attachment);
 
-    const sentInput = input.trim();
-    const sentAttachment = attachment;
-    setInput('');
+    setMessages((current) => [
+      ...current,
+      userMessage,
+      { id: assistantMessageId, role: 'assistant', content: '', streaming: true },
+    ]);
+    setMessageText('');
     setAttachment(null);
-    setLoading(true);
-    scrollToBottom();
+    setError(undefined);
+    setIsStreaming(true);
+    setStatus('Menghubungkan ke Klaudia...');
 
-    const streamingId = (Date.now() + 1).toString();
-    setMessages(prev => [...prev, { id: streamingId, role: 'assistant', content: '', timestamp: formatTime(), streaming: true }]);
-    scrollToBottom();
+    const controller = new AbortController();
+    abortController.current = controller;
+    let streamedContent = '';
 
-    const attachments = sentAttachment?.base64 ? [{
-      filename: sentAttachment.name,
-      content_type: sentAttachment.type === 'pdf' ? 'application/pdf' : 'image/jpeg',
-      data: sentAttachment.base64,
-    }] : [];
-
-    const payload = {
-      messages: [{ role: 'user' as const, content: sentInput || sentAttachment?.name || '', attachments }],
-      session_id: sessionId,
-    };
-
-    abortRef.current = new AbortController();
     try {
-      await streamMessage(payload, (event: SSEEvent) => {
-        const newStatus = eventToStatus(event);
-        if (newStatus !== undefined) setStatus(newStatus);
-        switch (event.type) {
-          case 'session': setSessionId(event.session_id); break;
-          case 'token':
-            setMessages(prev => prev.map(m => m.id === streamingId ? { ...m, content: m.content + event.text } : m));
-            scrollToBottom();
-            break;
-          case 'done':
-            setMessages(prev => prev.map(m => m.id === streamingId ? { ...m, content: event.content, streaming: false, timestamp: formatTime() } : m));
-            setStatus(null); setLoading(false); scrollToBottom();
-            break;
-          case 'error':
-            setMessages(prev => prev.map(m => m.id === streamingId ? { ...m, content: `Error: ${event.message}`, streaming: false, timestamp: formatTime() } : m));
-            setStatus(null); setLoading(false);
-            break;
-        }
-      }, abortRef.current.signal);
-    } catch (err: any) {
-      if (err?.name === 'AbortError') return;
-      setMessages(prev => prev.map(m => m.id === streamingId ? { ...m, content: 'Failed to reach server. Try again.', streaming: false } : m));
-      setStatus(null); setLoading(false);
+      await api.streamMessage(
+        {
+          messages: [
+            {
+              role: 'user',
+              content: requestText,
+              attachments: apiAttachment === undefined ? undefined : [apiAttachment],
+            },
+          ],
+          session_id: sessionId,
+          user_name: session?.username,
+          spreadsheet_id: activeSpreadsheet.spreadsheetId,
+        },
+        (event) => {
+          if (event.type === 'session') {
+            setSessionId(event.session_id);
+            return;
+          }
+          if (event.type === 'token') {
+            streamedContent += event.text;
+            updateAssistantMessage(setMessages, assistantMessageId, streamedContent, true);
+            return;
+          }
+          if (event.type === 'approval_required') {
+            setApprovals((current) => mergeApprovals(current, [event]));
+            return;
+          }
+          if (event.type === 'done') {
+            setSessionId(event.session_id);
+            streamedContent = event.content || streamedContent;
+            setApprovals((current) =>
+              mergeApprovals(current, event.pending_approvals ?? []),
+            );
+            updateAssistantMessage(setMessages, assistantMessageId, streamedContent, false);
+            return;
+          }
+          if (event.type === 'error') {
+            setError(event.message || 'Klaudia gagal memproses pesan.');
+            return;
+          }
+          setStatus(eventStatus(event));
+        },
+        controller.signal,
+      );
+    } catch (caughtError: unknown) {
+      if (!isAbortError(caughtError)) {
+        setError(errorMessage(caughtError, 'Tidak dapat mengirim pesan.'));
+      }
+    } finally {
+      abortController.current = undefined;
+      setIsStreaming(false);
+      setStatus(undefined);
+      setMessages((current) =>
+        current.flatMap((message) => {
+          if (message.id !== assistantMessageId) return [message];
+          if (message.content.length === 0) return [];
+          return [{ ...message, streaming: false }];
+        }),
+      );
     }
-  }, [input, attachment, sessionId, loading, scrollToBottom]);
+  }, [activeSpreadsheet, attachment, isStreaming, messageText, nextMessageId, session, sessionId]);
 
-  // ── iOS: KAV offset = insets.top (status bar) + measured header height
-  // ── Android: adjustResize in app.json handles it — KAV is a passthrough
-  const kavOffset = insets.top + headerHeight;
-  // Bottom padding: iOS needs home indicator clearance, Android gesture bar is thinner
-  // const bottomPad = Platform.OS === 'ios' ? insets.bottom : Math.max(insets.bottom, 8);
-  const bottomPad = 8;
+  const resolveApproval = useCallback(
+    async (approvalId: string, decision: ApprovalDecision): Promise<void> => {
+      if (resolvingApprovalRef.current !== undefined) return;
+      resolvingApprovalRef.current = approvalId;
+      setResolvingApprovalId(approvalId);
+      setError(undefined);
+      try {
+        await api.resolveApproval(approvalId, decision);
+        setApprovals((current) =>
+          current.filter((approval) => approval.approval_id !== approvalId),
+        );
+      } catch (caughtError: unknown) {
+        setError(errorMessage(caughtError, 'Gagal memproses persetujuan.'));
+      } finally {
+        resolvingApprovalRef.current = undefined;
+        setResolvingApprovalId(undefined);
+      }
+    },
+    [],
+  );
+
+  const ledgerUnavailable = activeSpreadsheet === null;
+  const composerDisabled = isStreaming || ledgerUnavailable;
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      {/* ── Header ── */}
-      <View
-        style={styles.header}
-        onLayout={e => setHeaderHeight(e.nativeEvent.layout.height)}
-      >
-        <View style={styles.headerSide} />
-        <Text style={styles.headerTitle}>AI Chat</Text>
-        <TouchableOpacity
-          style={styles.headerBtn}
-          onPress={() => setDrawerOpen(true)}
-          hitSlop={12}
-        >
-          <Ionicons name="menu" size={22} color={Colors.textPrimary} />
-        </TouchableOpacity>
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <View style={styles.headerCopy}>
+          <Text style={styles.title}>Klaudia</Text>
+          <Text style={styles.subtitle} numberOfLines={1}>
+            {activeSpreadsheet?.name ?? 'Ledger belum tersedia'}
+          </Text>
+        </View>
       </View>
 
-      {/* ── Content area ── */}
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={kavOffset}
-      >
+      {isLoadingSpreadsheet && ledgerUnavailable ? (
+        <View style={styles.centerState}>
+          <ActivityIndicator color={Colors.accent} />
+          <Text style={styles.stateText}>Menghubungkan ke ledger...</Text>
+        </View>
+      ) : (
         <FlatList
           ref={listRef}
-          style={styles.flex}
           data={messages}
-          keyExtractor={item => item.id}
+          keyExtractor={(message) => message.id}
           renderItem={({ item }) => (
             <ChatBubble
               role={item.role}
               content={item.content}
-              timestamp={item.streaming ? undefined : item.timestamp}
+              timestamp={item.timestamp}
               imageUri={item.imageUri}
               streaming={item.streaming}
             />
           )}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={styles.messages}
           keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
         />
+      )}
 
-        <StatusStrip status={status} />
-
-        {/* Input pinned above keyboard — bottom padding accounts for home indicator */}
-        <View style={{ paddingBottom: bottomPad }}>
-          <ChatInput
-            value={input}
-            onChangeText={setInput}
-            onSend={handleSend}
-            onAttachment={setAttachment}
-            onRemoveAttachment={() => setAttachment(null)}
-            attachment={attachment}
-            disabled={loading}
-          />
+      {status !== undefined && (
+        <View style={styles.statusRow}>
+          <ActivityIndicator size="small" color={Colors.accent} />
+          <Text style={styles.statusText}>{status}</Text>
         </View>
-      </KeyboardAvoidingView>
+      )}
 
-      <SessionDrawer
-        visible={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        onSelectSession={handleSelectSession}
-        currentSessionId={sessionId}
+      {(error ?? spreadsheetError) !== undefined && (error ?? spreadsheetError) !== null && (
+        <View style={styles.errorRow}>
+          <Ionicons name="alert-circle-outline" size={16} color="#FCA5A5" />
+          <Text style={styles.errorText}>{error ?? spreadsheetError}</Text>
+        </View>
+      )}
+
+      {approvals.map((approval) => (
+        <ApprovalCard
+          key={approval.approval_id}
+          approval={approval}
+          ledgerName={activeSpreadsheet?.name ?? 'Ledger aktif'}
+          resolving={resolvingApprovalId === approval.approval_id}
+          disabled={resolvingApprovalId !== undefined}
+          onDecision={(approvalId, decision) => void resolveApproval(approvalId, decision)}
+        />
+      ))}
+
+      <ChatInput
+        value={messageText}
+        onChangeText={setMessageText}
+        onSend={() => void sendMessage()}
+        onAttachment={setAttachment}
+        onRemoveAttachment={() => setAttachment(null)}
+        attachment={attachment}
+        disabled={composerDisabled}
       />
-    </View>
+
+    </KeyboardAvoidingView>
   );
 }
 
+function updateAssistantMessage(
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
+  messageId: string,
+  content: string,
+  streaming: boolean,
+): void {
+  setMessages((current) =>
+    current.map((message) =>
+      message.id === messageId ? { ...message, content, streaming } : message,
+    ),
+  );
+}
+
+function toApiAttachment(attachment: Attachment): ApiAttachment {
+  return {
+    filename: attachment.name,
+    content_type: attachment.type === 'pdf' ? 'application/pdf' : imageContentType(attachment.name),
+    data: attachment.base64 ?? '',
+  };
+}
+
+function imageContentType(filename: string): string {
+  const extension = filename.split('.').pop()?.toLowerCase();
+  if (extension === 'png') return 'image/png';
+  if (extension === 'webp') return 'image/webp';
+  return 'image/jpeg';
+}
+
+function eventStatus(event: Exclude<SSEEvent, { type: 'session' | 'token' | 'approval_required' | 'done' | 'error' }>): string {
+  if (event.type === 'guardrail') {
+    if (event.status === 'checking') return 'Memeriksa keamanan pesan...';
+    if (event.status === 'passed') return 'Pesan lolos pemeriksaan...';
+    return event.message ?? 'Pesan ditolak.';
+  }
+  if (event.type === 'extraction') {
+    if (event.status === 'processing') return `Membaca ${event.file_name ?? 'lampiran'}...`;
+    return event.summary ?? event.reason ?? 'Memproses lampiran...';
+  }
+  if (event.type === 'tool') return `Menjalankan ${friendlyToolName(event.name)}...`;
+  return `Memproses ${event.node}...`;
+}
+
+function friendlyToolName(toolName: string): string {
+  if (/read|get|list|search|range/i.test(toolName)) return 'pembacaan ledger';
+  if (/append|write|update|batch/i.test(toolName)) return 'perubahan ledger';
+  if (/delete|clear/i.test(toolName)) return 'operasi yang perlu persetujuan';
+  return 'operasi ledger';
+}
+
+function formatTimestamp(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
 const styles = StyleSheet.create({
-  root:       { flex: 1, backgroundColor: Colors.background },
-  flex:       { flex: 1 },
+  screen: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
-  headerSide:  { width: 44, alignItems: 'flex-end' },
-  headerBtn:   { width: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' },
-  headerTitle: { ...Typography.header, color: Colors.textPrimary },
-  list:        { paddingVertical: 12 },
+  headerCopy: {
+    flex: 1,
+    marginRight: 12,
+  },
+  title: {
+    color: Colors.textPrimary,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  subtitle: {
+    marginTop: 2,
+    color: Colors.textSecondary,
+    fontSize: 12,
+  },
+  messages: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
+    gap: 10,
+    paddingVertical: 16,
+  },
+  centerState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  stateText: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  statusText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+  },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 12,
+    marginVertical: 4,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: '#2A1515',
+  },
+  errorText: {
+    flex: 1,
+    color: '#FCA5A5',
+    fontSize: 12,
+    lineHeight: 17,
+  },
 });

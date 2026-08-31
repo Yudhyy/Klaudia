@@ -33,12 +33,6 @@ export type PendingApproval = {
   columns_affected: number;
 };
 
-export type SendMessageResponse = {
-  session_id: number;
-  message: ApiMessage;
-  pending_approvals: PendingApproval[];
-};
-
 export type AuthSession = {
   access_token: string;
   token_type: 'bearer';
@@ -53,22 +47,6 @@ export type LoginInput = {
 
 export type RegisterInput = LoginInput & {
   email: string;
-};
-
-export type Session = {
-  session_id: number;
-  session_name: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-export type SessionDetail = {
-  session_id: number;
-  messages: Array<{
-    sender: 'user' | 'assistant';
-    message_text: string;
-    timestamp: string;
-  }>;
 };
 
 export type SpreadsheetSummary = {
@@ -104,7 +82,7 @@ export type SSEEvent =
       type: 'extraction';
       status: string;
       file_name?: string;
-      file_id?: string;
+      file_id?: number;
       pages?: number;
       summary?: string;
       reason?: string;
@@ -119,14 +97,14 @@ export type SSEEvent =
       processing_time_ms: number;
       tools_used: string[];
       content: string;
-      pending_approvals: PendingApproval[];
+      pending_approvals?: PendingApproval[];
     }
   | { type: 'error'; message: string };
 
 type ApiClientOptions = {
   baseUrl: string;
   getAccessToken: () => string | null;
-  onUnauthorized?: () => void;
+  onUnauthorized?: (rejectedToken: string | null) => void;
   fetchImpl?: typeof fetch;
   xhrFactory?: () => XMLHttpRequest;
 };
@@ -134,21 +112,17 @@ type ApiClientOptions = {
 type ApiClient = {
   login: (input: LoginInput) => Promise<AuthSession>;
   register: (input: RegisterInput) => Promise<AuthSession>;
-  sendMessage: (payload: SendMessagePayload) => Promise<SendMessageResponse>;
   streamMessage: (
     payload: SendMessagePayload,
     onEvent: (event: SSEEvent) => void,
     signal?: AbortSignal,
   ) => Promise<void>;
-  getSessions: () => Promise<{ sessions: Session[] }>;
-  getSession: (sessionId: number) => Promise<SessionDetail>;
   getSpreadsheets: () => Promise<SpreadsheetSummary[]>;
   getSpreadsheetInfo: (spreadsheetId?: string) => Promise<SpreadsheetInfo>;
   getSheetData: (
     sheetName: string,
     spreadsheetId?: string,
   ) => Promise<JsonScalar[][]>;
-  getApprovals: () => Promise<PendingApproval[]>;
   resolveApproval: (
     approvalId: string,
     decision: ApprovalDecision,
@@ -156,20 +130,8 @@ type ApiClient = {
   health: () => Promise<unknown>;
 };
 
-const SSE_EVENT_NAMES = new Set<SSEEvent['type']>([
-  'session',
-  'guardrail',
-  'extraction',
-  'step',
-  'tool',
-  'token',
-  'approval_required',
-  'done',
-  'error',
-]);
-
 let accessToken: string | null = null;
-let unauthorizedHandler: (() => void) | undefined;
+let unauthorizedHandler: ((rejectedToken: string | null) => void) | undefined;
 
 /** Normalize a host or URL into the versioned Klaudia API base URL. */
 export function normalizeApiBaseUrl(configuredUrl: string): string {
@@ -180,13 +142,28 @@ export function normalizeApiBaseUrl(configuredUrl: string): string {
   return trimmedUrl.endsWith('/v1') ? trimmedUrl : `${trimmedUrl}/v1`;
 }
 
+/** Reject cleartext remote APIs outside local development. */
+export function requireSecureApiBaseUrl(
+  baseUrl: string,
+  isDevelopment: boolean,
+): string {
+  const hostname = new URL(baseUrl).hostname;
+  const isLoopback = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+  if (!isDevelopment && !isLoopback && !baseUrl.startsWith('https://')) {
+    throw new Error('Klaudia requires an HTTPS API URL outside development.');
+  }
+  return baseUrl;
+}
+
 /** Store the bearer token used by the shared API client. */
 export function setApiAccessToken(token: string | null): void {
   accessToken = token;
 }
 
 /** Register a callback for an expired or rejected bearer token. */
-export function setUnauthorizedHandler(handler?: () => void): void {
+export function setUnauthorizedHandler(
+  handler?: (rejectedToken: string | null) => void,
+): void {
   unauthorizedHandler = handler;
 }
 
@@ -201,7 +178,7 @@ export class ApiError extends Error {
   }
 }
 
-/** Parse complete SSE frames and return any unfinished trailing frame. */
+/** Parse complete SSE frames and return the unfinished trailing frame. */
 export function parseSseFrames(
   buffer: string,
   onEvent: (event: SSEEvent) => void,
@@ -221,11 +198,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   const baseUrl = normalizeApiBaseUrl(options.baseUrl);
   const fetchImpl = options.fetchImpl ?? fetch;
 
-  async function request<T>(
+  async function request(
     path: string,
     init?: RequestInit,
     requiresAuth = true,
-  ): Promise<T> {
+  ): Promise<unknown> {
     const headers = new Headers(init?.headers);
     headers.set('Content-Type', 'application/json');
     const token = options.getAccessToken();
@@ -236,14 +213,14 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     const response = await fetchImpl(`${baseUrl}${path}`, { ...init, headers });
     if (!response.ok) {
       if (response.status === 401 && requiresAuth) {
-        options.onUnauthorized?.();
+        options.onUnauthorized?.(token);
       }
       throw new ApiError(response.status, await readErrorMessage(response));
     }
     if (response.status === 204) {
-      return undefined as T;
+      return null;
     }
-    return (await response.json()) as T;
+    return response.json() as Promise<unknown>;
   }
 
   function streamMessage(
@@ -302,7 +279,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       xhr.onload = () => {
         if (xhr.status < 200 || xhr.status >= 300) {
           if (xhr.status === 401) {
-            options.onUnauthorized?.();
+            options.onUnauthorized?.(token);
           }
           fail(new ApiError(xhr.status, `Request failed with status ${xhr.status}`));
           return;
@@ -320,45 +297,45 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   }
 
   return {
-    login: (input) =>
-      request<AuthSession>(
-        '/auth/login',
-        { method: 'POST', body: JSON.stringify(input) },
-        false,
+    login: async (input) =>
+      requireAuthSessionResponse(
+        await request(
+          '/auth/login',
+          { method: 'POST', body: JSON.stringify(input) },
+          false,
+        ),
       ),
-    register: (input) =>
-      request<AuthSession>(
-        '/auth/register',
-        { method: 'POST', body: JSON.stringify(input) },
-        false,
+    register: async (input) =>
+      requireAuthSessionResponse(
+        await request(
+          '/auth/register',
+          { method: 'POST', body: JSON.stringify(input) },
+          false,
+        ),
       ),
-    sendMessage: (payload) =>
-      request<SendMessageResponse>('/chat', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      }),
     streamMessage,
-    getSessions: () => request<{ sessions: Session[] }>('/sessions'),
-    getSession: (sessionId) => request<SessionDetail>(`/sessions/${sessionId}`),
-    getSpreadsheets: () => request<SpreadsheetSummary[]>('/spreadsheets'),
-    getSpreadsheetInfo: (spreadsheetId) =>
-      request<SpreadsheetInfo>(withQuery('/sheets/info', { spreadsheet_id: spreadsheetId })),
+    getSpreadsheets: async () => parseSpreadsheets(await request('/spreadsheets')),
+    getSpreadsheetInfo: async (spreadsheetId) =>
+      parseSpreadsheetInfo(
+        await request(withQuery('/sheets/info', { spreadsheet_id: spreadsheetId })),
+      ),
     getSheetData: async (sheetName, spreadsheetId) => {
-      const response = await request<{ values?: JsonScalar[][] }>(
+      const response = await request(
         withQuery('/sheets/data', {
           sheet: sheetName,
           spreadsheet_id: spreadsheetId,
         }),
       );
-      return response.values ?? [];
+      return parseSheetRows(response);
     },
-    getApprovals: () => request<PendingApproval[]>('/approvals'),
-    resolveApproval: (approvalId, decision) =>
-      request<ApprovalResolution>(`/approvals/${encodeURIComponent(approvalId)}`, {
-        method: 'POST',
-        body: JSON.stringify({ decision }),
-      }),
-    health: () => request<unknown>('/health', undefined, false),
+    resolveApproval: async (approvalId, decision) =>
+      parseApprovalResolution(
+        await request(`/approvals/${encodeURIComponent(approvalId)}`, {
+          method: 'POST',
+          body: JSON.stringify({ decision }),
+        }),
+      ),
+    health: () => request('/health', undefined, false),
   };
 }
 
@@ -377,24 +354,264 @@ function parseSseFrame(
       dataLines.push(line.slice(5).trimStart());
     }
   }
-  if (!isSseEventName(eventName) || dataLines.length === 0) return;
+  if (dataLines.length === 0) return;
 
   try {
     const payload: unknown = JSON.parse(dataLines.join('\n'));
-    if (isRecord(payload)) {
-      onEvent({ ...payload, type: eventName } as SSEEvent);
-    }
+    const event = parseSseEvent(eventName, payload);
+    if (event !== null) onEvent(event);
   } catch {
     return;
   }
 }
 
-function isSseEventName(value: string): value is SSEEvent['type'] {
-  return SSE_EVENT_NAMES.has(value as SSEEvent['type']);
+function parseSseEvent(eventName: string, payload: unknown): SSEEvent | null {
+  if (!isRecord(payload)) return null;
+
+  switch (eventName) {
+    case 'session':
+      return typeof payload.session_id === 'number'
+        ? { type: 'session', session_id: payload.session_id }
+        : null;
+    case 'guardrail':
+      if (typeof payload.stage !== 'string' || typeof payload.status !== 'string') return null;
+      if (!isOptionalString(payload.message)) return null;
+      return {
+        type: 'guardrail',
+        stage: payload.stage,
+        status: payload.status,
+        message: payload.message,
+      };
+    case 'extraction':
+      if (typeof payload.status !== 'string') return null;
+      if (
+        !isOptionalString(payload.file_name) ||
+        !isOptionalNumber(payload.file_id) ||
+        !isOptionalNumber(payload.pages) ||
+        !isOptionalString(payload.summary) ||
+        !isOptionalString(payload.reason)
+      ) {
+        return null;
+      }
+      return {
+        type: 'extraction',
+        status: payload.status,
+        file_name: payload.file_name,
+        file_id: payload.file_id,
+        pages: payload.pages,
+        summary: payload.summary,
+        reason: payload.reason,
+      };
+    case 'step':
+      return typeof payload.node === 'string' && typeof payload.next === 'string'
+        ? { type: 'step', node: payload.node, next: payload.next }
+        : null;
+    case 'tool':
+      return typeof payload.name === 'string' ? { type: 'tool', name: payload.name } : null;
+    case 'token':
+      return typeof payload.text === 'string' ? { type: 'token', text: payload.text } : null;
+    case 'approval_required': {
+      const approval = parsePendingApproval(payload);
+      return approval === null ? null : { type: 'approval_required', ...approval };
+    }
+    case 'done': {
+      if (
+        typeof payload.session_id !== 'number' ||
+        typeof payload.processing_time_ms !== 'number' ||
+        typeof payload.content !== 'string' ||
+        !isStringArray(payload.tools_used)
+      ) {
+        return null;
+      }
+      const pendingApprovals = parseOptionalApprovals(payload.pending_approvals);
+      if (pendingApprovals === null) return null;
+      const doneEvent: SSEEvent = {
+        type: 'done',
+        session_id: payload.session_id,
+        processing_time_ms: payload.processing_time_ms,
+        tools_used: payload.tools_used,
+        content: payload.content,
+      };
+      return pendingApprovals === undefined
+        ? doneEvent
+        : { ...doneEvent, pending_approvals: pendingApprovals };
+    }
+    case 'error':
+      return typeof payload.message === 'string'
+        ? { type: 'error', message: payload.message }
+        : null;
+    default:
+      return null;
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Validate the auth record returned by the API or read from storage. */
+export function parseAuthSessionValue(value: unknown): AuthSession | null {
+  if (
+    !isRecord(value) ||
+    typeof value.access_token !== 'string' ||
+    value.access_token.length === 0 ||
+    value.token_type !== 'bearer' ||
+    typeof value.user_id !== 'number' ||
+    !Number.isInteger(value.user_id) ||
+    value.user_id <= 0 ||
+    typeof value.username !== 'string' ||
+    value.username.length === 0
+  ) {
+    return null;
+  }
+  return {
+    access_token: value.access_token,
+    token_type: value.token_type,
+    user_id: value.user_id,
+    username: value.username,
+  };
+}
+
+function requireAuthSessionResponse(value: unknown): AuthSession {
+  const session = parseAuthSessionValue(value);
+  if (session === null) throw invalidResponseError('auth');
+  return session;
+}
+
+function parseSpreadsheets(value: unknown): SpreadsheetSummary[] {
+  if (!Array.isArray(value)) throw invalidResponseError('spreadsheets');
+  const spreadsheets: SpreadsheetSummary[] = [];
+  for (const item of value) {
+    if (!isRecord(item) || typeof item.spreadsheetId !== 'string' || typeof item.name !== 'string') {
+      throw invalidResponseError('spreadsheets');
+    }
+    spreadsheets.push({ spreadsheetId: item.spreadsheetId, name: item.name });
+  }
+  return spreadsheets;
+}
+
+function parseSpreadsheetInfo(value: unknown): SpreadsheetInfo {
+  if (
+    !isRecord(value) ||
+    typeof value.spreadsheetId !== 'string' ||
+    typeof value.title !== 'string' ||
+    !Array.isArray(value.sheets)
+  ) {
+    throw invalidResponseError('spreadsheet info');
+  }
+
+  const sheets: SpreadsheetInfo['sheets'] = [];
+  for (const sheet of value.sheets) {
+    if (
+      !isRecord(sheet) ||
+      typeof sheet.title !== 'string' ||
+      typeof sheet.sheetId !== 'number' ||
+      !isRecord(sheet.gridProperties) ||
+      typeof sheet.gridProperties.rowCount !== 'number' ||
+      typeof sheet.gridProperties.columnCount !== 'number'
+    ) {
+      throw invalidResponseError('spreadsheet info');
+    }
+    sheets.push({
+      title: sheet.title,
+      sheetId: sheet.sheetId,
+      gridProperties: {
+        rowCount: sheet.gridProperties.rowCount,
+        columnCount: sheet.gridProperties.columnCount,
+      },
+    });
+  }
+  return { spreadsheetId: value.spreadsheetId, title: value.title, sheets };
+}
+
+function parseSheetRows(value: unknown): JsonScalar[][] {
+  if (!isRecord(value) || (value.values !== undefined && !Array.isArray(value.values))) {
+    throw invalidResponseError('sheet data');
+  }
+  if (value.values === undefined) return [];
+
+  const rows: JsonScalar[][] = [];
+  for (const row of value.values) {
+    if (!Array.isArray(row) || !row.every(isJsonScalar)) {
+      throw invalidResponseError('sheet data');
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
+function parseApprovalResolution(value: unknown): ApprovalResolution {
+  if (
+    !isRecord(value) ||
+    typeof value.approval_id !== 'string' ||
+    typeof value.executed !== 'boolean'
+  ) {
+    throw invalidResponseError('approval');
+  }
+  return {
+    approval_id: value.approval_id,
+    executed: value.executed,
+    result: value.result,
+  };
+}
+
+function parsePendingApproval(value: unknown): PendingApproval | null {
+  if (
+    !isRecord(value) ||
+    typeof value.approval_id !== 'string' ||
+    typeof value.action !== 'string' ||
+    !(value.sheet === null || typeof value.sheet === 'string') ||
+    typeof value.summary !== 'string' ||
+    typeof value.rows_affected !== 'number' ||
+    typeof value.columns_affected !== 'number'
+  ) {
+    return null;
+  }
+  return {
+    approval_id: value.approval_id,
+    action: value.action,
+    sheet: value.sheet,
+    summary: value.summary,
+    rows_affected: value.rows_affected,
+    columns_affected: value.columns_affected,
+  };
+}
+
+function parseOptionalApprovals(value: unknown): PendingApproval[] | undefined | null {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) return null;
+  const approvals: PendingApproval[] = [];
+  for (const item of value) {
+    const approval = parsePendingApproval(item);
+    if (approval === null) return null;
+    approvals.push(approval);
+  }
+  return approvals;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+function isJsonScalar(value: unknown): value is JsonScalar {
+  return (
+    value === null ||
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  );
+}
+
+function isOptionalString(value: unknown): value is string | undefined {
+  return value === undefined || typeof value === 'string';
+}
+
+function isOptionalNumber(value: unknown): value is number | undefined {
+  return value === undefined || typeof value === 'number';
+}
+
+function invalidResponseError(resource: string): ApiError {
+  return new ApiError(502, `Invalid ${resource} response from Klaudia.`);
 }
 
 function withQuery(
@@ -425,25 +642,25 @@ function createAbortError(): Error {
   return Object.assign(new Error('Aborted'), { name: 'AbortError' });
 }
 
-export const API_BASE_URL = normalizeApiBaseUrl(configuredApiUrl);
+const isDevelopment = typeof __DEV__ !== 'undefined' && __DEV__;
+export const API_BASE_URL = requireSecureApiBaseUrl(
+  normalizeApiBaseUrl(configuredApiUrl),
+  isDevelopment,
+);
 
 export const api = createApiClient({
   baseUrl: API_BASE_URL,
   getAccessToken: () => accessToken,
-  onUnauthorized: () => unauthorizedHandler?.(),
+  onUnauthorized: (rejectedToken) => unauthorizedHandler?.(rejectedToken),
 });
 
 export const {
   login,
   register,
-  sendMessage,
   streamMessage,
-  getSessions,
-  getSession,
   getSpreadsheets,
   getSpreadsheetInfo,
   getSheetData,
-  getApprovals,
   resolveApproval,
   health: healthCheck,
 } = api;

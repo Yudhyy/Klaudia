@@ -1,402 +1,263 @@
-import { Image } from 'expo-image';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// ─── Design tokens ─────────────────────────────────────────────────────────────
-const T = {
-  bg: '#161618',
-  surface: '#0C0C0E',
-  accent: '#CCFF00',
-  accentDim: 'rgba(204,255,0,0.15)',
-  textPrimary: '#FFFFFF',
-  textSecondary: '#A1A1AA',
-  textMuted: '#71717A',
-  success: '#16A34A',
-  border: '#27272A',
-  borderSubtle: '#1F1F22',
-};
+import { Colors, Radius, Spacing, Typography } from '../../constants/theme';
+import { useAuth } from '../../contexts/AuthContext';
+import { useSpreadsheet } from '../../contexts/SpreadsheetContext';
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
-type IconSpec =
-  | { lib: 'ionicons'; name: string }
-  | { lib: 'mci'; name: string };
+export default function ProfileScreen(): React.JSX.Element {
+  const insets = useSafeAreaInsets();
+  const { session, logout } = useAuth();
+  const { activeSpreadsheet, error: spreadsheetError, refresh } = useSpreadsheet();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string>();
 
-type MenuItemDef = {
-  label: string;
-  iconBg: string;
-  iconColor: string;
-  icon: IconSpec;
-  isMCP?: boolean;
-};
+  const signOut = async (): Promise<void> => {
+    setIsSigningOut(true);
+    setSignOutError(undefined);
+    try {
+      await logout();
+    } catch {
+      setSignOutError('Gagal menghapus sesi dari perangkat. Coba lagi.');
+      setIsSigningOut(false);
+    }
+  };
 
-// ─── Menu data ─────────────────────────────────────────────────────────────────
-const PRIMARY_MENU: MenuItemDef[] = [
-  {
-    label: 'Settings',
-    iconBg: 'rgba(99,102,241,0.18)',
-    iconColor: '#818CF8',
-    icon: { lib: 'ionicons', name: 'settings-sharp' },
-  },
-  {
-    label: 'MCP Connection',
-    iconBg: 'rgba(22,163,74,0.15)',
-    iconColor: '#16A34A',
-    icon: { lib: 'mci', name: 'lan-connect' },
-    isMCP: true,
-  },
-  {
-    label: 'Activity History',
-    iconBg: 'rgba(245,158,11,0.18)',
-    iconColor: '#F59E0B',
-    icon: { lib: 'ionicons', name: 'time-outline' },
-  },
-];
+  const initial = session?.username.slice(0, 1).toUpperCase() ?? '?';
 
-const SECONDARY_MENU: MenuItemDef[] = [
-  {
-    label: 'Contact Us',
-    iconBg: 'rgba(59,130,246,0.18)',
-    iconColor: '#60A5FA',
-    icon: { lib: 'ionicons', name: 'mail-outline' },
-  },
-  {
-    label: 'Privacy Policy',
-    iconBg: 'rgba(161,161,170,0.12)',
-    iconColor: '#A1A1AA',
-    icon: { lib: 'ionicons', name: 'shield-checkmark-outline' },
-  },
-];
-
-const STATS = [
-  { val: '127', label: 'Receipts' },
-  { val: '24',  label: 'This Month' },
-  { val: '3',   label: 'Sheets' },
-];
-
-// ─── Icon renderer ─────────────────────────────────────────────────────────────
-function MenuIcon({ icon, color }: { icon: IconSpec; color: string }) {
-  if (icon.lib === 'ionicons') {
-    return <Ionicons name={icon.name as any} size={20} color={color} />;
-  }
-  return <MaterialCommunityIcons name={icon.name as any} size={20} color={color} />;
-}
-
-// ─── MCP sub-row (Google Sheets · Connected) ───────────────────────────────────
-function MCPConnectedRow() {
-  return (
-    <View style={styles.mcpRow}>
-      <Image
-        source={require('../../assets/gsheet_macos.png')}
-        style={styles.mcpSheetIcon}
-        contentFit="contain"
-      />
-      <Text style={styles.mcpLabel}>Google Sheets</Text>
-      <View style={styles.mcpSep} />
-      <Text style={styles.mcpConnected}>Connected</Text>
-    </View>
-  );
-}
-
-// ─── Single menu row ───────────────────────────────────────────────────────────
-function MenuRow({ item, isLast }: { item: MenuItemDef; isLast: boolean }) {
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.menuItem,
-        !isLast && styles.menuItemDivider,
-        pressed && { opacity: 0.6 },
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={item.label}
-    >
-      {/* Icon wrap */}
-      <View style={[styles.menuIconWrap, { backgroundColor: item.iconBg }]}>
-        <MenuIcon icon={item.icon} color={item.iconColor} />
-      </View>
-
-      {/* Label + optional MCP sub-row */}
-      <View style={styles.menuLabelWrap}>
-        <Text style={styles.menuLabel}>{item.label}</Text>
-        {item.isMCP && <MCPConnectedRow />}
-      </View>
-
-      {/* Chevron */}
-      <Ionicons name="chevron-forward" size={16} color={T.textMuted} />
-    </Pressable>
-  );
-}
-
-// ─── Menu group card ───────────────────────────────────────────────────────────
-function MenuGroup({ items }: { items: MenuItemDef[] }) {
-  return (
-    <View style={styles.menuCard}>
-      {items.map((item, i) => (
-        <MenuRow key={item.label} item={item} isLast={i === items.length - 1} />
-      ))}
-    </View>
-  );
-}
-
-// ─── Main screen ──────────────────────────────────────────────────────────────
-export default function ProfileScreen() {
   return (
     <View style={styles.screen}>
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 24 }]}
         showsVerticalScrollIndicator={false}
-        contentInsetAdjustmentBehavior="automatic"
       >
-        {/* ── Title ── */}
-        <Text style={styles.pageTitle}>Profile</Text>
+        <Text style={styles.pageTitle}>Profil</Text>
 
-        {/* ── Avatar block ── */}
-        <View style={styles.avatarBlock}>
-          <View style={styles.avatarRingWrap}>
-            <View style={styles.avatarRing}>
-              <Image
-                source={require('../../assets/avatar.jpg')}
-                style={styles.avatarImg}
-                contentFit="cover"
-              />
-            </View>
-            <View style={styles.onlineDot} />
+        <View style={styles.identityCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initial}</Text>
           </View>
-          <Text style={styles.userName}>Yudhy McCodey</Text>
-          <Text style={styles.userEmail}>yudhymccodey@gmail.com</Text>
-          <View style={styles.proBadge}>
-            <Text style={styles.proBadgeText}>Pro Plan</Text>
-          </View>
+          <Text style={styles.username}>{session?.username}</Text>
+          <Text style={styles.userId}>User #{session?.user_id}</Text>
         </View>
 
-        {/* ── Stats ── */}
-        <View style={styles.statsCard}>
-          {STATS.map((s, i) => (
-            <View
-              key={s.label}
-              style={[styles.statCell, i < STATS.length - 1 && styles.statCellBorder]}
-            >
-              <Text style={[styles.statVal, { fontVariant: ['tabular-nums'] }]}>
-                {s.val}
+        <View style={styles.ledgerCard}>
+          <View style={styles.ledgerHeader}>
+            <View style={styles.ledgerIcon}>
+              <Ionicons name="server-outline" size={20} color={Colors.accent} />
+            </View>
+            <View style={styles.ledgerCopy}>
+              <Text style={styles.cardLabel}>LEDGER AKTIF</Text>
+              <Text style={styles.ledgerName} numberOfLines={1}>
+                {activeSpreadsheet?.name ?? 'Belum tersedia'}
               </Text>
-              <Text style={styles.statLabel}>{s.label}</Text>
             </View>
-          ))}
+            <View style={[styles.statusDot, activeSpreadsheet === null && styles.statusDotOff]} />
+          </View>
+
+          {spreadsheetError !== null && (
+            <View style={styles.errorBlock}>
+              <Text style={styles.errorText}>{spreadsheetError}</Text>
+              <Pressable onPress={() => void refresh()}>
+                <Text style={styles.retryText}>Coba lagi</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
 
-        {/* ── Primary menu group ── */}
-        <MenuGroup items={PRIMARY_MENU} />
+        <View style={styles.securityCard}>
+          <Ionicons name="lock-closed-outline" size={18} color={Colors.textSecondary} />
+          <Text style={styles.securityText}>
+            Sesi login tersimpan aman di perangkat. Password tidak disimpan.
+          </Text>
+        </View>
 
-        {/* ── Secondary menu group ── */}
-        <MenuGroup items={SECONDARY_MENU} />
-
-        {/* ── Sign Out ── */}
         <Pressable
-          style={({ pressed }) => [styles.signOutBtn, pressed && { opacity: 0.6 }]}
+          style={({ pressed }) => [
+            styles.signOutButton,
+            pressed && styles.pressed,
+            isSigningOut && styles.disabled,
+          ]}
+          onPress={() => void signOut()}
+          disabled={isSigningOut}
           accessibilityRole="button"
-          accessibilityLabel="Sign Out"
+          accessibilityLabel="Keluar dari akun"
         >
-          <Text style={styles.signOutText}>Sign Out</Text>
+          {isSigningOut ? (
+            <ActivityIndicator color="#FCA5A5" />
+          ) : (
+            <>
+              <Ionicons name="log-out-outline" size={19} color="#FCA5A5" />
+              <Text style={styles.signOutText}>Keluar</Text>
+            </>
+          )}
         </Pressable>
+        {signOutError !== undefined && (
+          <Text style={styles.signOutError}>{signOutError}</Text>
+        )}
       </ScrollView>
     </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: T.bg,
+    backgroundColor: Colors.background,
   },
-  scroll: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
-    gap: 12,
+  content: {
+    flexGrow: 1,
+    gap: 14,
+    paddingHorizontal: Spacing.screenPadding,
+    paddingBottom: 120,
   },
-
-  // Title
   pageTitle: {
-    color: T.textPrimary,
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-    paddingTop: 60,
-    paddingBottom: 4,
-  },
-
-  // Avatar
-  avatarBlock: {
-    alignItems: 'center',
-    paddingVertical: 16,
-    gap: 4,
-  },
-  avatarRingWrap: {
-    position: 'relative',
-    marginBottom: 10,
-  },
-  avatarRing: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    overflow: 'hidden',
-    borderWidth: 2.5,
-    borderColor: T.border,
-    boxShadow: '0 0 18px rgba(204,255,0,0.3)',
-  } as any,
-  avatarImg: {
-    width: '100%',
-    height: '100%',
-  },
-  onlineDot: {
-    position: 'absolute',
-    bottom: 3,
-    right: 3,
-    width: 13,
-    height: 13,
-    borderRadius: 99,
-    backgroundColor: T.success,
-    borderWidth: 2.5,
-    borderColor: T.bg,
-  },
-  userName: {
-    color: T.textPrimary,
-    fontSize: 20,
+    marginBottom: 8,
+    color: Colors.textPrimary,
+    fontSize: 24,
     fontWeight: '700',
   },
-  userEmail: {
-    color: T.textSecondary,
-    fontSize: 13,
-    marginTop: 2,
-  },
-  proBadge: {
-    backgroundColor: T.accentDim,
-    borderWidth: 1,
-    borderColor: 'rgba(204,255,0,0.22)',
-    borderRadius: 99,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    marginTop: 8,
-  },
-  proBadgeText: {
-    color: T.accent,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.2,
-  },
-
-  // Stats
-  statsCard: {
-    flexDirection: 'row',
-    backgroundColor: T.surface,
-    borderWidth: 1,
-    borderColor: T.border,
-    borderRadius: 18,
-    paddingVertical: 14,
-  },
-  statCell: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 3,
-  },
-  statCellBorder: {
-    borderRightWidth: 1,
-    borderRightColor: T.border,
-  },
-  statVal: {
-    color: T.accent,
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  statLabel: {
-    color: T.textSecondary,
-    fontSize: 11,
-  },
-
-  // Menu card
-  menuCard: {
-    backgroundColor: T.surface,
-    borderWidth: 1,
-    borderColor: T.border,
-    borderRadius: 18,
-    overflow: 'hidden',
-  },
-
-  // Menu row
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    gap: 12,
-  },
-  menuItemDivider: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: T.borderSubtle,
-  },
-  menuIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  menuLabelWrap: {
-    flex: 1,
-    gap: 4,
-  },
-  menuLabel: {
-    color: T.textPrimary,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-
-  // MCP sub-row
-  mcpRow: {
-    flexDirection: 'row',
+  identityCard: {
     alignItems: 'center',
     gap: 5,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.card,
+    backgroundColor: Colors.surface,
   },
-  mcpSheetIcon: {
-    width: 13,
-    height: 13,
-    borderRadius: 3,
+  avatar: {
+    width: 72,
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    borderRadius: 36,
+    backgroundColor: Colors.accent,
   },
-  mcpLabel: {
-    color: T.textSecondary,
-    fontSize: 11,
-    fontWeight: '500',
+  avatarText: {
+    color: '#000000',
+    fontSize: 30,
+    fontWeight: '800',
   },
-  mcpSep: {
-    width: 3,
-    height: 3,
-    borderRadius: 99,
-    backgroundColor: T.textMuted,
+  username: {
+    color: Colors.textPrimary,
+    fontSize: 20,
+    fontWeight: '700',
   },
-  mcpConnected: {
-    color: T.success,
-    fontSize: 11,
+  userId: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+  },
+  ledgerCard: {
+    gap: 12,
+    padding: Spacing.cardPadding,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.card,
+    backgroundColor: Colors.surface,
+  },
+  ledgerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  ledgerIcon: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: 'rgba(204,255,0,0.1)',
+  },
+  ledgerCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  cardLabel: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.3,
+  },
+  ledgerName: {
+    color: Colors.textPrimary,
+    fontSize: 15,
     fontWeight: '600',
   },
-
-  // Sign out
-  signOutBtn: {
-    backgroundColor: 'rgba(239,68,68,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.2)',
-    borderRadius: 16,
-    padding: 14,
+  statusDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: Colors.success,
+  },
+  statusDotOff: {
+    backgroundColor: Colors.textSecondary,
+  },
+  errorBlock: {
+    gap: 6,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
+  },
+  errorText: {
+    ...Typography.caption,
+    color: '#FCA5A5',
+  },
+  retryText: {
+    color: Colors.accent,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  securityCard: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+    padding: Spacing.cardPadding,
+    borderRadius: Radius.card,
+    backgroundColor: '#1C1C1E',
+  },
+  securityText: {
+    flex: 1,
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  signOutButton: {
+    minHeight: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#7F1D1D',
+    borderRadius: Radius.card,
+    backgroundColor: '#231313',
   },
   signOutText: {
-    color: '#EF4444',
+    color: '#FCA5A5',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+  signOutError: {
+    color: '#FCA5A5',
+    fontSize: 12,
+    textAlign: 'center',
   },
 });

@@ -47,7 +47,8 @@
           "photosPermission": "Klaudia needs photo library access to upload receipts.",
           "cameraPermission": "Klaudia needs camera access to photograph receipts."
         }
-      ]
+      ],
+      "expo-secure-store"
     ]
   }
 }

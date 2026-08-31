@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -10,186 +10,123 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface SheetTab {
-  title: string;
-  sheetId: number;
-  index: number;
-}
-
-interface SpreadsheetInfo {
-  spreadsheetId: string;
-  title: string;
-  sheets: SheetTab[];
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const IP = process.env.EXPO_PUBLIC_BASE_URL ?? '192.168.1.4';
-const BASE_URL = `http://${IP}:8000/v1`;
+import { Colors } from '../../constants/theme';
+import { useSpreadsheet } from '../../contexts/SpreadsheetContext';
+import { api, type JsonScalar, type SpreadsheetInfo } from '../../services/api';
+import { formatCellValue } from '../../services/ledger';
 
 const CELL_MIN_WIDTH = 110;
 const CELL_HEIGHT = 38;
 const HEADER_HEIGHT = 42;
-const ROW_NUM_WIDTH = 38;
+const ROW_NUMBER_WIDTH = 38;
 
-const COLORS = {
-  bg: '#0F0F11',
-  surface: '#18181C',
-  surfaceHigh: '#222228',
-  border: '#2A2A32',
-  accent: '#4ADE80',
-  accentDim: '#1A3D2B',
-  text: '#F0F0F2',
-  textMuted: '#7A7A8A',
-  textDim: '#4A4A58',
-  headerBg: '#141418',
-  headerText: '#9696A8',
-  rowEven: '#18181C',
-  rowOdd: '#1C1C22',
-  rowNum: '#111115',
-};
-
-// ─── API helpers ──────────────────────────────────────────────────────────────
-
-async function fetchSpreadsheetInfo(): Promise<SpreadsheetInfo> {
-  const res = await fetch(`${BASE_URL}/sheets/info`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-async function fetchSheetData(sheet: string): Promise<string[][]> {
-  const res = await fetch(
-    `${BASE_URL}/sheets/data?sheet=${encodeURIComponent(sheet)}`
-  );
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  return json.values ?? [];
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function TabPill({
-  label,
-  active,
-  onPress,
-}: {
+type TabButtonProps = {
   label: string;
   active: boolean;
   onPress: () => void;
-}) {
-  const scale = useRef(new Animated.Value(1)).current;
+};
 
-  const handlePress = () => {
-    Animated.sequence([
-      Animated.timing(scale, { toValue: 0.94, duration: 80, useNativeDriver: true }),
-      Animated.timing(scale, { toValue: 1, duration: 80, useNativeDriver: true }),
-    ]).start();
-    onPress();
-  };
-
+function TabButton({ label, active, onPress }: TabButtonProps): React.JSX.Element {
   return (
-    <Pressable onPress={handlePress}>
-      <Animated.View style={[styles.tabPill, active && styles.tabPillActive, { transform: [{ scale }] }]}>
-        <Text style={[styles.tabPillText, active && styles.tabPillTextActive]} numberOfLines={1}>
-          {label}
-        </Text>
-      </Animated.View>
+    <Pressable
+      style={({ pressed }) => [
+        styles.tabButton,
+        active && styles.tabButtonActive,
+        pressed && styles.pressed,
+      ]}
+      onPress={onPress}
+    >
+      <Text style={[styles.tabText, active && styles.tabTextActive]} numberOfLines={1}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
-function EmptyState({ message }: { message: string }) {
-  return (
-    <View style={styles.emptyState}>
-      <Text style={styles.emptyIcon}>◻</Text>
-      <Text style={styles.emptyText}>{message}</Text>
-    </View>
-  );
-}
+type ErrorStateProps = {
+  message: string;
+  onRetry: () => void;
+};
 
-function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+function ErrorState({ message, onRetry }: ErrorStateProps): React.JSX.Element {
   return (
-    <View style={styles.emptyState}>
-      <Text style={[styles.emptyIcon, { color: '#EF4444' }]}>⚠</Text>
-      <Text style={[styles.emptyText, { color: '#EF4444', marginBottom: 16 }]}>{message}</Text>
+    <View style={styles.stateContainer}>
+      <Text style={styles.errorText}>{message}</Text>
       <Pressable style={styles.retryButton} onPress={onRetry}>
-        <Text style={styles.retryButtonText}>Retry</Text>
+        <Text style={styles.retryText}>Coba lagi</Text>
       </Pressable>
     </View>
   );
 }
 
-// ─── Data Table ───────────────────────────────────────────────────────────────
+function DataTable({ rows }: { rows: JsonScalar[][] }): React.JSX.Element {
+  if (rows.length === 0) {
+    return (
+      <View style={styles.stateContainer}>
+        <Text style={styles.stateText}>Sheet ini masih kosong.</Text>
+      </View>
+    );
+  }
 
-function DataTable({ rows }: { rows: string[][] }) {
-  if (rows.length === 0) return <EmptyState message="Sheet is empty" />;
-
-  const numCols = Math.max(...rows.map((r) => r.length));
-  const colWidths = Array.from({ length: numCols }, (_, colIdx) => {
-    const maxLen = Math.max(...rows.map((r) => (r[colIdx] ?? '').length));
-    return Math.max(CELL_MIN_WIDTH, Math.min(maxLen * 8 + 24, 260));
+  const columnCount = Math.max(...rows.map((row) => row.length));
+  const columnWidths = Array.from({ length: columnCount }, (_, columnIndex) => {
+    const longestCell = Math.max(
+      ...rows.map((row) => formatCellValue(row[columnIndex]).length),
+    );
+    return Math.max(CELL_MIN_WIDTH, Math.min(longestCell * 8 + 24, 260));
   });
-  const totalWidth = ROW_NUM_WIDTH + colWidths.reduce((a, b) => a + b, 0);
-
-  const [header, ...dataRows] = rows;
-
-  const colLabels = colWidths.map((_, i) =>
-    i < 26 ? String.fromCharCode(65 + i) : `A${String.fromCharCode(65 + (i - 26))}`
-  );
+  const tableWidth =
+    ROW_NUMBER_WIDTH + columnWidths.reduce((total, width) => total + width, 0);
+  const [header, ...bodyRows] = rows;
 
   return (
     <ScrollView
       horizontal
-      showsHorizontalScrollIndicator={false}
       bounces={false}
-      contentContainerStyle={{ minWidth: totalWidth }}
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ minWidth: tableWidth }}
     >
       <View>
-        <View style={[styles.colLabelRow, { width: totalWidth }]}>
-          <View style={[styles.cornerCell, { width: ROW_NUM_WIDTH }]} />
-          {colWidths.map((w, i) => (
-            <View key={i} style={[styles.colLabelCell, { width: w }]}>
-              <Text style={styles.colLabelText}>{colLabels[i]}</Text>
+        <View style={[styles.columnLabelRow, { width: tableWidth }]}>
+          <View style={[styles.cornerCell, { width: ROW_NUMBER_WIDTH }]} />
+          {columnWidths.map((width, columnIndex) => (
+            <View key={columnIndex} style={[styles.columnLabelCell, { width }]}>
+              <Text style={styles.columnLabelText}>{columnLabel(columnIndex)}</Text>
             </View>
           ))}
         </View>
 
-        <View style={[styles.headerRow, { width: totalWidth }]}>
-          <View style={[styles.rowNumCell, { width: ROW_NUM_WIDTH, height: HEADER_HEIGHT }]}>
-            <Text style={styles.rowNumText}>1</Text>
-          </View>
-          {colWidths.map((w, colIdx) => (
-            <View key={colIdx} style={[styles.headerCell, { width: w, height: HEADER_HEIGHT }]}>
+        <View style={[styles.headerRow, { width: tableWidth }]}>
+          <RowNumber value={1} height={HEADER_HEIGHT} />
+          {columnWidths.map((width, columnIndex) => (
+            <View
+              key={columnIndex}
+              style={[styles.headerCell, { width, height: HEADER_HEIGHT }]}
+            >
               <Text style={styles.headerCellText} numberOfLines={1}>
-                {header?.[colIdx] ?? ''}
+                {formatCellValue(header[columnIndex])}
               </Text>
             </View>
           ))}
         </View>
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          nestedScrollEnabled
-          style={{ maxHeight: 520 }}
-        >
-          {dataRows.map((row, rowIdx) => (
+        <ScrollView nestedScrollEnabled style={styles.bodyScroll}>
+          {bodyRows.map((row, rowIndex) => (
             <View
-              key={rowIdx}
+              key={rowIndex}
               style={[
                 styles.dataRow,
-                { width: totalWidth, backgroundColor: rowIdx % 2 === 0 ? COLORS.rowEven : COLORS.rowOdd },
+                styles[rowIndex % 2 === 0 ? 'evenRow' : 'oddRow'],
+                { width: tableWidth },
               ]}
             >
-              <View style={[styles.rowNumCell, { width: ROW_NUM_WIDTH }]}>
-                <Text style={styles.rowNumText}>{rowIdx + 2}</Text>
-              </View>
-              {colWidths.map((w, colIdx) => (
-                <View key={colIdx} style={[styles.dataCell, { width: w }]}>
+              <RowNumber value={rowIndex + 2} height={CELL_HEIGHT} />
+              {columnWidths.map((width, columnIndex) => (
+                <View key={columnIndex} style={[styles.dataCell, { width }]}>
                   <Text style={styles.dataCellText} numberOfLines={1}>
-                    {row[colIdx] ?? ''}
+                    {formatCellValue(row[columnIndex])}
                   </Text>
                 </View>
               ))}
@@ -201,210 +138,214 @@ function DataTable({ rows }: { rows: string[][] }) {
   );
 }
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
+function RowNumber({ value, height }: { value: number; height: number }): React.JSX.Element {
+  return (
+    <View style={[styles.rowNumberCell, { width: ROW_NUMBER_WIDTH, height }]}>
+      <Text style={styles.rowNumberText}>{value}</Text>
+    </View>
+  );
+}
 
-export default function SheetScreen() {
+export default function SheetScreen(): React.JSX.Element {
+  const insets = useSafeAreaInsets();
+  const {
+    activeSpreadsheet,
+    isLoading: isLoadingSpreadsheets,
+    error: spreadsheetError,
+    refresh: refreshSpreadsheets,
+  } = useSpreadsheet();
   const [info, setInfo] = useState<SpreadsheetInfo | null>(null);
   const [activeSheet, setActiveSheet] = useState<string | null>(null);
-  const [rows, setRows] = useState<string[][]>([]);
-  const [loadingInfo, setLoadingInfo] = useState(true);
-  const [loadingData, setLoadingData] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [rows, setRows] = useState<JsonScalar[][]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const opacity = useRef(new Animated.Value(0)).current;
+  const didFocusOnce = useRef(false);
+  const activeSheetRef = useRef<string | null>(null);
+  const requestSequence = useRef(0);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  const fadeIn = () =>
-    Animated.timing(fadeAnim, { toValue: 1, duration: 280, useNativeDriver: true }).start();
-
-  // ── Load sheet row data ───────────────────────────────────────────────────
-  const loadData = useCallback(async (sheet: string) => {
-    setLoadingData(true);
-    fadeAnim.setValue(0);
-    try {
-      const data = await fetchSheetData(sheet);
-      setRows(data);
-      fadeIn();
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to load sheet');
-    } finally {
-      setLoadingData(false);
-    }
-  }, []);
-
-  // ── Load spreadsheet metadata (sheet list) ────────────────────────────────
-  //
-  // After fetching, we reconcile the active tab:
-  //   • If the previously active sheet still exists → keep it selected
-  //   • If it was deleted (or this is the first load) → select the first sheet
-  //
-  // `currentActive` is passed in so the callback stays pure (no stale closure).
-  const loadInfo = useCallback(async (currentActive: string | null) => {
-    setError(null);
-    setLoadingInfo(true);
-    setInfo(null);
-    fadeAnim.setValue(0);
-    try {
-      const data = await fetchSpreadsheetInfo();
-      const normalized: SpreadsheetInfo = {
-        ...data,
-        sheets: Array.isArray(data.sheets) ? data.sheets : [],
-      };
-      setInfo(normalized);
-
-      const sheetTitles = normalized.sheets.map((s) => s.title);
-      const stillExists = currentActive && sheetTitles.includes(currentActive);
-      const targetSheet = stillExists ? currentActive : (sheetTitles[0] ?? null);
-
-      // If the active sheet changed (new default), clear stale rows immediately
-      if (targetSheet !== currentActive) {
-        setRows([]);
+  const loadSheet = useCallback(
+    async (
+      sheetName: string,
+      existingRequestSequence?: number,
+    ): Promise<void> => {
+      if (activeSpreadsheet === null) return;
+      const currentRequestSequence =
+        existingRequestSequence ?? ++requestSequence.current;
+      setIsLoading(true);
+      setError(null);
+      opacity.setValue(0);
+      try {
+        const nextRows = await api.getSheetData(
+          sheetName,
+          activeSpreadsheet.spreadsheetId,
+        );
+        if (currentRequestSequence !== requestSequence.current) return;
+        setRows(nextRows);
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: true,
+        }).start();
+      } catch (caughtError: unknown) {
+        if (currentRequestSequence !== requestSequence.current) return;
+        setError(errorMessage(caughtError, 'Gagal memuat data sheet.'));
+      } finally {
+        if (currentRequestSequence === requestSequence.current) {
+          setIsLoading(false);
+        }
       }
-
-      setActiveSheet(targetSheet);
-      // loadData is triggered by the activeSheet useEffect below;
-      // but if targetSheet === currentActive (sheet unchanged), the effect won't
-      // fire again — so we call loadData directly in that case.
-      if (targetSheet && targetSheet === currentActive) {
-        await loadData(targetSheet);
-      }
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to connect');
-    } finally {
-      setLoadingInfo(false);
-    }
-  }, [loadData]);
-
-  // ── Initial load ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    loadInfo(null);
-  }, []);
-
-  // ── Re-fetch when active tab changes ──────────────────────────────────────
-  useEffect(() => {
-    if (activeSheet) loadData(activeSheet);
-  }, [activeSheet]);
-
-  // ── Re-fetch everything when tab comes into focus ─────────────────────────
-  //
-  // useFocusEffect fires every time the user navigates TO this tab.
-  // This is what makes "go to chat → Klaudia adds a sheet → come back" work.
-  // We skip the very first mount (handled by the useEffect above) using a ref.
-  const isFirstMount = useRef(true);
-  useFocusEffect(
-    useCallback(() => {
-      if (isFirstMount.current) {
-        isFirstMount.current = false;
-        return;
-      }
-      // Re-fetch meta + current data when returning to this tab
-      loadInfo(activeSheet);
-    }, [activeSheet, loadInfo])
+    },
+    [activeSpreadsheet, opacity],
   );
 
-  // ── Pull-to-refresh ───────────────────────────────────────────────────────
-  //
-  // BUG FIX: was only calling loadData(), never loadInfo().
-  // New sheets created by Klaudia would never appear until app restart.
-  // Now: refresh = full reload (meta + data), same as tab focus.
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await loadInfo(activeSheet);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [activeSheet, loadInfo]);
+  const loadLedger = useCallback(
+    async (preferredSheet?: string | null): Promise<void> => {
+      const currentRequestSequence = ++requestSequence.current;
+      if (activeSpreadsheet === null) {
+        setInfo(null);
+        setActiveSheet(null);
+        setRows([]);
+        return;
+      }
 
-  const handleTabSelect = (title: string) => {
-    if (title !== activeSheet) {
-      setRows([]);
-      setActiveSheet(title);
-    }
+      setIsLoading(true);
+      setError(null);
+      try {
+        const nextInfo = await api.getSpreadsheetInfo(activeSpreadsheet.spreadsheetId);
+        if (currentRequestSequence !== requestSequence.current) return;
+        setInfo(nextInfo);
+        const sheetTitles = nextInfo.sheets.map((sheet) => sheet.title);
+        const nextSheet =
+          preferredSheet !== null &&
+          preferredSheet !== undefined &&
+          sheetTitles.includes(preferredSheet)
+            ? preferredSheet
+            : sheetTitles[0] ?? null;
+        activeSheetRef.current = nextSheet;
+        setActiveSheet(nextSheet);
+        if (nextSheet === null) {
+          setRows([]);
+        } else {
+          await loadSheet(nextSheet, currentRequestSequence);
+        }
+      } catch (caughtError: unknown) {
+        if (currentRequestSequence !== requestSequence.current) return;
+        setError(errorMessage(caughtError, 'Gagal memuat ledger.'));
+      } finally {
+        if (currentRequestSequence === requestSequence.current) {
+          setIsLoading(false);
+        }
+      }
+    },
+    [activeSpreadsheet, loadSheet],
+  );
+
+  useEffect(() => {
+    void loadLedger();
+    return () => {
+      requestSequence.current += 1;
+    };
+  }, [loadLedger]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!didFocusOnce.current) {
+        didFocusOnce.current = true;
+        return;
+      }
+      void loadLedger(activeSheetRef.current);
+    }, [loadLedger]),
+  );
+
+  const refresh = useCallback(async (): Promise<void> => {
+    setIsRefreshing(true);
+    await refreshSpreadsheets();
+    await loadLedger(activeSheetRef.current);
+    setIsRefreshing(false);
+  }, [loadLedger, refreshSpreadsheets]);
+
+  const selectSheet = (sheetName: string): void => {
+    if (sheetName === activeSheet) return;
+    activeSheetRef.current = sheetName;
+    setActiveSheet(sheetName);
+    setRows([]);
+    void loadSheet(sheetName);
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  if (isLoadingSpreadsheets && activeSpreadsheet === null) {
+    return <LoadingState label="Menghubungkan ke ledger..." />;
+  }
 
-  if (loadingInfo && !info) {
+  if (activeSpreadsheet === null) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.accent} />
-        <Text style={styles.loadingLabel}>Connecting to spreadsheet…</Text>
-      </View>
+      <ErrorState
+        message={spreadsheetError ?? 'Akun ini belum memiliki ledger.'}
+        onRetry={() => void refreshSpreadsheets()}
+      />
     );
   }
 
-  if (error && !info) {
-    return (
-      <View style={styles.centered}>
-        <ErrorState message={error} onRetry={() => loadInfo(null)} />
-      </View>
-    );
-  }
-
-  const dataRowCount = rows.length > 1 ? rows.length - 1 : 0;
+  const dataRowCount = Math.max(rows.length - 1, 0);
 
   return (
     <View style={styles.screen}>
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerLabel}>SPREADSHEET</Text>
+      <View style={[styles.pageHeader, { paddingTop: insets.top + 20 }]}>
+        <View style={styles.headerText}>
+          <Text style={styles.headerLabel}>LEDGER</Text>
           <Text style={styles.headerTitle} numberOfLines={1}>
-            {info?.title ?? '—'}
+            {activeSpreadsheet.name}
           </Text>
         </View>
-        {activeSheet && !loadingData && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{dataRowCount} rows</Text>
+        {activeSheet !== null && !isLoading && (
+          <View style={styles.rowBadge}>
+            <Text style={styles.rowBadgeText}>{dataRowCount} baris</Text>
           </View>
         )}
       </View>
 
-      {/* ── Sheet Tabs ── */}
-      {info && Array.isArray(info.sheets) && info.sheets.length > 0 && (
-        <View style={styles.tabBar}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tabBarContent}
-          >
-            {info.sheets.map((s) => (
-              <TabPill
-                key={s.sheetId}
-                label={s.title}
-                active={s.title === activeSheet}
-                onPress={() => handleTabSelect(s.title)}
-              />
-            ))}
-          </ScrollView>
-        </View>
+      {info !== null && info.sheets.length > 0 && (
+        <ScrollView
+          horizontal
+          style={styles.tabBar}
+          contentContainerStyle={styles.tabBarContent}
+          showsHorizontalScrollIndicator={false}
+        >
+          {info.sheets.map((sheet) => (
+            <TabButton
+              key={sheet.sheetId}
+              label={sheet.title}
+              active={sheet.title === activeSheet}
+              onPress={() => selectSheet(sheet.title)}
+            />
+          ))}
+        </ScrollView>
       )}
 
-      {/* ── Divider ── */}
       <View style={styles.divider} />
 
-      {/* ── Table or loading ── */}
       <ScrollView
         style={styles.tableContainer}
         contentContainerStyle={styles.tableContent}
         refreshControl={
           <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={COLORS.accent}
+            refreshing={isRefreshing}
+            onRefresh={() => void refresh()}
+            tintColor={Colors.accent}
           />
         }
       >
-        {loadingData ? (
-          <View style={styles.centered}>
-            <ActivityIndicator size="small" color={COLORS.accent} />
-            <Text style={styles.loadingLabel}>Loading {activeSheet}…</Text>
+        {isLoading ? (
+          <LoadingState label={activeSheet === null ? 'Memuat ledger...' : `Memuat ${activeSheet}...`} />
+        ) : error !== null ? (
+          <ErrorState message={error} onRetry={() => void loadLedger(activeSheet)} />
+        ) : info?.sheets.length === 0 ? (
+          <View style={styles.stateContainer}>
+            <Text style={styles.stateText}>Ledger ini belum memiliki sheet.</Text>
           </View>
-        ) : error ? (
-          <ErrorState message={error} onRetry={() => activeSheet && loadData(activeSheet)} />
         ) : (
-          <Animated.View style={{ opacity: fadeAnim }}>
+          <Animated.View style={{ opacity }}>
             <DataTable rows={rows} />
           </Animated.View>
         )}
@@ -413,61 +354,230 @@ export default function SheetScreen() {
   );
 }
 
-// ─── Styles (unchanged) ───────────────────────────────────────────────────────
+function LoadingState({ label }: { label: string }): React.JSX.Element {
+  return (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator color={Colors.accent} />
+      <Text style={styles.stateText}>{label}</Text>
+    </View>
+  );
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function columnLabel(columnIndex: number): string {
+  let remaining = columnIndex + 1;
+  let label = '';
+  while (remaining > 0) {
+    const characterIndex = (remaining - 1) % 26;
+    label = String.fromCharCode(65 + characterIndex) + label;
+    remaining = Math.floor((remaining - 1) / 26);
+  }
+  return label;
+}
 
 const styles = StyleSheet.create({
-  screen:       { flex: 1, backgroundColor: COLORS.bg },
-  centered:     { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg, gap: 12 },
-  loadingLabel: { color: COLORS.textMuted, fontSize: 13, fontFamily: 'monospace' },
-
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 60, paddingBottom: 14, backgroundColor: COLORS.bg,
+  screen: {
+    flex: 1,
+    backgroundColor: Colors.background,
   },
-  headerLabel: { color: COLORS.accent, fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 4 },
-  headerTitle: { color: COLORS.text, fontSize: 18, fontWeight: '600', maxWidth: 240 },
-  badge: {
-    backgroundColor: COLORS.accentDim, paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 20, borderWidth: 1, borderColor: '#2A5C3D',
+  pageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 14,
   },
-  badgeText: { color: COLORS.accent, fontSize: 11, fontWeight: '600' },
-
-  tabBar:        { height: 44, backgroundColor: COLORS.bg },
-  tabBarContent: { paddingHorizontal: 16, gap: 8, alignItems: 'center' },
-  tabPill: {
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
-    backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
+  headerText: {
+    flex: 1,
+    paddingRight: 16,
   },
-  tabPillActive:     { backgroundColor: COLORS.accentDim, borderColor: COLORS.accent },
-  tabPillText:       { color: COLORS.textMuted, fontSize: 12, fontWeight: '500' },
-  tabPillTextActive: { color: COLORS.accent, fontWeight: '700' },
-
-  divider: { height: 1, backgroundColor: COLORS.border, marginTop: 8 },
-
-  tableContainer: { flex: 1 },
-  tableContent:   { flexGrow: 1, paddingBottom: 32 },
-
-  colLabelRow:  { flexDirection: 'row', backgroundColor: COLORS.headerBg, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  cornerCell:   { height: 28, borderRightWidth: 1, borderRightColor: COLORS.border },
-  colLabelCell: { height: 28, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: COLORS.border },
-  colLabelText: { color: COLORS.textDim, fontSize: 10, fontWeight: '600', letterSpacing: 0.5 },
-
+  headerLabel: {
+    marginBottom: 4,
+    color: Colors.accent,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+  },
+  headerTitle: {
+    color: Colors.textPrimary,
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  rowBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#536600',
+    borderRadius: 20,
+    backgroundColor: '#293300',
+  },
+  rowBadgeText: {
+    color: Colors.accent,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  tabBar: {
+    maxHeight: 44,
+  },
+  tabBarContent: {
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  tabButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+  },
+  tabButtonActive: {
+    borderColor: Colors.accent,
+    backgroundColor: '#293300',
+  },
+  tabText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  tabTextActive: {
+    color: Colors.accent,
+    fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+  divider: {
+    height: 1,
+    marginTop: 8,
+    backgroundColor: Colors.border,
+  },
+  tableContainer: {
+    flex: 1,
+  },
+  tableContent: {
+    flexGrow: 1,
+    paddingBottom: 32,
+  },
+  loadingContainer: {
+    flex: 1,
+    minHeight: 240,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    backgroundColor: Colors.background,
+  },
+  stateContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 80,
+    backgroundColor: Colors.background,
+  },
+  stateText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  errorText: {
+    color: '#F87171',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: Colors.accent,
+    borderRadius: 8,
+    backgroundColor: '#293300',
+  },
+  retryText: {
+    color: Colors.accent,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  columnLabelRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    backgroundColor: '#141418',
+  },
+  cornerCell: {
+    height: 28,
+    borderRightWidth: 1,
+    borderRightColor: Colors.border,
+  },
+  columnLabelCell: {
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRightWidth: 1,
+    borderRightColor: Colors.border,
+  },
+  columnLabelText: {
+    color: '#5F5F6E',
+    fontSize: 10,
+    fontWeight: '600',
+  },
   headerRow: {
-    flexDirection: 'row', backgroundColor: COLORS.headerBg,
-    borderBottomWidth: 2, borderBottomColor: COLORS.accent + '40',
+    flexDirection: 'row',
+    borderBottomWidth: 2,
+    borderBottomColor: '#536600',
+    backgroundColor: '#141418',
   },
-  headerCell:     { paddingHorizontal: 10, justifyContent: 'center', borderRightWidth: 1, borderRightColor: COLORS.border },
-  headerCellText: { color: COLORS.accent, fontSize: 11, fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase' },
-
-  dataRow:    { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  rowNumCell: { width: ROW_NUM_WIDTH, height: CELL_HEIGHT, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.rowNum, borderRightWidth: 1, borderRightColor: COLORS.border },
-  rowNumText: { color: COLORS.textDim, fontSize: 10, fontFamily: 'monospace' },
-  dataCell:   { height: CELL_HEIGHT, paddingHorizontal: 10, justifyContent: 'center', borderRightWidth: 1, borderRightColor: COLORS.border },
-  dataCellText: { color: COLORS.text, fontSize: 12 },
-
-  emptyState:      { alignItems: 'center', justifyContent: 'center', paddingVertical: 80, gap: 8 },
-  emptyIcon:       { fontSize: 32, color: COLORS.textDim, marginBottom: 4 },
-  emptyText:       { color: COLORS.textMuted, fontSize: 14 },
-  retryButton:     { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: COLORS.accentDim, borderRadius: 8, borderWidth: 1, borderColor: COLORS.accent },
-  retryButtonText: { color: COLORS.accent, fontSize: 13, fontWeight: '600' },
+  headerCell: {
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderRightWidth: 1,
+    borderRightColor: Colors.border,
+  },
+  headerCellText: {
+    color: Colors.accent,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  bodyScroll: {
+    maxHeight: 520,
+  },
+  dataRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  evenRow: {
+    backgroundColor: '#18181C',
+  },
+  oddRow: {
+    backgroundColor: '#1C1C22',
+  },
+  rowNumberCell: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRightWidth: 1,
+    borderRightColor: Colors.border,
+    backgroundColor: '#111115',
+  },
+  rowNumberText: {
+    color: '#5F5F6E',
+    fontSize: 10,
+    fontVariant: ['tabular-nums'],
+  },
+  dataCell: {
+    height: CELL_HEIGHT,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderRightWidth: 1,
+    borderRightColor: Colors.border,
+  },
+  dataCellText: {
+    color: Colors.textPrimary,
+    fontSize: 12,
+  },
 });

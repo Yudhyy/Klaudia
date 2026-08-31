@@ -1,14 +1,23 @@
-// components/ui/ChatInput.tsx
-import {
-  Alert, View, TextInput, TouchableOpacity,
-  StyleSheet, Image, Text, Animated, Pressable,
-} from 'react-native';
-import { useRef, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
-import { Colors, Radius } from '../../constants/theme';
+import * as ImagePicker from 'expo-image-picker';
+import { useEffect, useRef } from 'react';
+import {
+  Alert,
+  Animated,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+
+import { Colors } from '../../constants/theme';
+
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_PDF_BYTES = 50 * 1024 * 1024;
 
 export type Attachment = {
   uri: string;
@@ -27,14 +36,14 @@ type Props = {
   disabled?: boolean;
 };
 
-// ─── Permission helper ────────────────────────────────────────────────────────
-
 async function requestPermission(
   requester: () => Promise<ImagePicker.PermissionResponse>,
   label: string,
 ): Promise<boolean> {
   const { status } = await requester();
-  if (status === 'granted') return true;
+  if (status === 'granted') {
+    return true;
+  }
   Alert.alert(
     'Permission Required',
     `Klaudia needs ${label} access to upload receipts. Enable it in Settings.`,
@@ -43,15 +52,13 @@ async function requestPermission(
   return false;
 }
 
-// ─── Attachment chip inside composer ─────────────────────────────────────────
-
 function AttachmentChip({
   attachment,
   onRemove,
 }: {
   attachment: Attachment;
   onRemove: () => void;
-}) {
+}): React.JSX.Element {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.88)).current;
 
@@ -62,19 +69,23 @@ function AttachmentChip({
         toValue: 1, tension: 200, friction: 16, useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [fadeAnim, scaleAnim]);
 
   return (
-    <Animated.View style={[
-      styles.chipWrapper,
-      { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
-    ]}>
+    <Animated.View
+      style={[
+        styles.chipWrapper,
+        { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
+      ]}
+    >
       {attachment.type === 'image' ? (
         <View style={styles.imageChip}>
           <Image source={{ uri: attachment.uri }} style={styles.chipThumb} />
           <View style={styles.chipLabelRow}>
             <Ionicons name="image-outline" size={11} color={Colors.textSecondary} />
-            <Text style={styles.chipLabel} numberOfLines={1}>{attachment.name}</Text>
+            <Text style={styles.chipLabel} numberOfLines={1}>
+              {attachment.name}
+            </Text>
           </View>
         </View>
       ) : (
@@ -82,14 +93,12 @@ function AttachmentChip({
           <View style={styles.pdfIcon}>
             <Ionicons name="document-text-outline" size={18} color={Colors.accent} />
           </View>
-          <Text style={styles.pdfLabel} numberOfLines={1}>{attachment.name}</Text>
+          <Text style={styles.pdfLabel} numberOfLines={1}>
+            {attachment.name}
+          </Text>
         </View>
       )}
-      <Pressable
-        onPress={onRemove}
-        style={styles.chipRemove}
-        hitSlop={8}
-      >
+      <Pressable onPress={onRemove} style={styles.chipRemove} hitSlop={8}>
         <View style={styles.chipRemoveBg}>
           <Ionicons name="close" size={10} color="#000" />
         </View>
@@ -97,8 +106,6 @@ function AttachmentChip({
     </Animated.View>
   );
 }
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export function ChatInput({
   value,
@@ -108,86 +115,117 @@ export function ChatInput({
   onRemoveAttachment,
   attachment,
   disabled,
-}: Props) {
+}: Props): React.JSX.Element {
+  const selectImage = async (source: 'camera' | 'library'): Promise<void> => {
+    try {
+      const permissionRequester =
+        source === 'camera'
+          ? ImagePicker.requestCameraPermissionsAsync
+          : ImagePicker.requestMediaLibraryPermissionsAsync;
+      const hasPermission = await requestPermission(
+        permissionRequester,
+        source === 'camera' ? 'camera' : 'photo library',
+      );
+      if (!hasPermission) return;
 
-  const openCamera = async () => {
-    const ok = await requestPermission(ImagePicker.requestCameraPermissionsAsync, 'camera');
-    if (!ok) return;
-    const result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.8 });
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    onAttachment({ uri: asset.uri, name: 'camera_photo.jpg', type: 'image', base64: asset.base64 ?? undefined });
+      const result =
+        source === 'camera'
+          ? await ImagePicker.launchCameraAsync({ quality: 0.8 })
+          : await ImagePicker.launchImageLibraryAsync({
+              quality: 0.8,
+              mediaTypes: ['images'],
+            });
+      const asset = result.canceled ? undefined : result.assets[0];
+      if (asset === undefined) return;
+
+      const base64 = await readFileAsBase64(
+        asset.uri,
+        asset.fileSize,
+        MAX_IMAGE_BYTES,
+        'Gambar maksimal 10 MB.',
+      );
+      if (base64 === null) return;
+      onAttachment({
+        uri: asset.uri,
+        name: asset.fileName ?? 'photo.jpg',
+        type: 'image',
+        base64,
+      });
+    } catch {
+      Alert.alert('Error', 'Gagal membuka atau membaca gambar. Coba lagi.');
+    }
   };
 
-  const openGallery = async () => {
-    const ok = await requestPermission(ImagePicker.requestMediaLibraryPermissionsAsync, 'photo library');
-    if (!ok) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      base64: true, quality: 0.8, mediaTypes: ['images'] as any,
-    });
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    onAttachment({ uri: asset.uri, name: asset.fileName ?? 'photo.jpg', type: 'image', base64: asset.base64 ?? undefined });
+  const openFilePicker = async (): Promise<void> => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+      });
+      const asset = result.canceled ? undefined : result.assets[0];
+      if (asset === undefined) return;
+
+      const base64 = await readFileAsBase64(
+        asset.uri,
+        asset.size,
+        MAX_PDF_BYTES,
+        'PDF maksimal 50 MB.',
+      );
+      if (base64 === null) return;
+      onAttachment({ uri: asset.uri, name: asset.name, type: 'pdf', base64 });
+    } catch {
+      Alert.alert('Error', 'Gagal membuka atau membaca PDF. Coba lagi.');
+    }
   };
-
-  const openFilePicker = async () => {
-    const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true });
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    let base64: string | undefined;
-  try {
-    // expo-file-system can't read drag-dropped files on iOS Simulator because
-    // the URI lands outside the app sandbox even after copyToCacheDirectory.
-    // fetch() goes through NSURLSession which handles cross-sandbox file:// URIs.
-    const response = await fetch(asset.uri);
-    const blob = await response.blob();
-    base64 = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        // strip the data URL prefix: "data:application/pdf;base64,"
-        resolve(result.split(',')[1]);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    Alert.alert('Error', 'Failed to read PDF file. Please try again.');
-    return;
-  }
-
-  onAttachment({ uri: asset.uri, name: asset.name, type: 'pdf', base64 });
-};
 
   const canSend = !disabled && (value.trim().length > 0 || !!attachment);
 
   return (
     <View style={styles.container}>
-      {/* ── Composer box — contains chip + text input together ── */}
       <View style={styles.composerBox}>
-        {/* Attachment chip — lives inside the composer, above the text row */}
         {attachment && (
           <View style={styles.chipArea}>
             <AttachmentChip attachment={attachment} onRemove={onRemoveAttachment} />
           </View>
         )}
 
-        {/* Text + utility row */}
         <View style={styles.inputRow}>
-          {/* Media utility buttons — left side, inside composer */}
           <View style={styles.utilities}>
-            <TouchableOpacity onPress={openCamera} style={styles.utilBtn} disabled={disabled}>
-              <Ionicons name="camera-outline" size={19} color={disabled ? Colors.border : Colors.textSecondary} />
+            <TouchableOpacity
+              onPress={() => void selectImage('camera')}
+              style={styles.utilBtn}
+              disabled={disabled}
+            >
+              <Ionicons
+                name="camera-outline"
+                size={19}
+                color={disabled ? Colors.border : Colors.textSecondary}
+              />
             </TouchableOpacity>
-            <TouchableOpacity onPress={openGallery} style={styles.utilBtn} disabled={disabled}>
-              <Ionicons name="image-outline" size={19} color={disabled ? Colors.border : Colors.textSecondary} />
+            <TouchableOpacity
+              onPress={() => void selectImage('library')}
+              style={styles.utilBtn}
+              disabled={disabled}
+            >
+              <Ionicons
+                name="image-outline"
+                size={19}
+                color={disabled ? Colors.border : Colors.textSecondary}
+              />
             </TouchableOpacity>
-            <TouchableOpacity onPress={openFilePicker} style={styles.utilBtn} disabled={disabled}>
-              <Ionicons name="document-outline" size={19} color={disabled ? Colors.border : Colors.textSecondary} />
+            <TouchableOpacity
+              onPress={openFilePicker}
+              style={styles.utilBtn}
+              disabled={disabled}
+            >
+              <Ionicons
+                name="document-outline"
+                size={19}
+                color={disabled ? Colors.border : Colors.textSecondary}
+              />
             </TouchableOpacity>
           </View>
 
-          {/* Text input */}
           <TextInput
             autoCorrect={false}
             spellCheck={false}
@@ -202,7 +240,6 @@ export function ChatInput({
             editable={!disabled}
           />
 
-          {/* Send button */}
           <TouchableOpacity
             style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]}
             onPress={onSend}
@@ -217,6 +254,48 @@ export function ChatInput({
   );
 }
 
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') {
+        reject(new Error('File reader returned an invalid value.'));
+        return;
+      }
+      const separatorIndex = reader.result.indexOf(',');
+      if (separatorIndex === -1 || separatorIndex === reader.result.length - 1) {
+        reject(new Error('File reader returned an invalid data URL.'));
+        return;
+      }
+      resolve(reader.result.slice(separatorIndex + 1));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to read file.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function readFileAsBase64(
+  uri: string,
+  size: number | undefined,
+  maximumBytes: number,
+  sizeError: string,
+): Promise<string | null> {
+  if (size !== undefined && size > maximumBytes) {
+    Alert.alert('File terlalu besar', sizeError);
+    return null;
+  }
+  const response = await fetch(uri);
+  if (!response.ok && response.status !== 0) {
+    throw new Error(`File read failed with status ${response.status}.`);
+  }
+  const blob = await response.blob();
+  if (blob.size > maximumBytes) {
+    Alert.alert('File terlalu besar', sizeError);
+    return null;
+  }
+  return blobToBase64(blob);
+}
+
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 12,
@@ -226,8 +305,6 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.border,
   },
-
-  // The rounded pill that wraps chip + input row
   composerBox: {
     backgroundColor: '#1C1C1E',
     borderRadius: 22,
@@ -235,15 +312,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     overflow: 'hidden',
   },
-
-  // Chip area — shown only when attachment exists
   chipArea: {
     paddingTop: 10,
     paddingHorizontal: 12,
     paddingBottom: 4,
   },
-
-  // Text + button row
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -287,8 +360,6 @@ const styles = StyleSheet.create({
   sendBtnDisabled: {
     opacity: 0.35,
   },
-
-  // ── Image chip ────────────────────────────────────────────────────────────
   chipWrapper: {
     position: 'relative',
     alignSelf: 'flex-start',
@@ -344,7 +415,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Remove button — top-right badge on chip
   chipRemove: {
     position: 'absolute',
     top: -5,

@@ -1,58 +1,48 @@
+import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { View } from 'react-native';
-import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import type { ReactNode } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const ACCENT = '#CCFF00';
-const INACTIVE = '#71717A';
-const TAB_BG = '#0C0C0E';
+import { Colors } from '../../constants/theme';
 
-function TabIcon({ name, library, focused }: { 
-  name: string; 
-  library: 'Ionicons' | 'MaterialCommunityIcons' | 'FontAwesome5';
+type TabIconProps = {
   focused: boolean;
-}) {
-  const color = focused ? '#000000' : INACTIVE;
-  const icon = library === 'Ionicons' 
-    ? <Ionicons name={name as any} size={24} color={color} />
-    : library === 'MaterialCommunityIcons'
-    ? <MaterialCommunityIcons name={name as any} size={24} color={color} />
-    : <FontAwesome5 name={name as any} size={22} color={color} />;
+  children: (color: string) => ReactNode;
+};
 
+function TabIcon({ focused, children }: TabIconProps): React.JSX.Element {
   return (
-    <View style={{
-      backgroundColor: focused ? ACCENT : 'transparent',
-      borderRadius: 9999,
-      width: 40,
-      height: 40,
-      alignItems: 'center',
-      justifyContent: 'center',
-    }}>
-      {icon}
+    <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
+      {children(focused ? '#000000' : '#71717A')}
     </View>
   );
 }
 
-export default function TabsLayout() {
+export default function TabsLayout(): React.JSX.Element {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarStyle: {
-          backgroundColor: TAB_BG,
-          borderTopColor: '#27272A',
-          borderTopWidth: 1,
-          height: 80,
-          paddingBottom: 16,
-          paddingTop: 12,
-        },
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            height: 60 + insets.bottom,
+            paddingBottom: Math.max(insets.bottom, 10),
+          },
+        ],
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="home-outline" library="Ionicons" focused={focused} />
+            <TabIcon focused={focused}>
+              {(color) => <Ionicons name="chatbubble-outline" size={23} color={color} />}
+            </TabIcon>
           ),
         }}
       />
@@ -60,7 +50,11 @@ export default function TabsLayout() {
         name="sheet"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="table-large" library="MaterialCommunityIcons" focused={focused} />
+            <TabIcon focused={focused}>
+              {(color) => (
+                <MaterialCommunityIcons name="table-large" size={24} color={color} />
+              )}
+            </TabIcon>
           ),
         }}
       />
@@ -68,10 +62,31 @@ export default function TabsLayout() {
         name="profile"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="user-circle" library="FontAwesome5" focused={focused} />
+            <TabIcon focused={focused}>
+              {(color) => <FontAwesome5 name="user-circle" size={22} color={color} />}
+            </TabIcon>
           ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+  },
+  iconContainerFocused: {
+    backgroundColor: Colors.accent,
+  },
+});
