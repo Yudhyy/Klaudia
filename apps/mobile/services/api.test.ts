@@ -6,6 +6,7 @@ import {
   createApiClient,
   normalizeApiBaseUrl,
   parseSseFrames,
+  requireSecureApiBaseUrl,
   type SSEEvent,
 } from './api.ts';
 
@@ -13,6 +14,21 @@ test('normalizes a host and full API URLs', () => {
   assert.equal(normalizeApiBaseUrl('192.168.1.20'), 'http://192.168.1.20:8000/v1');
   assert.equal(normalizeApiBaseUrl('https://api.example.com'), 'https://api.example.com/v1');
   assert.equal(normalizeApiBaseUrl('https://api.example.com/v1/'), 'https://api.example.com/v1');
+});
+
+test('rejects a cleartext remote API outside development', () => {
+  assert.equal(
+    requireSecureApiBaseUrl('http://192.168.1.20:8000/v1', true),
+    'http://192.168.1.20:8000/v1',
+  );
+  assert.equal(
+    requireSecureApiBaseUrl('http://localhost:8000/v1', false),
+    'http://localhost:8000/v1',
+  );
+  assert.throws(
+    () => requireSecureApiBaseUrl('http://api.example.com/v1', false),
+    /HTTPS API URL/,
+  );
 });
 
 test('adds the bearer token and spreadsheet scope without a user id', async () => {
@@ -41,23 +57,82 @@ test('adds the bearer token and spreadsheet scope without a user id', async () =
   assert.equal(requestUrl.includes('user_id'), false);
 });
 
+test('validates auth, ledger, sheet info, and approval responses', async () => {
+  const client = createApiClient({
+    baseUrl: 'http://localhost:8000/v1',
+    getAccessToken: () => 'token',
+    fetchImpl: async (input) => {
+      const url = String(input);
+      if (url.endsWith('/auth/login')) {
+        return Response.json({
+          access_token: 'jwt-token',
+          token_type: 'bearer',
+          user_id: 8,
+          username: 'klaudia-user',
+        });
+      }
+      if (url.endsWith('/spreadsheets')) {
+        return Response.json([{ spreadsheetId: 'ledger-123', name: 'Utama' }]);
+      }
+      if (url.includes('/sheets/info')) {
+        return Response.json({
+          spreadsheetId: 'ledger-123',
+          title: 'Klaudia Ledger',
+          sheets: [
+            {
+              title: 'Jan',
+              sheetId: 1,
+              gridProperties: { rowCount: 3, columnCount: 2 },
+            },
+          ],
+        });
+      }
+      if (url.includes('/approvals/')) {
+        return Response.json({ approval_id: 'approval-1', executed: true });
+      }
+      return Response.json({ detail: 'Not found' }, { status: 404 });
+    },
+  });
+
+  assert.equal((await client.login({ username: 'klaudia-user', password: 'password' })).user_id, 8);
+  assert.deepEqual(await client.getSpreadsheets(), [
+    { spreadsheetId: 'ledger-123', name: 'Utama' },
+  ]);
+  assert.equal((await client.getSpreadsheetInfo('ledger-123')).sheets[0]?.title, 'Jan');
+  assert.equal((await client.resolveApproval('approval-1', 'approve')).executed, true);
+});
+
 test('calls the unauthorized handler and rejects a 401 response', async () => {
-  let unauthorizedCalls = 0;
+  let rejectedToken: string | null | undefined;
   const client = createApiClient({
     baseUrl: 'http://localhost:8000/v1',
     getAccessToken: () => 'expired-token',
-    onUnauthorized: () => {
-      unauthorizedCalls += 1;
+    onUnauthorized: (token) => {
+      rejectedToken = token;
     },
     fetchImpl: async () => Response.json({ detail: 'Invalid token' }, { status: 401 }),
   });
 
-  await assert.rejects(client.getSessions(), (error: unknown) => {
+  await assert.rejects(client.getSpreadsheets(), (error: unknown) => {
     assert.equal(error instanceof ApiError, true);
     assert.equal((error as ApiError).status, 401);
     return true;
   });
-  assert.equal(unauthorizedCalls, 1);
+  assert.equal(rejectedToken, 'expired-token');
+});
+
+test('rejects malformed sheet data returned by the server', async () => {
+  const client = createApiClient({
+    baseUrl: 'http://localhost:8000/v1',
+    getAccessToken: () => 'token',
+    fetchImpl: async () => Response.json({ values: [[{ unsafe: true }]] }),
+  });
+
+  await assert.rejects(client.getSheetData('Jun', 'ledger-123'), (error: unknown) => {
+    assert.equal(error instanceof ApiError, true);
+    assert.equal((error as ApiError).status, 502);
+    return true;
+  });
 });
 
 test('keeps an incomplete SSE frame for the next chunk', () => {
@@ -152,12 +227,12 @@ test('streams chunked events with bearer auth and ledger scope', async () => {
 
 test('logs out after an unauthorized stream response', async () => {
   const transport = new MockXmlHttpRequest();
-  let unauthorizedCalls = 0;
+  let rejectedToken: string | null | undefined;
   const client = createApiClient({
     baseUrl: 'http://localhost:8000/v1',
     getAccessToken: () => 'expired-token',
-    onUnauthorized: () => {
-      unauthorizedCalls += 1;
+    onUnauthorized: (token) => {
+      rejectedToken = token;
     },
     xhrFactory: () => transport as unknown as XMLHttpRequest,
   });
@@ -174,7 +249,7 @@ test('logs out after an unauthorized stream response', async () => {
     assert.equal((error as ApiError).status, 401);
     return true;
   });
-  assert.equal(unauthorizedCalls, 1);
+  assert.equal(rejectedToken, 'expired-token');
 });
 
 test('aborts an active stream when its signal is cancelled', async () => {
