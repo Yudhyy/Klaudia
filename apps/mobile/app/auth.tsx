@@ -62,10 +62,10 @@ export default function AuthScreen(): React.JSX.Element {
         <View style={styles.heading}>
           <Text style={styles.eyebrow}>KLAUDIA</Text>
           <Text style={styles.title}>
-            {mode === 'login' ? 'Masuk ke ledger' : 'Buat akun'}
+            {mode === 'login' ? 'Sign in to your ledger' : 'Create an account'}
           </Text>
           <Text style={styles.subtitle}>
-            Data keuangan Anda dibaca dari ledger Klaudia milik akun ini.
+            Your financial data comes from the Klaudia ledger linked to this account.
           </Text>
         </View>
 
@@ -121,7 +121,7 @@ export default function AuthScreen(): React.JSX.Element {
               <ActivityIndicator color="#000000" />
             ) : (
               <Text style={styles.submitText}>
-                {mode === 'login' ? 'Masuk' : 'Daftar'}
+                {mode === 'login' ? 'Sign In' : 'Register'}
               </Text>
             )}
           </Pressable>
@@ -129,8 +129,8 @@ export default function AuthScreen(): React.JSX.Element {
           <Pressable onPress={switchMode} disabled={isSubmitting}>
             <Text style={styles.switchText}>
               {mode === 'login'
-                ? 'Belum punya akun? Daftar'
-                : 'Sudah punya akun? Masuk'}
+                ? "Don't have an account? Register"
+                : 'Already have an account? Sign in'}
             </Text>
           </Pressable>
         </View>
@@ -146,23 +146,23 @@ function validateAuthInput(
   password: string,
 ): string | null {
   if (!/^[a-zA-Z0-9_.-]{3,64}$/.test(username.trim())) {
-    return 'Username harus 3-64 karakter dan hanya memakai huruf, angka, titik, garis, atau underscore.';
+    return 'Username must be 3-64 characters and contain only letters, numbers, periods, hyphens, or underscores.';
   }
   if (mode === 'register' && !/^\S+@\S+\.\S+$/.test(email.trim())) {
-    return 'Masukkan alamat email yang valid.';
+    return 'Enter a valid email address.';
   }
   if (password.length < 8) {
-    return 'Password minimal 8 karakter.';
+    return 'Password must be at least 8 characters.';
   }
   return null;
 }
 
 function authErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
-    if (error.status === 401) return 'Username atau password salah.';
+    if (error.status === 401) return 'Incorrect username or password.';
     if (error.status === 409) return error.message;
   }
-  return 'Tidak dapat masuk. Periksa koneksi lalu coba lagi.';
+  return 'Unable to sign in. Check your connection and try again.';
 }
 
 const styles = StyleSheet.create({

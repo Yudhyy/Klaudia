@@ -27,7 +27,7 @@ export default function ProfileScreen(): React.JSX.Element {
     try {
       await logout();
     } catch {
-      setSignOutError('Gagal menghapus sesi dari perangkat. Coba lagi.');
+      setSignOutError('Failed to remove the session from this device. Try again.');
       setIsSigningOut(false);
     }
   };
@@ -40,7 +40,7 @@ export default function ProfileScreen(): React.JSX.Element {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.pageTitle}>Profil</Text>
+        <Text style={styles.pageTitle}>Profile</Text>
 
         <View style={styles.identityCard}>
           <View style={styles.avatar}>
@@ -56,9 +56,9 @@ export default function ProfileScreen(): React.JSX.Element {
               <Ionicons name="server-outline" size={20} color={Colors.accent} />
             </View>
             <View style={styles.ledgerCopy}>
-              <Text style={styles.cardLabel}>LEDGER AKTIF</Text>
+              <Text style={styles.cardLabel}>ACTIVE LEDGER</Text>
               <Text style={styles.ledgerName} numberOfLines={1}>
-                {activeSpreadsheet?.name ?? 'Belum tersedia'}
+                {activeSpreadsheet?.name ?? 'Not available'}
               </Text>
             </View>
             <View style={[styles.statusDot, activeSpreadsheet === null && styles.statusDotOff]} />
@@ -68,7 +68,7 @@ export default function ProfileScreen(): React.JSX.Element {
             <View style={styles.errorBlock}>
               <Text style={styles.errorText}>{spreadsheetError}</Text>
               <Pressable onPress={() => void refresh()}>
-                <Text style={styles.retryText}>Coba lagi</Text>
+                <Text style={styles.retryText}>Try Again</Text>
               </Pressable>
             </View>
           )}
@@ -77,7 +77,7 @@ export default function ProfileScreen(): React.JSX.Element {
         <View style={styles.securityCard}>
           <Ionicons name="lock-closed-outline" size={18} color={Colors.textSecondary} />
           <Text style={styles.securityText}>
-            Sesi login tersimpan aman di perangkat. Password tidak disimpan.
+            Your sign-in session is stored securely on this device. Your password is not stored.
           </Text>
         </View>
 
@@ -90,14 +90,14 @@ export default function ProfileScreen(): React.JSX.Element {
           onPress={() => void signOut()}
           disabled={isSigningOut}
           accessibilityRole="button"
-          accessibilityLabel="Keluar dari akun"
+          accessibilityLabel="Sign out of account"
         >
           {isSigningOut ? (
             <ActivityIndicator color="#FCA5A5" />
           ) : (
             <>
               <Ionicons name="log-out-outline" size={19} color="#FCA5A5" />
-              <Text style={styles.signOutText}>Keluar</Text>
+              <Text style={styles.signOutText}>Sign Out</Text>
             </>
           )}
         </Pressable>

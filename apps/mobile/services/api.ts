@@ -290,7 +290,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         }
         finish();
       };
-      xhr.onerror = () => fail(new Error('Tidak dapat terhubung ke server Klaudia.'));
+      xhr.onerror = () => fail(new Error('Unable to connect to the Klaudia server.'));
       xhr.onabort = () => fail(createAbortError());
       xhr.send(JSON.stringify(payload));
     });

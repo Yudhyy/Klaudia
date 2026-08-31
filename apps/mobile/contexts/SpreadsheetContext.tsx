@@ -50,7 +50,7 @@ export function SpreadsheetProvider({ children }: PropsWithChildren): React.JSX.
     } catch (caughtError: unknown) {
       if (requestSequence !== refreshSequence.current) return;
       setActiveSpreadsheet(null);
-      setError(caughtError instanceof Error ? caughtError.message : 'Gagal memuat ledger.');
+      setError(caughtError instanceof Error ? caughtError.message : 'Failed to load the ledger.');
     } finally {
       if (requestSequence === refreshSequence.current) {
         setIsLoading(false);

@@ -38,7 +38,7 @@ type ChatMessage = {
 const INITIAL_MESSAGE: ChatMessage = {
   id: 'welcome',
   role: 'assistant',
-  content: 'Halo. Saya siap membantu membaca dan memperbarui ledger Anda.',
+  content: 'Hello. I am ready to help you read and update your ledger.',
 };
 
 export default function ChatScreen(): React.JSX.Element {
@@ -90,11 +90,11 @@ export default function ChatScreen(): React.JSX.Element {
       return;
     }
     if (attachment !== null && attachment.base64 === undefined) {
-      setError('Lampiran gagal dibaca. Pilih ulang file lalu coba lagi.');
+      setError('Failed to read the attachment. Select the file again and try again.');
       return;
     }
 
-    const requestText = trimmedMessage || 'Tolong proses lampiran ini.';
+    const requestText = trimmedMessage || 'Please process this attachment.';
     const sentAt = formatTimestamp(new Date().toISOString());
     const userMessage: ChatMessage = {
       id: nextMessageId('user'),
@@ -115,7 +115,7 @@ export default function ChatScreen(): React.JSX.Element {
     setAttachment(null);
     setError(undefined);
     setIsStreaming(true);
-    setStatus('Menghubungkan ke Klaudia...');
+    setStatus('Connecting to Klaudia...');
 
     const controller = new AbortController();
     abortController.current = controller;
@@ -159,7 +159,7 @@ export default function ChatScreen(): React.JSX.Element {
             return;
           }
           if (event.type === 'error') {
-            setError(event.message || 'Klaudia gagal memproses pesan.');
+            setError(event.message || 'Klaudia failed to process the message.');
             return;
           }
           setStatus(eventStatus(event));
@@ -168,7 +168,7 @@ export default function ChatScreen(): React.JSX.Element {
       );
     } catch (caughtError: unknown) {
       if (!isAbortError(caughtError)) {
-        setError(errorMessage(caughtError, 'Tidak dapat mengirim pesan.'));
+        setError(errorMessage(caughtError, 'Unable to send the message.'));
       }
     } finally {
       abortController.current = undefined;
@@ -196,7 +196,7 @@ export default function ChatScreen(): React.JSX.Element {
           current.filter((approval) => approval.approval_id !== approvalId),
         );
       } catch (caughtError: unknown) {
-        setError(errorMessage(caughtError, 'Gagal memproses persetujuan.'));
+        setError(errorMessage(caughtError, 'Failed to process the approval.'));
       } finally {
         resolvingApprovalRef.current = undefined;
         setResolvingApprovalId(undefined);
@@ -218,7 +218,7 @@ export default function ChatScreen(): React.JSX.Element {
         <View style={styles.headerCopy}>
           <Text style={styles.title}>Klaudia</Text>
           <Text style={styles.subtitle} numberOfLines={1}>
-            {activeSpreadsheet?.name ?? 'Ledger belum tersedia'}
+            {activeSpreadsheet?.name ?? 'Ledger not available'}
           </Text>
         </View>
       </View>
@@ -226,7 +226,7 @@ export default function ChatScreen(): React.JSX.Element {
       {isLoadingSpreadsheet && ledgerUnavailable ? (
         <View style={styles.centerState}>
           <ActivityIndicator color={Colors.accent} />
-          <Text style={styles.stateText}>Menghubungkan ke ledger...</Text>
+          <Text style={styles.stateText}>Connecting to the ledger...</Text>
         </View>
       ) : (
         <FlatList
@@ -266,7 +266,7 @@ export default function ChatScreen(): React.JSX.Element {
         <ApprovalCard
           key={approval.approval_id}
           approval={approval}
-          ledgerName={activeSpreadsheet?.name ?? 'Ledger aktif'}
+          ledgerName={activeSpreadsheet?.name ?? 'Active ledger'}
           resolving={resolvingApprovalId === approval.approval_id}
           disabled={resolvingApprovalId !== undefined}
           onDecision={(approvalId, decision) => void resolveApproval(approvalId, decision)}
@@ -317,29 +317,29 @@ function imageContentType(filename: string): string {
 
 function eventStatus(event: Exclude<SSEEvent, { type: 'session' | 'token' | 'approval_required' | 'done' | 'error' }>): string {
   if (event.type === 'guardrail') {
-    if (event.status === 'checking') return 'Memeriksa keamanan pesan...';
-    if (event.status === 'passed') return 'Pesan lolos pemeriksaan...';
-    return event.message ?? 'Pesan ditolak.';
+    if (event.status === 'checking') return 'Checking message safety...';
+    if (event.status === 'passed') return 'Message passed safety checks...';
+    return event.message ?? 'Message rejected.';
   }
   if (event.type === 'extraction') {
-    if (event.status === 'processing') return `Membaca ${event.file_name ?? 'lampiran'}...`;
-    return event.summary ?? event.reason ?? 'Memproses lampiran...';
+    if (event.status === 'processing') return `Reading ${event.file_name ?? 'attachment'}...`;
+    return event.summary ?? event.reason ?? 'Processing attachment...';
   }
-  if (event.type === 'tool') return `Menjalankan ${friendlyToolName(event.name)}...`;
-  return `Memproses ${event.node}...`;
+  if (event.type === 'tool') return `Running ${friendlyToolName(event.name)}...`;
+  return `Processing ${event.node}...`;
 }
 
 function friendlyToolName(toolName: string): string {
-  if (/read|get|list|search|range/i.test(toolName)) return 'pembacaan ledger';
-  if (/append|write|update|batch/i.test(toolName)) return 'perubahan ledger';
-  if (/delete|clear/i.test(toolName)) return 'operasi yang perlu persetujuan';
-  return 'operasi ledger';
+  if (/read|get|list|search|range/i.test(toolName)) return 'a ledger read operation';
+  if (/append|write|update|batch/i.test(toolName)) return 'a ledger update operation';
+  if (/delete|clear/i.test(toolName)) return 'an operation that requires approval';
+  return 'a ledger operation';
 }
 
 function formatTimestamp(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
 function errorMessage(error: unknown, fallback: string): string {

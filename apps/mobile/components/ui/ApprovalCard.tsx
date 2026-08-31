@@ -20,13 +20,13 @@ export function ApprovalCard({
 }: ApprovalCardProps): React.JSX.Element {
   return (
     <View style={styles.card}>
-      <Text style={styles.label}>PERLU PERSETUJUAN</Text>
+      <Text style={styles.label}>APPROVAL REQUIRED</Text>
       <Text style={styles.summary}>{approval.summary}</Text>
       <Text style={styles.target}>Ledger: {ledgerName}</Text>
-      <Text style={styles.target}>Sheet: {approval.sheet ?? 'Struktur ledger'}</Text>
-      <Text style={styles.target}>Aksi: {approval.action}</Text>
+      <Text style={styles.target}>Sheet: {approval.sheet ?? 'Ledger structure'}</Text>
+      <Text style={styles.target}>Action: {approval.action}</Text>
       <Text style={styles.impact}>
-        {approval.rows_affected} baris, {approval.columns_affected} kolom
+        {approval.rows_affected} rows, {approval.columns_affected} columns
       </Text>
       <View style={styles.actions}>
         <Pressable
@@ -38,7 +38,7 @@ export function ApprovalCard({
           onPress={() => onDecision(approval.approval_id, 'reject')}
           disabled={disabled}
         >
-          <Text style={styles.rejectText}>Tolak</Text>
+          <Text style={styles.rejectText}>Reject</Text>
         </Pressable>
         <Pressable
           style={({ pressed }) => [
@@ -49,7 +49,7 @@ export function ApprovalCard({
           onPress={() => onDecision(approval.approval_id, 'approve')}
           disabled={disabled}
         >
-          <Text style={styles.approveText}>{resolving ? 'Memproses...' : 'Setujui'}</Text>
+          <Text style={styles.approveText}>{resolving ? 'Processing...' : 'Approve'}</Text>
         </Pressable>
       </View>
     </View>

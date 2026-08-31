@@ -142,7 +142,7 @@ export function ChatInput({
         asset.uri,
         asset.fileSize,
         MAX_IMAGE_BYTES,
-        'Gambar maksimal 10 MB.',
+        'Images must be 10 MB or smaller.',
       );
       if (base64 === null) return;
       onAttachment({
@@ -152,7 +152,7 @@ export function ChatInput({
         base64,
       });
     } catch {
-      Alert.alert('Error', 'Gagal membuka atau membaca gambar. Coba lagi.');
+      Alert.alert('Error', 'Failed to open or read the image. Try again.');
     }
   };
 
@@ -169,12 +169,12 @@ export function ChatInput({
         asset.uri,
         asset.size,
         MAX_PDF_BYTES,
-        'PDF maksimal 50 MB.',
+        'PDF files must be 50 MB or smaller.',
       );
       if (base64 === null) return;
       onAttachment({ uri: asset.uri, name: asset.name, type: 'pdf', base64 });
     } catch {
-      Alert.alert('Error', 'Gagal membuka atau membaca PDF. Coba lagi.');
+      Alert.alert('Error', 'Failed to open or read the PDF. Try again.');
     }
   };
 
@@ -281,7 +281,7 @@ async function readFileAsBase64(
   sizeError: string,
 ): Promise<string | null> {
   if (size !== undefined && size > maximumBytes) {
-    Alert.alert('File terlalu besar', sizeError);
+    Alert.alert('File Too Large', sizeError);
     return null;
   }
   const response = await fetch(uri);
@@ -290,7 +290,7 @@ async function readFileAsBase64(
   }
   const blob = await response.blob();
   if (blob.size > maximumBytes) {
-    Alert.alert('File terlalu besar', sizeError);
+    Alert.alert('File Too Large', sizeError);
     return null;
   }
   return blobToBase64(blob);

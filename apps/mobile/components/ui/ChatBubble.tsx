@@ -88,7 +88,7 @@ export function ChatBubble({
               onPress={() => void copyMessage()}
               style={({ pressed }) => [styles.copyButton, pressed && styles.pressed]}
               accessibilityRole="button"
-              accessibilityLabel={copied ? 'Pesan disalin' : 'Salin pesan'}
+              accessibilityLabel={copied ? 'Message copied' : 'Copy message'}
             >
               <Ionicons
                 name={copied ? 'checkmark' : 'copy-outline'}

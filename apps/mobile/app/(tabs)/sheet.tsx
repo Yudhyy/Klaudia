@@ -55,7 +55,7 @@ function ErrorState({ message, onRetry }: ErrorStateProps): React.JSX.Element {
     <View style={styles.stateContainer}>
       <Text style={styles.errorText}>{message}</Text>
       <Pressable style={styles.retryButton} onPress={onRetry}>
-        <Text style={styles.retryText}>Coba lagi</Text>
+        <Text style={styles.retryText}>Try Again</Text>
       </Pressable>
     </View>
   );
@@ -65,7 +65,7 @@ function DataTable({ rows }: { rows: JsonScalar[][] }): React.JSX.Element {
   if (rows.length === 0) {
     return (
       <View style={styles.stateContainer}>
-        <Text style={styles.stateText}>Sheet ini masih kosong.</Text>
+        <Text style={styles.stateText}>This sheet is empty.</Text>
       </View>
     );
   }
@@ -190,7 +190,7 @@ export default function SheetScreen(): React.JSX.Element {
         }).start();
       } catch (caughtError: unknown) {
         if (currentRequestSequence !== requestSequence.current) return;
-        setError(errorMessage(caughtError, 'Gagal memuat data sheet.'));
+        setError(errorMessage(caughtError, 'Failed to load the sheet data.'));
       } finally {
         if (currentRequestSequence === requestSequence.current) {
           setIsLoading(false);
@@ -232,7 +232,7 @@ export default function SheetScreen(): React.JSX.Element {
         }
       } catch (caughtError: unknown) {
         if (currentRequestSequence !== requestSequence.current) return;
-        setError(errorMessage(caughtError, 'Gagal memuat ledger.'));
+        setError(errorMessage(caughtError, 'Failed to load the ledger.'));
       } finally {
         if (currentRequestSequence === requestSequence.current) {
           setIsLoading(false);
@@ -275,13 +275,13 @@ export default function SheetScreen(): React.JSX.Element {
   };
 
   if (isLoadingSpreadsheets && activeSpreadsheet === null) {
-    return <LoadingState label="Menghubungkan ke ledger..." />;
+    return <LoadingState label="Connecting to the ledger..." />;
   }
 
   if (activeSpreadsheet === null) {
     return (
       <ErrorState
-        message={spreadsheetError ?? 'Akun ini belum memiliki ledger.'}
+        message={spreadsheetError ?? 'This account does not have a ledger.'}
         onRetry={() => void refreshSpreadsheets()}
       />
     );
@@ -300,7 +300,7 @@ export default function SheetScreen(): React.JSX.Element {
         </View>
         {activeSheet !== null && !isLoading && (
           <View style={styles.rowBadge}>
-            <Text style={styles.rowBadgeText}>{dataRowCount} baris</Text>
+            <Text style={styles.rowBadgeText}>{dataRowCount} rows</Text>
           </View>
         )}
       </View>
@@ -337,12 +337,12 @@ export default function SheetScreen(): React.JSX.Element {
         }
       >
         {isLoading ? (
-          <LoadingState label={activeSheet === null ? 'Memuat ledger...' : `Memuat ${activeSheet}...`} />
+          <LoadingState label={activeSheet === null ? 'Loading ledger...' : `Loading ${activeSheet}...`} />
         ) : error !== null ? (
           <ErrorState message={error} onRetry={() => void loadLedger(activeSheet)} />
         ) : info?.sheets.length === 0 ? (
           <View style={styles.stateContainer}>
-            <Text style={styles.stateText}>Ledger ini belum memiliki sheet.</Text>
+            <Text style={styles.stateText}>This ledger does not contain any sheets.</Text>
           </View>
         ) : (
           <Animated.View style={{ opacity }}>
