@@ -43,3 +43,9 @@ sample_data/
 # generated native folders
 /ios
 /android
+
+# coding agent
+.codex/
+AGENTS.md
+.claude/
+CLAUDE.md
