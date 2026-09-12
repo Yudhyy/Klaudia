@@ -257,6 +257,11 @@ response. This check still does not prove metric-label or financial correctness.
 Switch `CHAT_RUNTIME` back to `legacy` to restore the existing route; stored
 operation references and receipts remain in the database.
 
+A [live chat smoke run](tests/e2e/outputs/main-chat-2026-09-12.md) at clean
+commit `0118cfc` passed the 1,000-row sum and exact append cases once each,
+with PostgreSQL, Redis and MinIO available. This does not establish default
+rollout readiness or replace the historical benchmark.
+
 ---
 
 ## 🧪 The Sandbox: how correctness is measured
