@@ -85,3 +85,7 @@ class KlaudiaResponse(BaseModel):
     # Irreversible operations the guard refused to run unattended. Each
     # entry backs an approve/reject button; POST /v1/approvals/{id}.
     pending_approvals: list[dict] = Field(default_factory=list)
+    runtime: str = "legacy"
+    run_status: str | None = None
+    operation_references: list[str] = Field(default_factory=list)
+    operation_receipts: list[dict] = Field(default_factory=list)

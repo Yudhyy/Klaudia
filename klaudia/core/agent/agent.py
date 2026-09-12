@@ -64,6 +64,7 @@ class RunOutcome:
     working_set: tuple[ResourceReference, ...]
     operation_receipts: tuple[dict[str, Any], ...] = ()
     operation_references: tuple[str, ...] = ()
+    tool_evidence: tuple[tuple[str, dict[str, Any], str], ...] = ()
 
 
 class AgentExecutionError(RuntimeError):
@@ -120,6 +121,7 @@ class MainAgent:
         *,
         limits: RunLimits | None = None,
         operations: OperationExecutor | None = None,
+        archive_tools: tuple[StructuredTool, ...] = (),
     ) -> None:
         """Accept the same configured chat model used for runtime comparisons.
 
@@ -128,11 +130,13 @@ class MainAgent:
             catalogue: Ownership-enforcing application reader.
             limits: Server-controlled budgets, independent of model arguments.
             operations: Explicit opt-in executor for durable checked appends.
+            archive_tools: Server-bound document retrieval tools for chat.
         """
         self._model = model
         self._catalogue = catalogue
         self._limits = limits or RunLimits()
         self._operations = operations
+        self._archive_tools = archive_tools
         self._registry = SkillRegistry()
         self._prompt = build_system_prompt(
             self._registry, APPEND_CONTRACT if operations is not None else READ_CONTRACT
@@ -206,6 +210,7 @@ class _RunSession:
         )
         self.loaded: dict[str, str] = {}
         self.calls: list[str] = []
+        self.evidence: list[tuple[str, dict[str, Any], str]] = []
         self.steps = 0
         skill_tool = StructuredTool.from_function(
             coroutine=self.load_skill,
@@ -216,6 +221,13 @@ class _RunSession:
         self.tools = {tool.name: tool for tool in (*self.discovery.tools, skill_tool)}
         if self.writes is not None:
             self.tools.update({tool.name: tool for tool in self.writes.tools})
+        for tool in agent._archive_tools:
+            if (
+                tool.name not in {"search_documents", "read_document_page"}
+                or tool.name in self.tools
+            ):
+                raise ValueError("Invalid or duplicate archive capability")
+            self.tools[tool.name] = tool
         self.model = agent._model.bind_tools(list(self.tools.values()))
 
     async def load_skill(self, **arguments: Any) -> dict[str, str]:
@@ -254,6 +266,7 @@ class _RunSession:
             self.discovery.working_set,
             self.writes.receipts if self.writes is not None else (),
             self.writes.operation_references if self.writes is not None else (),
+            tuple(self.evidence),
         )
 
     async def execute(self, message: str) -> RunOutcome:
@@ -322,8 +335,10 @@ class _RunSession:
             if tool is None:
                 raise ValueError("Unknown tool; choose an available capability")
             evidence = await tool.ainvoke(call["args"], config=self.config)
+            encoded = json.dumps(evidence, ensure_ascii=False)
+            self.evidence.append((call["name"], dict(call["args"]), encoded))
             return ToolMessage(
-                content=json.dumps(evidence, ensure_ascii=False),
+                content=encoded,
                 tool_call_id=call["id"],
                 name=call["name"],
             )

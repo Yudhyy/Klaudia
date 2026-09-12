@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 DEFAULT_DATABASE_URL = "postgresql://klaudia:klaudia@localhost:5432/klaudia"
@@ -163,6 +163,23 @@ class Settings(BaseSettings):
     mcp_auth_token: str = Field(default="", alias="MCP_AUTH_TOKEN", repr=False)
 
     sheets_backend: str = Field(default="ledger", alias="SHEETS_BACKEND")
+    chat_runtime: Literal["legacy", "main"] = Field(
+        default="legacy", alias="CHAT_RUNTIME"
+    )
+
+    @model_validator(mode="after")
+    def validate_chat_runtime(self) -> "Settings":
+        """Reject main chat without its ownership-enforcing ledger backend.
+
+        Returns:
+            Validated service settings.
+
+        Raises:
+            ValueError: Main chat uses an unsupported sheets backend.
+        """
+        if self.chat_runtime == "main" and self.sheets_backend != "ledger":
+            raise ValueError("CHAT_RUNTIME=main requires SHEETS_BACKEND=ledger")
+        return self
 
     # Langfuse Observability
     langfuse_public_key: str = Field(default="", alias="LANGFUSE_PUBLIC_KEY")

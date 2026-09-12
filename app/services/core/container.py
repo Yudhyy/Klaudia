@@ -22,6 +22,9 @@ from klaudia.interfaces.tool_registry import MCPToolRegistry
 from ledger.store import LedgerStore
 from ledger.catalogue import CatalogueStore
 from app.services.catalogue.service import CatalogueService
+from app.services.core.main_chat import MainChatService
+from app.services.core.operations import OperationService
+from klaudia.core.supervisor.llm import build_chat_llm
 
 logger = logging.getLogger(__name__)
 
@@ -164,6 +167,7 @@ class KlaudiaContainer:
         self.ledger_store: Optional[LedgerStore] = None
         self.spreadsheets: Optional[SpreadsheetService] = None
         self.catalogue: Optional[CatalogueService] = None
+        self.main_chat: Optional[MainChatService] = None
         self.memory: Optional[MemoryService] = None
         self.approvals: Optional[ApprovalService] = None
         self.extraction_agent: Optional[ExtractionAgent] = None
@@ -246,6 +250,27 @@ class KlaudiaContainer:
         )
 
         openai_base_url, openai_api_key = settings.active_openai_endpoint()
+        if settings.chat_runtime == "main":
+            model = build_chat_llm(
+                model=settings.llm_model,
+                provider=settings.model_provider,
+                temperature=settings.llm_temperature,
+                use_vertexai=settings.google_genai_use_vertexai,
+                llm_api_key=settings.llm_api_key,
+                google_cloud_project=settings.google_cloud_project,
+                google_cloud_location=settings.google_cloud_location,
+                openai_base_url=openai_base_url,
+                openai_api_key=openai_api_key,
+                thinking_level=settings.llm_thinking_level_worker,
+                disable_thinking=settings.llm_disable_thinking,
+            )
+            container.main_chat = MainChatService(
+                model,
+                container.catalogue,
+                container.db_client,
+                operations=OperationService(container.ledger_store),
+                langfuse=container.langfuse,
+            )
         container.supervisor = SupervisorAgent(
             llm_api_key=settings.llm_api_key,
             llm_model=settings.llm_model,

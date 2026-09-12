@@ -2,6 +2,7 @@ import logging
 import re
 import time
 from contextlib import contextmanager
+from dataclasses import replace
 from typing import Any, AsyncIterator
 
 from app.models.attachment import FileAttachment
@@ -11,6 +12,7 @@ from app.models.chat import (
     KlaudiaResponse,
 )
 from app.services.core.container import KlaudiaContainer
+from app.services.core.main_chat import MainChatTurn
 from app.services.core.prompts import KLAUDIA_SYSTEM_PROMPT
 from app.services.core.verifier import verify_reply
 from app.services.extraction.infra.normalizer import is_pdf, is_supported_image
@@ -246,6 +248,20 @@ class KlaudiaOrchestrator:
                         "summary": result.summary,
                     }
                 )
+
+        if self._c.settings.chat_runtime == "main":
+            return await self._process_main_chat(
+                MainChatTurn(
+                    user_id=user_id,
+                    session_id=session_id,
+                    active_workbook_id=get_active_spreadsheet(),
+                    text=user_text,
+                    extraction_contexts=(),
+                    metadata=ChatMetadata(user_name=user_name),
+                ),
+                start,
+                extractions=extraction_results,
+            )
 
         # 5. Build context
         # NOTE: history is fetched BEFORE saving the current user msg so the
@@ -518,6 +534,38 @@ class KlaudiaOrchestrator:
                         continue
                     yield event
 
+            if self._c.settings.chat_runtime == "main":
+                response = await self._process_main_chat(
+                    MainChatTurn(
+                        user_id=user_id,
+                        session_id=session_id,
+                        active_workbook_id=get_active_spreadsheet(),
+                        text=user_text,
+                        extraction_contexts=(),
+                        metadata=ChatMetadata(user_name=user_name),
+                    ),
+                    start,
+                    extractions=extraction_results,
+                )
+                if turn_obs is not None:
+                    try:
+                        turn_obs.update(output=response.model_dump())
+                    except Exception:
+                        logger.warning(
+                            "Could not record main chat output trace", exc_info=True
+                        )
+                span_cm.__exit__(None, None, None)
+                trace_cm.__exit__(None, None, None)
+                yield {"type": "token", "data": {"text": response.message.content}}
+                yield {
+                    "type": "done",
+                    "data": {
+                        **response.model_dump(exclude={"message"}),
+                        "content": response.message.content,
+                    },
+                }
+                return
+
             import asyncio
 
             (
@@ -694,6 +742,77 @@ class KlaudiaOrchestrator:
         finally:
             if scope_token is not None:
                 reset_active_spreadsheet(scope_token)
+
+    async def _process_main_chat(
+        self, turn: MainChatTurn, start: float, *, extractions: list[dict[str, Any]]
+    ) -> KlaudiaResponse:
+        """Run opt-in chat and retain evidence even when prose checks reject it.
+
+        Args:
+            turn: Server-authenticated intent and extracted facts.
+            start: Request start time used for response latency.
+            extractions: Completed document facts from the shared extraction path.
+
+        Returns:
+            Buffered, checked reply with explicit runtime and operation evidence.
+
+        Raises:
+            RuntimeError: Main runtime was selected without its service.
+            Exception: Execution or persistence failed before a recoverable outcome.
+        """
+        if self._c.main_chat is None:
+            raise RuntimeError("Main chat service is not configured")
+        turn = replace(
+            turn,
+            extraction_contexts=tuple(
+                _build_extraction_contexts(
+                    extractions, self._c.settings.extraction_context_format
+                )
+            ),
+            document_ids=tuple(item["file_id"] for item in extractions),
+            memory_context=await self._recall_memory(turn.user_id, turn.text),
+        )
+        outcome = await self._c.main_chat.run(turn)
+        content = re.sub(
+            r"<think>.*?</think>", "", outcome.content, flags=re.DOTALL
+        ).strip()
+        if outcome.status != "answered":
+            content = (
+                f"The task stopped ({outcome.status}). Completion is not confirmed."
+            )
+            if outcome.operation_references:
+                content += " Operation references were saved in this session. Recover using the original reference before attempting another append."
+        if content and self._c.settings.numeric_verify_mode != "off":
+            verification = verify_reply(
+                content,
+                list(outcome.tool_evidence),
+                [turn.text, *turn.extraction_contexts],
+            )
+            if not verification.passed:
+                logger.warning(
+                    "Main chat numeric verification failed: %s", verification.ungrounded
+                )
+                if self._c.settings.numeric_verify_mode == "enforce":
+                    content = "I could not verify the figures in the proposed answer. Check the recorded operation evidence before retrying any write."
+        output_guard = await self._c.guardrails.validate_output(content)
+        if not output_guard.passed:
+            content = output_guard.rejection_message
+        await self._c.db_client.save_message(
+            turn.session_id, turn.user_id, "assistant", content
+        )
+        await self._c.db_client.update_session_timestamp(turn.session_id)
+        self._remember(turn.user_id, turn.active_workbook_id, turn.text, content)
+        return KlaudiaResponse(
+            message=KlaudiaMessage(role="assistant", content=content),
+            session_id=turn.session_id,
+            processing_time_ms=int((time.time() - start) * 1000),
+            tools_used=list(outcome.tools_called),
+            metadata=turn.metadata,
+            runtime="main",
+            run_status=outcome.status,
+            operation_references=list(outcome.operation_references),
+            operation_receipts=list(outcome.operation_receipts),
+        )
 
     @contextmanager
     def _approval_gate(self, user_id: int, session_id: int | None, scope: str | None):
@@ -898,6 +1017,8 @@ class KlaudiaOrchestrator:
             session_id=session_id,
             processing_time_ms=elapsed,
             tools_used=[],
+            runtime=self._c.settings.chat_runtime,
+            run_status="rejected" if self._c.settings.chat_runtime == "main" else None,
         )
 
     async def _check_queue_pressure(self) -> str | None:

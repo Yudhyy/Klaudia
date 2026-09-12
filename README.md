@@ -193,8 +193,9 @@ remain Decimal operands through calculation; sums reject results beyond the
 64-digit exact precision budget. Fractional group labels that cannot round-trip
 through the current JSON numeric format also fail instead of rounding.
 
-No new chat endpoint or default routing change is enabled. Returning transaction
-rows, formula evaluation and live-model comparisons remain separate work.
+The legacy runtime remains the default. Set `CHAT_RUNTIME=main` to use the main
+agent through the existing chat endpoints. Returning transaction rows and formula
+evaluation remain separate work.
 The backend still reads a whole JSONB sheet before selecting the registered region.
 This adds a checked calculation path, not a row-level SQL query engine.
 
@@ -222,7 +223,39 @@ and original cause. External cancellation carries the same evidence through
 timeout outcome, including observed references. Callers must retain these references
 and retry them rather than start a new append when the outcome is unknown.
 Durable conversation checkpoints and automatic task resume remain pending.
-No HTTP/MCP write endpoint or production chat cutover is enabled by this change.
+No standalone HTTP/MCP proposal endpoint or default runtime cutover is enabled.
+
+With `CHAT_RUNTIME=main` and `SHEETS_BACKEND=ledger`, both `POST /v1/chat` and
+`POST /v1/chat/stream` use the main agent. JWT identity controls access across
+currently owned workbooks; `spreadsheet_id` supplies an ownership-checked active
+hint. The main path does not load the legacy prompt or fetch a sheet inventory.
+It retains input/output guardrails, extraction handoff, session history and
+Langfuse callbacks. Streaming buffers the reply until output checks finish.
+
+Main chat exposes checked append, discovery and calculation, plus bounded
+`search_documents` and `read_document_page` tools over the existing archive.
+Document reads check both file and session ownership. Search returns at most 20
+records; page reads return at most 8,192 characters with continuation offsets.
+Memory, extraction context and recent history have separate 8 KiB context budgets;
+omissions are explicit and archived pages remain retrievable. The full agent
+message budget still applies, including to an oversized current request.
+
+Responses and streaming `done` events add `runtime`, `run_status`,
+`operation_references` and `operation_receipts`. Before execution starts, the
+service saves the original operation reference as session recovery evidence.
+It also saves observed receipts and retains them in failed outcomes when receipt
+journaling fails. `GET /v1/sessions/{session_id}` exposes saved evidence under the
+existing session-owner check. Recovery reuses the original reference; chat does
+not automatically retry or resume a task. Concurrent repeated user requests do
+not yet share a durable task identity.
+
+The main path exposes no destructive tools, formula edits or legacy arbitrary SQL
+execution. Existing destructive approvals remain on the legacy path until
+revision-bound approvals ship. `NUMERIC_VERIFY_MODE=enforce` blocks ungrounded
+main-agent prose without a supervisor rewrite and keeps operation evidence in the
+response. This check still does not prove metric-label or financial correctness.
+Switch `CHAT_RUNTIME` back to `legacy` to restore the existing route; stored
+operation references and receipts remain in the database.
 
 ---
 

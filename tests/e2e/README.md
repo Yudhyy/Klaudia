@@ -340,3 +340,21 @@ appear in the report once recorded. Historical reports remain untouched.
   one-sheet lookup from a multi-entity consolidation.
 - **Historical cases still name agents.** Their existing routing assertions remain
   legacy-specific. New capability cases avoid those names; full migration remains.
+
+
+## Main chat integration smoke checks
+
+```bash
+E2E_MAIN_CHAT=1 CHAT_RUNTIME=main MEMORY_MODE=off MOCK_KIE=true \
+  SHEETS_BACKEND=ledger uv run pytest tests/e2e/test_main_chat_e2e.py -q
+```
+
+This opt-in calls the configured live model through the real chat orchestrator,
+including input/output guardrails, session persistence and application wiring.
+It uses fresh disabled owners and seeded sum/append fixtures, grades exact
+workbook state, and stores a separate `outputs/main-chat-*.json` report with model
+settings, source revision, dirty status and incomplete-case status. Cleanup targets
+only fixture records. These two text cases do not test document extraction,
+queue workers, streaming latency or the full historical benchmark. Offline HTTP
+coverage lives in `tests/integration/api/test_main_chat_routes.py`; recovery,
+context budgets and extraction handoff checks live in `tests/unit/test_main_chat.py`.
