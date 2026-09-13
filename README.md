@@ -288,6 +288,9 @@ A [live chat smoke run](tests/e2e/outputs/main-chat-2026-09-12.md) at clean
 commit `0118cfc` passed the 1,000-row sum and exact append cases once each,
 with PostgreSQL, Redis and MinIO available. This does not establish default
 rollout readiness or replace the historical benchmark.
+A [durable-task smoke run](tests/e2e/outputs/durable-main-chat-2026-09-13.md)
+at clean commit `2b6f4f0` also passed both cases once with task IDs. Restart,
+concurrency and human approval have separate scripted-model PostgreSQL coverage.
 
 ---
 
