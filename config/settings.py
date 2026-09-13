@@ -163,6 +163,9 @@ class Settings(BaseSettings):
     mcp_auth_token: str = Field(default="", alias="MCP_AUTH_TOKEN", repr=False)
 
     sheets_backend: str = Field(default="ledger", alias="SHEETS_BACKEND")
+    main_chat_require_approval: bool = Field(
+        default=False, alias="MAIN_CHAT_REQUIRE_APPROVAL"
+    )
     chat_runtime: Literal["legacy", "main"] = Field(
         default="legacy", alias="CHAT_RUNTIME"
     )

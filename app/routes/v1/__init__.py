@@ -8,6 +8,7 @@ from app.routes.v1.sessions import router as sessions_router
 from app.routes.v1.sheets import router as sheets_router
 from app.routes.v1.spreadsheets import router as spreadsheets_router
 from app.routes.v1.resources import router as resources_router
+from app.routes.v1.tasks import router as tasks_router
 
 v1_router = APIRouter(prefix="/v1")
 v1_router.include_router(health_router)
@@ -18,5 +19,6 @@ v1_router.include_router(sheets_router)
 v1_router.include_router(spreadsheets_router)
 v1_router.include_router(resources_router)
 v1_router.include_router(approvals_router)
+v1_router.include_router(tasks_router)
 
 __all__ = ["v1_router"]

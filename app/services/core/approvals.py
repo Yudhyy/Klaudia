@@ -71,6 +71,7 @@ class ApprovalService:
     def __init__(self, db: Any, sheets_registry: Any) -> None:
         self._db = db
         self._registry = sheets_registry
+        self.checked: Any = None
 
     async def ensure_schema(self) -> None:
         await self._db.execute(_SCHEMA)
@@ -121,7 +122,10 @@ class ApprovalService:
             "WHERE user_id = $1 AND status = $2 ORDER BY created_at",
             (user_id, STATUS_PENDING),
         )
-        return [self._to_approval(r).as_payload() for r in rows]
+        pending = [self._to_approval(r).as_payload() for r in rows]
+        if self.checked is not None:
+            pending.extend(await self.checked.list_pending(user_id))
+        return pending
 
     async def approve(self, user_id: int, approval_id: str) -> dict[str, Any]:
         """Execute a parked operation exactly as it was proposed.
@@ -136,6 +140,8 @@ class ApprovalService:
         Raises:
             ApprovalNotFoundError: Unknown, foreign, or already resolved.
         """
+        if approval_id.startswith("checked:") and self.checked is not None:
+            return await self.checked.approve(user_id, approval_id)
         approval = await self._claim(user_id, approval_id, STATUS_APPROVED)
         tool = next(
             (t for t in self._registry.tools if t.name == approval.tool_name), None
@@ -152,6 +158,8 @@ class ApprovalService:
         return {"approval_id": approval.approval_id, "executed": True, "result": result}
 
     async def reject(self, user_id: int, approval_id: str) -> dict[str, Any]:
+        if approval_id.startswith("checked:") and self.checked is not None:
+            return await self.checked.reject(user_id, approval_id)
         approval = await self._claim(user_id, approval_id, STATUS_REJECTED)
         return {"approval_id": approval.approval_id, "executed": False}
 

@@ -10,6 +10,7 @@ import asyncpg
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 
 from ledger import grid
+from ledger.approvals import check_approval
 from ledger.errors import IdempotencyConflictError, RevisionConflictError
 from ledger.operations import CellValue
 from ledger.resources import ResourceNotFoundError
@@ -25,6 +26,12 @@ CREATE TABLE IF NOT EXISTS ledger_table_operation (
     PRIMARY KEY (user_id, idempotency_key)
 );
 ALTER TABLE ledger_table_operation ADD COLUMN IF NOT EXISTS request_payload TEXT;
+ALTER TABLE ledger_table_operation ADD COLUMN IF NOT EXISTS approval_required BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE ledger_table_operation ADD COLUMN IF NOT EXISTS approval_id TEXT;
+ALTER TABLE ledger_table_operation ADD COLUMN IF NOT EXISTS approval_status TEXT;
+ALTER TABLE ledger_table_operation ADD COLUMN IF NOT EXISTS approval_expires_at TIMESTAMPTZ;
+ALTER TABLE ledger_table_operation ADD COLUMN IF NOT EXISTS approved_fingerprint TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS ledger_table_approval_id ON ledger_table_operation(approval_id) WHERE approval_id IS NOT NULL;
 """
 
 RecordField = Annotated[StrictStr, Field(min_length=1, max_length=256)]
@@ -52,7 +59,11 @@ class TableAppend(TableAppendProposal):
 
 
 async def prepare_table_append(
-    pool: asyncpg.Pool, user_id: int, request: TableAppendProposal
+    pool: asyncpg.Pool,
+    user_id: int,
+    request: TableAppendProposal,
+    *,
+    require_approval: bool = False,
 ) -> dict[str, str]:
     """Persist an exact request before execution without changing ledger cells.
 
@@ -60,6 +71,7 @@ async def prepare_table_append(
         pool: Ledger connections with operation storage installed.
         user_id: Authenticated caller identity.
         request: Records and server-observed revisions before key assignment.
+        require_approval: Server policy requiring a human decision before execution.
 
     Returns:
         A stable reference for identical records at identical observed revisions.
@@ -95,11 +107,31 @@ async def prepare_table_append(
                 workspace,
                 payload,
             )
-    return {
+            if require_approval:
+                await connection.execute(
+                    """UPDATE ledger_table_operation SET approval_required = TRUE,
+                       approval_id = $3, approval_status = 'pending',
+                       approval_expires_at = clock_timestamp() + interval '24 hours',
+                       approved_fingerprint = NULL
+                       WHERE user_id = $1 AND idempotency_key = $2 AND receipt IS NULL
+                         AND (NOT approval_required OR approval_expires_at <= clock_timestamp())""",
+                    user_id,
+                    operation_ref,
+                    "checked:" + uuid.uuid4().hex,
+                )
+            approval_id = await connection.fetchval(
+                "SELECT approval_id FROM ledger_table_operation WHERE user_id = $1 AND idempotency_key = $2",
+                user_id,
+                operation_ref,
+            )
+    prepared = {
         "operation_ref": operation_ref,
         "status": "prepared",
         "table_id": checked.table_id,
     }
+    if approval_id is not None:
+        prepared["approval_id"] = approval_id
+    return prepared
 
 
 async def execute_prepared_append(
@@ -183,7 +215,7 @@ async def execute_table_append(
                 fingerprint,
             )
             operation = await connection.fetchrow(
-                "SELECT fingerprint, workspace, receipt FROM ledger_table_operation WHERE user_id = $1 AND idempotency_key = $2 FOR UPDATE",
+                "SELECT * FROM ledger_table_operation WHERE user_id = $1 AND idempotency_key = $2 FOR UPDATE",
                 user_id,
                 request.idempotency_key,
             )
@@ -201,7 +233,9 @@ async def execute_table_append(
                     raise ResourceNotFoundError("Table not found")
                 return json.loads(operation["receipt"])
             target = await _lock_target(connection, user_id, request.table_id)
-            receipt = await _append_table(connection, target, request)
+            layout = _plan_append(target, request)
+            await check_approval(connection, operation)
+            receipt = await _append_table(connection, target, (request, layout))
             await connection.execute(
                 "UPDATE ledger_table_operation SET workspace = $3, receipt = $4 WHERE user_id = $1 AND idempotency_key = $2",
                 user_id,
@@ -358,14 +392,16 @@ def _plan_append(target: asyncpg.Record, request: TableAppend) -> _AppendLayout:
 
 
 async def _append_table(
-    connection: asyncpg.Connection, target: asyncpg.Record, request: TableAppend
+    connection: asyncpg.Connection,
+    target: asyncpg.Record,
+    planned: tuple[TableAppend, _AppendLayout],
 ) -> dict[str, Any]:
     """Commit a validated layout and refresh its catalogue metadata together.
 
     Args:
         connection: Transaction holding ownership and source locks.
         target: Locked source grid and metadata.
-        request: Checked named-record append.
+        planned: Checked named-record append and its validated layout.
 
     Returns:
         A compact receipt pending transaction commit.
@@ -374,7 +410,7 @@ async def _append_table(
         ValueError: Another registered region overlaps the expanded bounds.
         RevisionConflictError: Source or catalogue changed before execution.
     """
-    layout = _plan_append(target, request)
+    request, layout = planned
     overlap = await connection.fetchval(
         "SELECT resource_id FROM ledger_resource WHERE sheet_id = $1 AND resource_id <> $2 AND first_row <= $3 AND last_row >= $4 AND first_column <= $5 AND last_column >= $6 LIMIT 1",
         target["sheet_id"],

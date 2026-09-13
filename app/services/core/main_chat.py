@@ -2,7 +2,7 @@
 
 import json
 import logging
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -21,6 +21,7 @@ from klaudia.core.agent.context import TaskContext
 from klaudia.core.agent.tools import CatalogueReader
 from klaudia.core.agent.writes import OperationExecutor
 from ledger.table_operations import TableAppendProposal
+from app.services.workflow.store import TaskStore, TaskSession
 
 logger = logging.getLogger(__name__)
 _CONTEXT_BYTES = 8192
@@ -84,6 +85,7 @@ class MainChatTurn:
     metadata: ChatMetadata
     memory_context: str = ""
     document_ids: tuple[int, ...] = ()
+    request_key: str | None = None
 
 
 class _SessionOperations:
@@ -120,6 +122,21 @@ class _SessionOperations:
             "Operation recovery evidence (not a new request): "
             + json.dumps(evidence, ensure_ascii=False),
         )
+
+    def retain_receipts(self, outcome: RunOutcome) -> RunOutcome:
+        """Merge checkpointed and newly observed commits by operation identity.
+
+        Args:
+            outcome: Agent result, including receipts restored from a checkpoint.
+
+        Returns:
+            Outcome preserving every observed committed operation exactly once.
+        """
+        receipts = {
+            receipt["operation_id"]: receipt for receipt in outcome.operation_receipts
+        }
+        receipts.update(self.receipts)
+        return replace(outcome, operation_receipts=tuple(receipts.values()))
 
     async def prepare(
         self, user_id: int, request: TableAppendProposal
@@ -172,6 +189,7 @@ class MainChatService:
         *,
         operations: OperationExecutor | None = None,
         langfuse: LangfuseService | None = None,
+        tasks: TaskStore | None = None,
     ) -> None:
         """Share immutable dependencies while each turn creates local execution state.
 
@@ -181,12 +199,14 @@ class MainChatService:
             database: Session history and recovery evidence store.
             operations: Optional checked-append service.
             langfuse: Existing callback and trace configuration.
+            tasks: Durable task storage used by production main chat.
         """
         self._model = model
         self._catalogue = catalogue
         self._database = database
         self._operations = operations
         self._langfuse = langfuse
+        self._tasks = tasks
 
     async def run(self, turn: MainChatTurn) -> RunOutcome:
         """Load history, persist inputs and execute once without automatic retries.
@@ -218,12 +238,98 @@ class MainChatService:
             },
             ensure_ascii=False,
         )
-        for content in (*turn.extraction_contexts, turn.text):
-            await self._database.save_message(
-                turn.session_id, turn.user_id, "user", content
+        if self._tasks is not None:
+            payload = {"turn": asdict(turn), "request": request}
+            payload["turn"]["metadata"] = turn.metadata.model_dump()
+            payload["turn"]["extraction_contexts"] = [
+                _bounded_context(text) for text in turn.extraction_contexts
+            ]
+            task_id = await self._tasks.create((turn.user_id, turn.session_id), payload)
+            async with self._tasks.open(turn.user_id, task_id) as task:
+                _, outcome = await self._run_stored(task)
+                return outcome
+        return await self._invoke(turn, request)
+
+    async def resume(
+        self, user_id: int, task_id: str
+    ) -> tuple[MainChatTurn, RunOutcome]:
+        """Continue only the persisted task input and next action.
+
+        Args:
+            user_id: Authenticated task owner.
+            task_id: Original task identity; clients cannot replace its input.
+
+        Returns:
+            Stored contextual facts and the new observed outcome.
+
+        Raises:
+            RuntimeError: Durable task storage is unavailable.
+            TaskBusyError: Another worker owns the task.
+        """
+        if self._tasks is None:
+            raise RuntimeError("Durable task storage is unavailable")
+        async with self._tasks.open(user_id, task_id) as task:
+            return await self._run_stored(task)
+
+    async def _run_stored(self, task: TaskSession) -> tuple[MainChatTurn, RunOutcome]:
+        """Use stored intent and checkpoint without reconstructing a new request.
+
+        Args:
+            task: Exclusively owned database continuation.
+
+        Returns:
+            Original turn and observed task outcome.
+        """
+        payload = json.loads(task.record["input_payload"])
+        turn_fields = payload["turn"]
+        turn_fields["metadata"] = ChatMetadata.model_validate(turn_fields["metadata"])
+        turn = MainChatTurn(**turn_fields)
+        try:
+            outcome = await self._invoke(turn, payload["request"], task=task)
+            await task.set_status(outcome.status)
+            return turn, replace(outcome, task_id=task.record["task_id"])
+        except Exception:
+            logger.exception("Durable task stopped before a recoverable agent outcome")
+            await task.set_status("failed")
+            state = await task.load() or {}
+            return turn, RunOutcome(
+                status="failed",
+                content="",
+                model_steps=state.get("steps", 0),
+                tools_called=tuple(state.get("calls", [])),
+                loaded_skills=state.get("skills", {}),
+                working_set=(),
+                operation_references=tuple(state.get("operation_references", [])),
+                operation_receipts=tuple(state.get("receipts", [])),
+                task_id=task.record["task_id"],
             )
+        except BaseException:
+            try:
+                await task.set_status("interrupted")
+            except Exception:
+                logger.exception("Could not record interrupted task status")
+            raise
+
+    async def _invoke(
+        self, turn: MainChatTurn, request: str, *, task: TaskSession | None = None
+    ) -> RunOutcome:
+        """Run fresh or checkpointed state with the matching operation executor.
+
+        Args:
+            turn: Original authenticated chat facts.
+            request: Stable model input captured when the task was created.
+            task: Optional task-owned checkpoint and ledger connection.
+
+        Returns:
+            Observed agent outcome with all known committed receipts.
+        """
+        if task is None or await task.load() is None:
+            for content in (*turn.extraction_contexts, turn.text):
+                await self._database.save_message(
+                    turn.session_id, turn.user_id, "user", content
+                )
         executor = (
-            _SessionOperations(self._operations, self._database, turn)
+            _SessionOperations(task or self._operations, self._database, turn)
             if self._operations is not None
             else None
         )
@@ -250,20 +356,13 @@ class MainChatService:
                     user_id=turn.user_id, active_workbook_id=turn.active_workbook_id
                 ),
                 config=config,
+                checkpoint=task,
             )
             return (
-                replace(outcome, operation_receipts=tuple(executor.receipts.values()))
-                if executor is not None
-                else outcome
+                executor.retain_receipts(outcome) if executor is not None else outcome
             )
         except AgentExecutionError as exc:
             logger.exception("Main chat failed with persisted operation references")
-            return replace(
-                exc.outcome, operation_receipts=tuple(executor.receipts.values())
-            )
+            return executor.retain_receipts(exc.outcome)
         except AgentRunCancelled as exc:
-            raise AgentRunCancelled(
-                replace(
-                    exc.outcome, operation_receipts=tuple(executor.receipts.values())
-                )
-            ) from exc
+            raise AgentRunCancelled(executor.retain_receipts(exc.outcome)) from exc

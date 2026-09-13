@@ -13,6 +13,7 @@ from app.models.chat import (
 )
 from app.services.core.container import KlaudiaContainer
 from app.services.core.main_chat import MainChatTurn
+from klaudia.core.agent.agent import RunOutcome
 from app.services.core.prompts import KLAUDIA_SYSTEM_PROMPT
 from app.services.core.verifier import verify_reply
 from app.services.extraction.infra.normalizer import is_pdf, is_supported_image
@@ -132,6 +133,7 @@ class KlaudiaOrchestrator:
         user_id: int,
         user_name: str = "User",
         spreadsheet_id: str | None = None,
+        request_key: str | None = None,
     ) -> KlaudiaResponse:
         start = time.time()
 
@@ -142,7 +144,7 @@ class KlaudiaOrchestrator:
         scope_token = set_active_spreadsheet(scope)
         try:
             return await self._process_scoped(
-                messages, session_id, user_id, user_name, start
+                messages, session_id, user_id, user_name, start, request_key=request_key
             )
         finally:
             reset_active_spreadsheet(scope_token)
@@ -154,6 +156,8 @@ class KlaudiaOrchestrator:
         user_id: int,
         user_name: str,
         start: float,
+        *,
+        request_key: str | None = None,
     ) -> KlaudiaResponse:
         # 1. Ensure session exists
         if session_id is None:
@@ -180,7 +184,7 @@ class KlaudiaOrchestrator:
 
         with trace_cm, span_cm as turn_obs:
             response = await self._process_inner(
-                messages, session_id, user_id, user_name, start
+                messages, session_id, user_id, user_name, start, request_key=request_key
             )
             if turn_obs is not None:
                 try:
@@ -203,6 +207,8 @@ class KlaudiaOrchestrator:
         user_id: int,
         user_name: str,
         start: float,
+        *,
+        request_key: str | None = None,
     ) -> KlaudiaResponse:
 
         # 2. Get last user message text
@@ -256,6 +262,7 @@ class KlaudiaOrchestrator:
                     session_id=session_id,
                     active_workbook_id=get_active_spreadsheet(),
                     text=user_text,
+                    request_key=request_key,
                     extraction_contexts=(),
                     metadata=ChatMetadata(user_name=user_name),
                 ),
@@ -395,6 +402,7 @@ class KlaudiaOrchestrator:
         user_id: int,
         user_name: str = "User",
         spreadsheet_id: str | None = None,
+        request_key: str | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """Stream the pipeline as structured SSE-ready events.
 
@@ -541,6 +549,7 @@ class KlaudiaOrchestrator:
                         session_id=session_id,
                         active_workbook_id=get_active_spreadsheet(),
                         text=user_text,
+                        request_key=request_key,
                         extraction_contexts=(),
                         metadata=ChatMetadata(user_name=user_name),
                     ),
@@ -557,6 +566,8 @@ class KlaudiaOrchestrator:
                 span_cm.__exit__(None, None, None)
                 trace_cm.__exit__(None, None, None)
                 yield {"type": "token", "data": {"text": response.message.content}}
+                for approval in response.pending_approvals:
+                    yield {"type": "approval_required", "data": approval}
                 yield {
                     "type": "done",
                     "data": {
@@ -773,10 +784,41 @@ class KlaudiaOrchestrator:
             memory_context=await self._recall_memory(turn.user_id, turn.text),
         )
         outcome = await self._c.main_chat.run(turn)
+        return await self._finish_main_chat(turn, outcome, start)
+
+    async def resume_task(self, user_id: int, task_id: str) -> KlaudiaResponse:
+        """Resume persisted intent without allowing a replacement task payload.
+
+        Args:
+            user_id: Authenticated task owner.
+            task_id: Original task identity.
+
+        Returns:
+            Checked response with original task and operation identities.
+        """
+        start = time.time()
+        turn, outcome = await self._c.main_chat.resume(user_id, task_id)
+        return await self._finish_main_chat(turn, outcome, start)
+
+    async def _finish_main_chat(
+        self, turn: MainChatTurn, outcome: RunOutcome, start: float
+    ) -> KlaudiaResponse:
+        """Check prose and persist the response without changing operation evidence.
+
+        Args:
+            turn: Original authenticated chat facts.
+            outcome: Observed execution result, including partial commits.
+            start: Request start time.
+
+        Returns:
+            Client response with durable task and operation references.
+        """
         content = re.sub(
             r"<think>.*?</think>", "", outcome.content, flags=re.DOTALL
         ).strip()
-        if outcome.status != "answered":
+        if outcome.status == "awaiting_approval":
+            content = "The proposed append is waiting for your approval. Earlier committed steps remain recorded; the pending append has not run."
+        elif outcome.status != "answered":
             content = (
                 f"The task stopped ({outcome.status}). Completion is not confirmed."
             )
@@ -808,6 +850,8 @@ class KlaudiaOrchestrator:
             processing_time_ms=int((time.time() - start) * 1000),
             tools_used=list(outcome.tools_called),
             metadata=turn.metadata,
+            pending_approvals=list(outcome.pending_approvals),
+            task_id=outcome.task_id,
             runtime="main",
             run_status=outcome.status,
             operation_references=list(outcome.operation_references),

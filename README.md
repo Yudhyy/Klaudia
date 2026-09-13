@@ -161,7 +161,7 @@ supplies immutable user identity and an optional active-workbook hint. Inspectio
 records up to 20 resource references with observed revisions; search alone does
 not select a target. Each inspection rechecks ownership, and failed reinspection
 discards the previous reference. These observations grant no write permission.
-The working set is in memory for one task; durable checkpoints remain pending.
+The working set can be restored from a bounded durable checkpoint in main chat.
 The legacy chat runtime is still the default.
 
 `MainAgent` adds a programmatic alternative loop, read-only by default. It accepts a
@@ -222,7 +222,7 @@ and original cause. External cancellation carries the same evidence through
 `AgentRunCancelled`, a cancellation exception. A runtime deadline returns a
 timeout outcome, including observed references. Callers must retain these references
 and retry them rather than start a new append when the outcome is unknown.
-Durable conversation checkpoints and automatic task resume remain pending.
+Main chat persists checkpoints and exposes explicit task resume; it does not retry automatically.
 No standalone HTTP/MCP proposal endpoint or default runtime cutover is enabled.
 
 With `CHAT_RUNTIME=main` and `SHEETS_BACKEND=ledger`, both `POST /v1/chat` and
@@ -246,12 +246,39 @@ service saves the original operation reference as session recovery evidence.
 It also saves observed receipts and retains them in failed outcomes when receipt
 journaling fails. `GET /v1/sessions/{session_id}` exposes saved evidence under the
 existing session-owner check. Recovery reuses the original reference; chat does
-not automatically retry or resume a task. Concurrent repeated user requests do
-not yet share a durable task identity.
+not automatically retry or resume a task. Main chat also returns `task_id` and
+persists the original input, model messages and pending calls in PostgreSQL.
+Checkpoints have a 1 MiB limit; stored inputs have a 256 KiB limit. Model/tool
+step counts survive resume, while the wall-clock deadline applies to each run.
+Changed prompts, tool contracts or limits reject incompatible checkpoints.
+
+Use `GET /v1/tasks?session_id=...` to find recent tasks, `GET /v1/tasks/{task_id}`
+to inspect progress, and `POST /v1/tasks/{task_id}/resume` without a body to
+continue the saved task. All routes require current session ownership. Resume
+rechecks ownership of saved workbook and document tool sources, including search
+candidates. Losing access to any saved source blocks replay. One database
+connection holds the task lock and executes its writes; concurrent resume returns
+409. Metadata reads use separate bounded capacity. A lost receipt checkpoint
+replays the original operation reference rather than creating another append.
+
+For main chat text requests in an existing session, send a `request_key` of up to
+128 characters to share task identity across retries. Reusing the key with changed
+text, active workbook or document IDs returns 409. Keys require `session_id` and
+do not support uploads. Unkeyed requests create separate tasks.
+
+Set `MAIN_CHAT_REQUIRE_APPROVAL=true` to pause checked appends before execution;
+it defaults to false. `awaiting_approval` responses include the exact proposal,
+operation reference and expiry. Streaming also emits `approval_required`. The
+existing `/v1/approvals` routes list, approve or reject these proposals. Approval
+executes the stored operation only after checking ownership, fingerprint and
+source revisions again. Decisions expire after 24 hours; rejection and expiry
+cannot authorize execution. Resume the task after the decision to continue its
+saved pending call. Earlier committed receipts remain visible when a later step
+waits or fails. Each operation is atomic; the full task is not one transaction.
 
 The main path exposes no destructive tools, formula edits or legacy arbitrary SQL
-execution. Existing destructive approvals remain on the legacy path until
-revision-bound approvals ship. `NUMERIC_VERIFY_MODE=enforce` blocks ungrounded
+execution. Existing destructive approvals remain on the legacy path; the new
+revision-bound approval flow covers checked appends only. `NUMERIC_VERIFY_MODE=enforce` blocks ungrounded
 main-agent prose without a supervisor rewrite and keeps operation evidence in the
 response. This check still does not prove metric-label or financial correctness.
 Switch `CHAT_RUNTIME` back to `legacy` to restore the existing route; stored

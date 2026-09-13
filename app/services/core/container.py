@@ -23,6 +23,8 @@ from ledger.store import LedgerStore
 from ledger.catalogue import CatalogueStore
 from app.services.catalogue.service import CatalogueService
 from app.services.core.main_chat import MainChatService
+from app.services.workflow.store import TaskStore
+from app.services.workflow.approvals import CheckedApprovals
 from app.services.core.operations import OperationService
 from klaudia.core.supervisor.llm import build_chat_llm
 
@@ -168,6 +170,7 @@ class KlaudiaContainer:
         self.spreadsheets: Optional[SpreadsheetService] = None
         self.catalogue: Optional[CatalogueService] = None
         self.main_chat: Optional[MainChatService] = None
+        self.tasks: Optional[TaskStore] = None
         self.memory: Optional[MemoryService] = None
         self.approvals: Optional[ApprovalService] = None
         self.extraction_agent: Optional[ExtractionAgent] = None
@@ -251,6 +254,12 @@ class KlaudiaContainer:
 
         openai_base_url, openai_api_key = settings.active_openai_endpoint()
         if settings.chat_runtime == "main":
+            container.tasks = TaskStore(
+                settings.database_url,
+                require_approval=settings.main_chat_require_approval,
+            )
+            await container.tasks.connect()
+            container.approvals.checked = CheckedApprovals(container.ledger_store.pool)
             model = build_chat_llm(
                 model=settings.llm_model,
                 provider=settings.model_provider,
@@ -269,6 +278,7 @@ class KlaudiaContainer:
                 container.catalogue,
                 container.db_client,
                 operations=OperationService(container.ledger_store),
+                tasks=container.tasks,
                 langfuse=container.langfuse,
             )
         container.supervisor = SupervisorAgent(
@@ -306,6 +316,8 @@ class KlaudiaContainer:
             await self.mcp_gsheets.disconnect()
         if self.memory:
             self.memory.close()
+        if self.tasks:
+            await self.tasks.close()
         if self.ledger_store:
             await self.ledger_store.close()
         if isinstance(self.dedup_cache, DedupCache):

@@ -2,7 +2,7 @@ import os
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from app.models.attachment import FileAttachment, MetadataFile
 
@@ -45,6 +45,26 @@ class KlaudiaRequest(BaseModel):
     # None = the user's default spreadsheet, provisioned on first use.
     # Ownership is validated server-side; foreign ids 404.
     spreadsheet_id: Optional[str] = None
+    request_key: str | None = Field(default=None, min_length=1, max_length=128)
+
+    @model_validator(mode="after")
+    def validate_request_key(self) -> "KlaudiaRequest":
+        """Require a stable existing session for keyed text-turn retries.
+
+        Returns:
+            Validated request.
+
+        Raises:
+            ValueError: A retry key lacks a session or accompanies uploads.
+        """
+        if self.request_key is not None and (
+            self.session_id is None
+            or any(message.attachments for message in self.messages)
+        ):
+            raise ValueError(
+                "request_key requires an existing session and a text-only turn"
+            )
+        return self
 
 
 class ChatMetadata(BaseModel):
@@ -85,6 +105,7 @@ class KlaudiaResponse(BaseModel):
     # Irreversible operations the guard refused to run unattended. Each
     # entry backs an approve/reject button; POST /v1/approvals/{id}.
     pending_approvals: list[dict] = Field(default_factory=list)
+    task_id: str | None = None
     runtime: str = "legacy"
     run_status: str | None = None
     operation_references: list[str] = Field(default_factory=list)

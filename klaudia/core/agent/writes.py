@@ -104,6 +104,18 @@ class WriteTools:
         """
         return tuple(deepcopy(receipt) for receipt in self._receipts.values())
 
+    def restore(self, references: list[str], receipts: list[dict[str, Any]]) -> None:
+        """Retain prior operation evidence when continuing the same durable task.
+
+        Args:
+            references: Original server-persisted retry identities.
+            receipts: Previously observed committed receipts.
+        """
+        self._references = dict.fromkeys(references)
+        self._receipts = {
+            receipt["operation_id"]: deepcopy(receipt) for receipt in receipts
+        }
+
     async def prepare(self, **arguments: Any) -> dict[str, Any]:
         """Bind named records to revisions from the task's inspected reference.
 

@@ -9,6 +9,8 @@ from app.helpers.auth import get_current_user
 from app.helpers.ratelimit import chat_limit, limiter
 from app.models.chat import KlaudiaRequest, KlaudiaResponse
 from ledger.store import SpreadsheetNotFoundError
+from ledger.resources import ResourceNotFoundError
+from app.services.workflow.store import TaskBusyError, TaskConflictError
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +61,16 @@ async def chat(
             user_id=user_id,
             user_name=body.user_name,
             spreadsheet_id=body.spreadsheet_id,
+            **(
+                {"request_key": body.request_key}
+                if body.request_key is not None
+                else {}
+            ),
         )
-    except SpreadsheetNotFoundError:
+    except (SpreadsheetNotFoundError, ResourceNotFoundError):
         raise HTTPException(status_code=404, detail="Spreadsheet not found")
+    except (TaskBusyError, TaskConflictError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
 
 
 def _format_sse(event: dict) -> str:
@@ -100,6 +109,11 @@ async def chat_stream(
                 user_id=user_id,
                 user_name=body.user_name,
                 spreadsheet_id=body.spreadsheet_id,
+                **(
+                    {"request_key": body.request_key}
+                    if body.request_key is not None
+                    else {}
+                ),
             ):
                 if await request.is_disconnected():
                     logger.info("Client disconnected; stopping stream")

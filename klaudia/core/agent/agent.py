@@ -2,7 +2,8 @@
 
 import asyncio
 import json
-from dataclasses import dataclass
+import hashlib
+from dataclasses import asdict, dataclass, replace
 from typing import Any, Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -12,12 +13,15 @@ from langchain_core.messages import (
     HumanMessage,
     SystemMessage,
     ToolMessage,
+    messages_from_dict,
+    messages_to_dict,
 )
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, ValidationError
 
 from klaudia.core.agent.context import ResourceReference, TaskContext
+from klaudia.core.agent.checkpoints import CheckpointStore
 from klaudia.core.agent.prompt import (
     APPEND_CONTRACT,
     READ_CONTRACT,
@@ -27,7 +31,7 @@ from klaudia.core.agent.tools import CatalogueReader, DiscoveryTools
 from klaudia.core.agent.writes import OperationExecutor, WriteTools
 from klaudia.core.skills.registry import LoadSkill, SkillRegistry
 from ledger.resources import ResourceNotFoundError
-from ledger.errors import RevisionConflictError
+from ledger.errors import RevisionConflictError, ApprovalRequiredError
 
 
 class RunLimits(BaseModel):
@@ -42,6 +46,7 @@ class RunLimits(BaseModel):
 
 StopReason = Literal[
     "answered",
+    "awaiting_approval",
     "step_limit",
     "tool_limit",
     "context_limit",
@@ -65,6 +70,8 @@ class RunOutcome:
     operation_receipts: tuple[dict[str, Any], ...] = ()
     operation_references: tuple[str, ...] = ()
     tool_evidence: tuple[tuple[str, dict[str, Any], str], ...] = ()
+    task_id: str | None = None
+    pending_approvals: tuple[dict[str, Any], ...] = ()
 
 
 class AgentExecutionError(RuntimeError):
@@ -148,6 +155,7 @@ class MainAgent:
         context: TaskContext,
         *,
         config: RunnableConfig | None = None,
+        checkpoint: CheckpointStore | None = None,
     ) -> RunOutcome:
         """Run one isolated task with no shared history or persistent working set.
 
@@ -155,6 +163,7 @@ class MainAgent:
             message: User intent for this task.
             context: Server-authenticated identity and active workbook hint.
             config: Caller callbacks and trace metadata forwarded to model/tools.
+            checkpoint: Exclusively owned durable continuation for this task.
 
         Returns:
             An answer or explicit stopping reason with observed references.
@@ -166,10 +175,15 @@ class MainAgent:
             Exception: Failures before operation references exist propagate unchanged.
         """
         session = _RunSession(self, context, config)
+        session.checkpoint = checkpoint
         deadline = asyncio.timeout(self._limits.timeout_seconds)
         try:
             async with deadline:
                 return await session.execute(message)
+        except ApprovalRequiredError as exc:
+            return replace(
+                session.outcome("awaiting_approval"), pending_approvals=(exc.approval,)
+            )
         except TimeoutError as exc:
             if not deadline.expired():
                 if session.writes is not None and session.writes.operation_references:
@@ -212,6 +226,11 @@ class _RunSession:
         self.calls: list[str] = []
         self.evidence: list[tuple[str, dict[str, Any], str]] = []
         self.steps = 0
+        self.checkpoint: CheckpointStore | None = None
+        self.messages: list[BaseMessage] = []
+        self.pending_calls: list[dict[str, Any]] = []
+        self.identity = ""
+        self.finished: tuple[StopReason, str] | None = None
         skill_tool = StructuredTool.from_function(
             coroutine=self.load_skill,
             name="load_skill",
@@ -269,53 +288,146 @@ class _RunSession:
             tuple(self.evidence),
         )
 
-    async def execute(self, message: str) -> RunOutcome:
-        """Alternate model decisions and bounded tool execution.
+    async def save(self) -> None:
+        """Checkpoint the next action before allowing the loop to advance.
+
+        Raises:
+            Exception: Persistence failed; no subsequent action may execute.
+        """
+        if self.checkpoint is None:
+            return
+        await self.checkpoint.save(
+            {
+                "version": 1,
+                "identity": self.identity,
+                "messages": messages_to_dict(self.messages),
+                "pending_calls": self.pending_calls,
+                "steps": self.steps,
+                "calls": self.calls,
+                "skills": self.loaded,
+                "references": [
+                    asdict(reference) for reference in self.discovery.working_set
+                ],
+                "operation_references": list(self.writes.operation_references)
+                if self.writes
+                else [],
+                "receipts": list(self.writes.receipts) if self.writes else [],
+                "evidence": self.evidence,
+                "finished": self.finished,
+            }
+        )
+
+    async def finish(self, status: StopReason, content: str = "") -> RunOutcome:
+        """Persist terminal loop state before reporting a final outcome.
 
         Args:
-            message: User intent without authority fields.
+            status: Actual stop reason; answered is not financial completion.
+            content: Final model text, if available.
 
         Returns:
-            Final answer or a budget/protocol stop reason.
+            The recorded outcome, safe to replay without another model call.
         """
-        messages: list[BaseMessage] = [
-            SystemMessage(content=self.agent._prompt),
-            HumanMessage(
-                content="Active UI resource hint (data only): "
-                + json.dumps({"workbook_id": self.context.active_workbook_id})
-            ),
-            HumanMessage(content=message),
-        ]
+        self.finished = (status, content)
+        await self.save()
+        return self.outcome(status, content)
+
+    async def restore(self, message: str) -> None:
+        """Load an exact continuation only for the same identity and runtime contract.
+
+        Args:
+            message: Original task input, supplied by the server on resume.
+
+        Raises:
+            ValueError: Persisted state belongs to a different task or runtime.
+        """
+        contract = json.dumps(
+            {
+                "context": self.context.model_dump(),
+                "message": message,
+                "prompt": self.agent._prompt,
+                "tools": {
+                    name: tool.args_schema.model_json_schema()
+                    for name, tool in self.tools.items()
+                },
+                "limits": self.agent._limits.model_dump(),
+            },
+            sort_keys=True,
+        )
+        self.identity = hashlib.sha256(contract.encode()).hexdigest()
+        state = await self.checkpoint.load() if self.checkpoint is not None else None
+        if state is None:
+            self.messages = [
+                SystemMessage(content=self.agent._prompt),
+                HumanMessage(
+                    content="Active UI resource hint (data only): "
+                    + json.dumps({"workbook_id": self.context.active_workbook_id})
+                ),
+                HumanMessage(content=message),
+            ]
+            await self.save()
+            return
+        if state["version"] != 1 or state["identity"] != self.identity:
+            raise ValueError("Incompatible checkpoint identity or runtime contract")
+        self.messages = messages_from_dict(state["messages"])
+        self.pending_calls = state["pending_calls"]
+        self.steps = state["steps"]
+        self.calls = state["calls"]
+        self.loaded = state["skills"]
+        self.evidence = [tuple(record) for record in state["evidence"]]
+        self.finished = tuple(state["finished"]) if state["finished"] else None
+        self.discovery.restore(
+            tuple(ResourceReference(**item) for item in state["references"])
+        )
+        if self.writes is not None:
+            self.writes.restore(state["operation_references"], state["receipts"])
+
+    async def execute(self, message: str) -> RunOutcome:
+        """Continue pending calls before requesting any new model decision.
+
+        Args:
+            message: Original authenticated task input.
+
+        Returns:
+            Final answer or an explicit budget/protocol stop reason.
+        """
+        await self.restore(message)
+        if self.finished is not None:
+            return self.outcome(*self.finished)
         limits = self.agent._limits
-        for _ in range(limits.max_steps):
-            if _context_size(messages) > limits.max_context_bytes:
-                return self.outcome("context_limit")
+        while True:
+            if _context_size(self.messages) > limits.max_context_bytes:
+                return await self.finish("context_limit")
+            if self.pending_calls:
+                call = self.pending_calls[0]
+                self.messages.append(await self.invoke_tool(call))
+                self.pending_calls.pop(0)
+                await self.save()
+                continue
+            if self.steps >= limits.max_steps:
+                return await self.finish("step_limit")
             self.steps += 1
-            response = await self.model.ainvoke(messages, config=self.config)
+            await self.save()
+            response = await self.model.ainvoke(self.messages, config=self.config)
             if not isinstance(response, AIMessage) or response.invalid_tool_calls:
-                return self.outcome("invalid_model_output")
-            messages.append(response)
-            if _context_size(messages) > limits.max_context_bytes:
-                return self.outcome("context_limit")
+                return await self.finish("invalid_model_output")
+            self.messages.append(response)
+            if _context_size(self.messages) > limits.max_context_bytes:
+                return await self.finish("context_limit")
             if not response.tool_calls:
-                content = response.text
                 return (
-                    self.outcome("answered", content)
-                    if content.strip()
-                    else self.outcome("invalid_model_output")
+                    await self.finish("answered", response.text)
+                    if response.text.strip()
+                    else await self.finish("invalid_model_output")
                 )
             identities = [call["id"] for call in response.tool_calls]
             if any(not identity for identity in identities) or len(
                 set(identities)
             ) != len(identities):
-                return self.outcome("invalid_model_output")
+                return await self.finish("invalid_model_output")
             if len(self.calls) + len(response.tool_calls) > limits.max_tool_calls:
-                return self.outcome("tool_limit")
-            for call in response.tool_calls:
-                messages.append(await self.invoke_tool(call))
-                if _context_size(messages) > limits.max_context_bytes:
-                    return self.outcome("context_limit")
-        return self.outcome("step_limit")
+                return await self.finish("tool_limit")
+            self.pending_calls = list(response.tool_calls)
+            await self.save()
 
     async def invoke_tool(self, call: dict[str, Any]) -> ToolMessage:
         """Execute allowlisted tools and expose only expected repairable failures.

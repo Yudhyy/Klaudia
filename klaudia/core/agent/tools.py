@@ -168,6 +168,19 @@ class DiscoveryTools:
             raise ValueError("Inspect the table before preparing an append")
         return reference
 
+    def restore(self, references: tuple[ResourceReference, ...]) -> None:
+        """Restore server-persisted observations without granting current access.
+
+        Args:
+            references: Previously inspected identities and revisions.
+
+        Raises:
+            ValueError: The persisted working set exceeds the configured capacity.
+        """
+        if len(references) > self._capacity:
+            raise ValueError("Checkpoint working set exceeds capacity")
+        self._references = {reference.table_id: reference for reference in references}
+
     async def invalidate_sheet(self, sheet_id: int) -> None:
         """Discard observations invalidated by a committed sheet mutation.
 
