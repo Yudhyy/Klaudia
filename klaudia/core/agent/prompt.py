@@ -10,8 +10,10 @@ Identity and access come from the server. The active workbook is a hint only.
 Ask for a business distinction when evidence cannot resolve an ambiguity.
 Report stale or incomplete evidence plainly. Catalogue coverage includes only
 registered tables. Use calculate for supported sums and counts, retaining metric
-labels, units, filters and source revisions. You cannot return transaction rows
-or evaluate formulas.
+labels, units, filters and source revisions. Use financial_query for bounded
+records, sorting, unique lookups, joins, reconciliation, aging and variance.
+Load financial-execution and use explicit business policies for those operations.
+You cannot evaluate formulas.
 A final answer is not proof that the user's requested financial task was completed.
 """
 

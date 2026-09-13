@@ -10,6 +10,8 @@ import asyncpg
 from ledger import grid
 from ledger.connections import ConnectionProvider
 from ledger.calculations import CheckedCalculation, decode_calculation_grid
+from ledger.financial_contracts import CheckedFinancialRequest
+from ledger.financial_store import execute_owned
 from ledger.query import AggregateQuery, aggregate_grid
 from ledger.errors import RevisionConflictError, SheetNotFoundError
 from ledger.resources import (
@@ -478,6 +480,25 @@ class CatalogueStore:
             "query": query.model_dump(),
             **evidence,
         }
+
+    async def financial_owned(
+        self, user_id: int, request: CheckedFinancialRequest
+    ) -> dict[str, Any]:
+        """Execute financial intent from one snapshot of all owned sources.
+
+        Args:
+            user_id: Authenticated owner identity.
+            request: Intent with server-observed source revisions.
+
+        Returns:
+            Bounded labelled financial evidence.
+
+        Raises:
+            ResourceNotFoundError: Any table is absent or foreign.
+            RevisionConflictError: Source or catalogue observations are stale.
+            ValueError: Intent or evidence violates execution limits.
+        """
+        return await execute_owned(self._pool, user_id, request)
 
     async def _inspect(
         self, scope: tuple[str, str | int], table_id: str

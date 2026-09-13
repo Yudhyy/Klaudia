@@ -4,6 +4,7 @@ from typing import Any
 
 from ledger.catalogue import CatalogueStore
 from ledger.calculations import CheckedCalculation
+from ledger.financial_contracts import CheckedFinancialRequest
 from ledger.evidence import bounded_evidence, schema_page
 from ledger.resources import ResourceSearch, ResourceInspection
 
@@ -69,3 +70,22 @@ class CatalogueService:
             ValueError: Calculation inputs or output budget are invalid.
         """
         return bounded_evidence(await self._store.calculate_owned(user_id, query))
+
+    async def financial_query(
+        self, user_id: int, query: CheckedFinancialRequest
+    ) -> dict[str, Any]:
+        """Execute bounded financial reads with current ownership and revisions.
+
+        Args:
+            user_id: Authenticated owner supplied by the server.
+            query: Explicit financial intent and observed source revisions.
+
+        Returns:
+            Labelled, bounded evidence from one database snapshot.
+
+        Raises:
+            ResourceNotFoundError: Any source is absent or foreign.
+            RevisionConflictError: Source or metadata observations changed.
+            ValueError: Inputs or evidence exceed the financial contract.
+        """
+        return await self._store.financial_owned(user_id, query)

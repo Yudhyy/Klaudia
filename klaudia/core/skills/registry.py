@@ -19,6 +19,11 @@ class SkillDescription:
 
 _SKILLS = (
     SkillDescription(
+        "financial-execution",
+        "1",
+        "Read bounded records, sort, look up, join, reconcile, age balances and calculate variance with explicit numeric policies and labelled evidence.",
+    ),
+    SkillDescription(
         "table-authoring",
         "1",
         "Create or register table regions, maintain names and column identities, refresh metadata and request approval to unregister tables when authoring tools are enabled.",
@@ -30,7 +35,7 @@ _SKILLS = (
     ),
     SkillDescription(
         "table-calculation",
-        "1",
+        "2",
         "Calculate exact sums and counts from inspected tables with explicit units and source revisions.",
     ),
     SkillDescription(

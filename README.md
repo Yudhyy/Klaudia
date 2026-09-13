@@ -156,7 +156,8 @@ only; stale metadata remains marked. Shared-workspace roles, agent-selected
 workbooks and multi-workbook writes are not enabled by this change.
 
 The alternative agent components in `klaudia/core/agent/` expose task-bound
-`search_resources`, `inspect_resource`, `release_resource` and `calculate` tools. The server
+`search_resources`, `inspect_resource`, `release_resource`, `calculate` and
+`financial_query` tools. The server
 supplies immutable user identity and an optional active-workbook hint. Inspection
 records up to 20 resource references with observed revisions; search alone does
 not select a target. Each inspection rechecks ownership, and failed reinspection
@@ -234,10 +235,46 @@ remain Decimal operands through calculation; sums reject results beyond the
 through the current JSON numeric format also fail instead of rounding.
 
 The legacy runtime remains the default. Set `CHAT_RUNTIME=main` to use the main
-agent through the existing chat endpoints. Returning transaction rows and formula
-evaluation remain separate work.
+agent through the existing chat endpoints. Formula evaluation remains separate work.
 The backend still reads a whole JSONB sheet before selecting the registered region.
 This adds a checked calculation path, not a row-level SQL query engine.
+
+`financial_query` adds bounded record pages, typed sorting, unique lookups,
+one-to-one or many-to-one joins, reconciliation, aging and variance. Load the
+`financial-execution` procedure for its contracts. The model supplies `table_id`
+and a discriminated `query` object. Every source must first be inspected. One SQL
+snapshot checks current ownership and both revisions for up to two source tables,
+including tables in different owned workbooks. Saved financial evidence also
+triggers source ownership checks when a durable task resumes.
+
+Record pages select columns and optional exact equality filters. Sorting declares
+number, text or date semantics, direction and null placement; ties retain source
+order. Pages return at most 100 records with a full matched count and continuation
+offset. Row positions start at one within the registered range, including its
+header. Numeric cells return exact strings with `type=number`; text cells retain
+`type=str`. Source evidence maps referenced names to stable column IDs.
+
+Lookups reject multiple matches. Joins require unique right-side keys;
+reconciliation and variance require unique keys on both sides. Null keys either
+reject or never match, under an explicit policy. Missing records remain distinct
+from zero. Financial amounts require declared numeric-text, null-amount and unit
+policies. Supplied unit columns must match the declared unit on every record;
+null unit-column settings record a caller declaration rather than a verified unit.
+Invalid operands reject, and excluded blank amounts are counted.
+
+Reconciliation reports left-minus-right differences under an explicit absolute,
+inclusive tolerance. Aging takes an ISO as-of date and increasing overdue upper
+bounds, with separate future and due-today buckets. It uses supplied signed
+outstanding balances without inferring payments. Variance declares direction,
+zero-baseline handling, percentage places and rounding. Percentages divide by the
+signed subtracted side and round once. Other arithmetic remains exact within
+64 significant digits and bounded decimal exponents.
+
+Each source allows at most 10,000 rows and 1,000,000 selected cells; responses
+must fit 65,536 bytes. Financial comparisons validate the full source population
+before pagination and return full status counts. These tools do not infer currency
+conversion, aggregate duplicate keys, execute arbitrary expressions or prove that
+final prose uses the correct metric labels.
 
 The backend also provides `LedgerStore.append_table_owned` for named records.
 Ownership stays locked through the cell, catalogue and receipt transaction.
@@ -272,7 +309,7 @@ hint. The main path does not load the legacy prompt or fetch a sheet inventory.
 It retains input/output guardrails, extraction handoff, session history and
 Langfuse callbacks. Streaming buffers the reply until output checks finish.
 
-Main chat exposes checked append, table authoring, discovery and calculation, plus bounded
+Main chat exposes checked append, table authoring, discovery and financial queries, plus bounded
 `search_documents` and `read_document_page` tools over the existing archive.
 Document reads check both file and session ownership. Search returns at most 20
 records; page reads return at most 8,192 characters with continuation offsets.

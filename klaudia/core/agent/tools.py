@@ -12,6 +12,12 @@ from ledger.evidence import bounded_evidence
 from ledger.resources import ResourceInspection, ResourceSearch, ResourceNotFoundError
 from ledger.calculations import CalculationRequest, CheckedCalculation
 from ledger.errors import RevisionConflictError
+from ledger.financial_contracts import (
+    CheckedFinancialRequest,
+    FinancialRequest,
+    SourceRevision,
+    source_ids,
+)
 
 MAX_WORKING_RESOURCES = 20
 
@@ -59,6 +65,25 @@ class CatalogueReader(Protocol):
             ResourceNotFoundError: Source is absent or foreign.
             RevisionConflictError: Data or metadata changed since inspection.
             ValueError: Inputs or evidence exceed calculation budgets.
+        """
+        ...
+
+    async def financial_query(
+        self, user_id: int, query: CheckedFinancialRequest
+    ) -> dict[str, Any]:
+        """Read financial evidence while rechecking every source.
+
+        Args:
+            user_id: Authenticated identity.
+            query: Financial intent with observed revisions.
+
+        Returns:
+            Bounded labelled evidence from one owned snapshot.
+
+        Raises:
+            ResourceNotFoundError: Any source is absent or foreign.
+            RevisionConflictError: Source or metadata observations changed.
+            ValueError: Inputs or evidence exceed execution limits.
         """
         ...
 
@@ -122,6 +147,12 @@ class DiscoveryTools:
                 description="Compute exact sums or nonblank counts over an inspected registered table. Rechecks ownership and observed revisions. Choose columns, filters, groups and an explicit unit column where known. Rejects stale catalogue metadata. Does not write data or evaluate formulas.",
                 args_schema=CalculationRequest,
             ),
+            StructuredTool.from_function(
+                coroutine=self._financial_query,
+                name="financial_query",
+                description="Read bounded records, sort, look up unique records, join, reconcile, age balances or calculate variance over inspected registered tables. Load financial-execution for policies. Inspect every source first. Exact labelled evidence includes source revisions and stable column IDs. Read-only; no formulas or arbitrary expressions.",
+                args_schema=FinancialRequest,
+            ),
         )
 
     @property
@@ -165,7 +196,7 @@ class DiscoveryTools:
         """
         reference = self._references.get(table_id)
         if reference is None:
-            raise ValueError("Inspect the table before preparing an append")
+            raise ValueError("Inspect the table before using its source reference")
         return reference
 
     def restore(self, references: tuple[ResourceReference, ...]) -> None:
@@ -302,3 +333,47 @@ class DiscoveryTools:
                 self._references.pop(query.table_id, None)
                 raise
             return bounded_evidence(evidence)
+
+    async def _financial_query(self, **arguments: Any) -> dict[str, Any]:
+        """Bind every requested financial source to its inspected revisions.
+
+        Args:
+            arguments: Model-selected table identities and financial policies.
+
+        Returns:
+            Bounded labelled evidence with checked source identities.
+
+        Raises:
+            ValueError: A source was not inspected or intent is invalid.
+            RevisionConflictError: Source or catalogue evidence is stale.
+            ResourceNotFoundError: A table is absent or no longer owned.
+        """
+        request = FinancialRequest.model_validate(arguments)
+        identities = source_ids(request)
+        async with self._lock:
+            references = [self.reference(identity) for identity in identities]
+            try:
+                if any(reference.freshness != "current" for reference in references):
+                    raise RevisionConflictError(
+                        "Catalogue metadata is stale; refresh before financial execution"
+                    )
+                checked = CheckedFinancialRequest(
+                    **request.model_dump(),
+                    sources=[
+                        SourceRevision(
+                            table_id=reference.table_id,
+                            sheet_revision=reference.current_sheet_revision,
+                            catalogue_revision=reference.catalogue_revision,
+                        )
+                        for reference in references
+                    ],
+                )
+                return bounded_evidence(
+                    await self._catalogue.financial_query(
+                        self._context.user_id, checked
+                    )
+                )
+            except (ResourceNotFoundError, RevisionConflictError):
+                for identity in identities:
+                    self._references.pop(identity, None)
+                raise

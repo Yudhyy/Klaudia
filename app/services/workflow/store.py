@@ -409,6 +409,10 @@ class TaskStore:
                 )
             elif name == "inspect_resource":
                 workbooks.add(evidence["spreadsheet_id"])
+            elif name == "financial_query":
+                workbooks.update(
+                    source["spreadsheet_id"] for source in evidence["sources"]
+                )
             elif name == "execute_operation" and evidence.get("status") == "committed":
                 workbooks.add(evidence["target"]["spreadsheet_id"])
             elif name == "search_documents":

@@ -344,6 +344,20 @@ appear in the report once recorded. Historical reports remain untouched.
 
 ## Main chat integration smoke checks
 
+The financial execution smoke suite covers record sorting and pagination,
+unique lookup, left join, reconciliation, aging and variance through main chat:
+
+```bash
+E2E_FINANCIAL_EXECUTION=1 CHAT_RUNTIME=main MEMORY_MODE=off MOCK_KIE=true \
+SHEETS_BACKEND=ledger uv run pytest tests/e2e/test_financial_execution_e2e.py -q
+```
+
+It uses fresh synthetic identities and workbooks in the isolated sandbox. Each
+case checks saved native financial evidence and both complete grids, then cleans
+up its fixtures. Reports retain scheduled, failed and unrun cases, model settings,
+revision and latency. One trial per capability is smoke evidence, not a reliability
+estimate. The suite does not grade final prose for correct metric labels.
+
 ```bash
 E2E_MAIN_CHAT=1 CHAT_RUNTIME=main MEMORY_MODE=off MOCK_KIE=true \
   SHEETS_BACKEND=ledger uv run pytest tests/e2e/test_main_chat_e2e.py -q

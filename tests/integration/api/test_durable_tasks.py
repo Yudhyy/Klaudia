@@ -271,6 +271,49 @@ async def test_checkpoint_replay_rechecks_saved_workbook_access(durable_client):
         )
 
 
+async def test_replay_rechecks_financial_sources_without_working_references(
+    durable_client,
+):
+    """Released financial evidence cannot bypass source access checks on resume."""
+    import json
+    from uuid import uuid4
+
+    fixture = durable_client
+    response = await fixture.client.post(
+        "/v1/chat", json=fixture.request, headers=fixture.headers
+    )
+    task_id = response.json()["task_id"]
+    store = fixture.fixture.store
+    workbook = await store.create_spreadsheet(
+        fixture.user_id, f"financial-replay-{uuid4().hex}"
+    )
+    workspace = workbook["spreadsheetId"]
+    try:
+        async with fixture.container.tasks.open(fixture.user_id, task_id) as task:
+            state = await task.load()
+            state["evidence"].append(
+                [
+                    "financial_query",
+                    {},
+                    json.dumps({"sources": [{"spreadsheet_id": workspace}]}),
+                ]
+            )
+            await task.save(state)
+        await store.pool.execute(
+            "UPDATE ledger_spreadsheet SET user_id = $1 WHERE spreadsheet_id = $2",
+            fixture.user_id + 1000000,
+            workspace,
+        )
+        fixture.container.main_chat._model = ScriptedModel([])
+        denied = await fixture.client.post(
+            f"/v1/tasks/{task_id}/resume", headers=fixture.headers
+        )
+        assert denied.status_code == 404, denied.text
+        assert fixture.container.main_chat._model.inputs == []
+    finally:
+        await store.delete_spreadsheet(workspace)
+
+
 async def test_saturated_execution_pool_keeps_progress_readable(durable_client):
     """Task inspection uses separate capacity and resume returns a bounded conflict."""
     from contextlib import AsyncExitStack
