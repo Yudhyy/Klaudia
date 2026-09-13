@@ -1,0 +1,1340 @@
+{
+  "suite": "financial_execution",
+  "model": "deepseek-flash",
+  "provider": "deepseek",
+  "temperature": 0.5,
+  "disable_thinking": true,
+  "fixture_version": 1,
+  "git_revision": "8cd6521c0551dc7a3b2f291e6c11006f34a517ef",
+  "git_dirty": false,
+  "cases": {
+    "records": {
+      "status": "passed",
+      "user_id": 2,
+      "workbook_id": "1640619f6a7349a9b3594097cfff02a2",
+      "elapsed_seconds": 11.402282959024888,
+      "response": {
+        "message": {
+          "role": "assistant",
+          "content": "Here is the result of the requested query.\n\n## Result \u2014 first two Actuals records\n\n**Source:** `Actuals` table \u2014 `tbl_baf69b1e52ae4384a76c3b8af9d669b9`\n- Workbook: `financial-live-a1f02010c0124f8298d49c4c7abc2e39` (sheet_id 2366, range A1:D5)\n- Columns used: `ID` (`col_c2bb8d6b79c24b768867cb6548f7b0f7`), `Amount` (`col_0c1965834d56421cac7ded98fd3ac5b5`)\n- Revisions: sheet_revision 0, catalogue_revision 1, freshness current\n\n**Query applied:** operation `records`; sort by `Amount` numeric descending, nulls last; offset 0, limit 2; `numeric_text=reject`.\n\n| Row (1-based in range) | ID | Amount |\n|---|---|---|\n| 2 | a | 120 |\n| 3 | b | 80 |\n\n**Full matched row count: 4** (`matched_rows = 4`). This is the whole result count, not the page size \u2014 the returned page is a truncated view (2 of 4), with `next_offset = 2`.\n\n### Notes and limitations\n- The `Actuals` table also contains `Currency` and `Due` columns, which were not selected. No unit/currency declaration was applied, so the Amount values are reported as plain numbers without a verified currency.\n- `numeric_text=reject` was honored; no invalid numeric text was encountered in the returned rows.\n- This is a bounded record page, not a complete listing or a reconciliation. The remaining 2 records were not retrieved.\n- A second registered table, `Baselines` (`tbl_6649ff2f52d145038fa47744f7db0c61`, sheet_id 2367, A1:C4, 3 records), exists in this workbook but was not queried.",
+          "attachments": null
+        },
+        "session_id": 1,
+        "processing_time_ms": 11401,
+        "tools_used": [
+          "load_skill",
+          "search_resources",
+          "inspect_resource",
+          "financial_query"
+        ],
+        "metadata": {
+          "user_name": "User",
+          "date": "Tuesday, 30 June 2026",
+          "time": "19:22",
+          "timezone": "GMT+8"
+        },
+        "pending_approvals": [],
+        "task_id": "task:5a78611ef4584e33911c7b07759e8d2f",
+        "runtime": "main",
+        "run_status": "answered",
+        "operation_references": [],
+        "operation_receipts": []
+      },
+      "financial_evidence": [
+        {
+          "sources": [
+            {
+              "table_id": "tbl_baf69b1e52ae4384a76c3b8af9d669b9",
+              "spreadsheet_id": "1640619f6a7349a9b3594097cfff02a2",
+              "sheet_id": 2366,
+              "range": "A1:D5",
+              "sheet_revision": 0,
+              "catalogue_revision": 1,
+              "columns": [
+                {
+                  "name": "ID",
+                  "column_id": "col_c2bb8d6b79c24b768867cb6548f7b0f7"
+                },
+                {
+                  "name": "Amount",
+                  "column_id": "col_0c1965834d56421cac7ded98fd3ac5b5"
+                }
+              ]
+            }
+          ],
+          "operation": "records",
+          "query": {
+            "table_id": "tbl_baf69b1e52ae4384a76c3b8af9d669b9",
+            "query": {
+              "offset": 0,
+              "limit": 2,
+              "columns": [
+                "ID",
+                "Amount"
+              ],
+              "filters": [],
+              "operation": "records",
+              "sort": [
+                {
+                  "column": "Amount",
+                  "kind": "number",
+                  "direction": "desc",
+                  "nulls": "last"
+                }
+              ],
+              "numeric_text": "reject"
+            }
+          },
+          "numeric_contract": {
+            "precision": 64,
+            "invalid_values": "reject",
+            "arithmetic": "exact_except_explicit_percentage_rounding",
+            "row_coordinates": "one_based_within_registered_range",
+            "empty_buckets": "zero_with_record_count"
+          },
+          "matched_rows": 4,
+          "records": [
+            {
+              "row": 2,
+              "values": {
+                "ID": {
+                  "type": "str",
+                  "value": "a"
+                },
+                "Amount": {
+                  "type": "number",
+                  "value": "120"
+                }
+              }
+            },
+            {
+              "row": 3,
+              "values": {
+                "ID": {
+                  "type": "str",
+                  "value": "b"
+                },
+                "Amount": {
+                  "type": "number",
+                  "value": "80"
+                }
+              }
+            }
+          ],
+          "next_offset": 2
+        }
+      ],
+      "actual_state": {
+        "Actuals": [
+          [
+            "ID",
+            "Amount",
+            "Currency",
+            "Due"
+          ],
+          [
+            "a",
+            120,
+            "USD",
+            "2026-09-13"
+          ],
+          [
+            "b",
+            80,
+            "USD",
+            "2026-08-14"
+          ],
+          [
+            "c",
+            0,
+            "USD",
+            "2026-08-13"
+          ],
+          [
+            "d",
+            50,
+            "USD",
+            "2026-09-14"
+          ]
+        ],
+        "Baselines": [
+          [
+            "ID",
+            "Amount",
+            "Currency"
+          ],
+          [
+            "a",
+            100,
+            "USD"
+          ],
+          [
+            "b",
+            0,
+            "USD"
+          ],
+          [
+            "x",
+            30,
+            "USD"
+          ]
+        ]
+      }
+    },
+    "lookup": {
+      "status": "passed",
+      "user_id": 3,
+      "workbook_id": "78625b02fb0a4108aff4a0a8ce1d6c05",
+      "elapsed_seconds": 14.522619792027399,
+      "response": {
+        "message": {
+          "role": "assistant",
+          "content": "The lookup resolved uniquely. Here is the labelled evidence.\n\n## Result\n\n**Unique Actuals record where ID = \"a\"**\n\n| Field | Value |\n|---|---|\n| ID | `a` (text) |\n| Amount | `120` (number) |\n\n## Labelled evidence\n\n- **Operation:** `lookup` (unique match; `missing=null`; duplicates would fail)\n- **Matched rows:** 1 \u2014 a single record, so no duplicate-match failure occurred\n- **Source table:** `Actuals` \u2014 `tbl_9e602d756b954147a62a48052dadef36`\n- **Workbook:** `financial-live-4fbc618d96fc4ca1b5fd618197c6bb5c` (`78625b02fb0a4108aff4a0a8ce1d6c05`), sheet_id 2368\n- **Registered range:** `A1:D5` (header + 4 records)\n- **Source revision:** 0 \u00b7 **Catalogue revision:** 1 \u00b7 **Freshness:** current\n- **Source columns:** `ID` = `col_19a59892a78c4b6f99127231630ffe7f`; `Amount` = `col_b0ba21861c6248bf9ee784cb56fc36a2`\n- **Row coordinate:** row 2 (one-based within the registered range, including header)\n- **Numeric contract:** precision 64, invalid values reject, exact arithmetic\n\n## Notes and limitations\n\n- **Workbook tables inspected:** two registered tables \u2014 `Actuals` (4 records, A1:D5) and `Baselines` (3 records, A1:C4). Only `Actuals` was queried, as it is the table matching the request.\n- **Unit/currency not established:** the `Actuals` table has a `Currency` column (`col_9675742baf6448759d8df65afac3dcaf`), but it was not requested and not returned here. The Amount `120` is reported as a bare number with no currency unit asserted.\n- **Scope:** this is a read-only lookup; no cells were written. The evidence reflects the observed revisions above; if ownership or revisions change, the lookup should be re-inspected.",
+          "attachments": null
+        },
+        "session_id": 2,
+        "processing_time_ms": 14521,
+        "tools_used": [
+          "load_skill",
+          "search_resources",
+          "search_resources",
+          "inspect_resource",
+          "inspect_resource",
+          "financial_query"
+        ],
+        "metadata": {
+          "user_name": "User",
+          "date": "Tuesday, 30 June 2026",
+          "time": "19:22",
+          "timezone": "GMT+8"
+        },
+        "pending_approvals": [],
+        "task_id": "task:f28ffb9209ef4c8dae8780f509b31891",
+        "runtime": "main",
+        "run_status": "answered",
+        "operation_references": [],
+        "operation_receipts": []
+      },
+      "financial_evidence": [
+        {
+          "sources": [
+            {
+              "table_id": "tbl_9e602d756b954147a62a48052dadef36",
+              "spreadsheet_id": "78625b02fb0a4108aff4a0a8ce1d6c05",
+              "sheet_id": 2368,
+              "range": "A1:D5",
+              "sheet_revision": 0,
+              "catalogue_revision": 1,
+              "columns": [
+                {
+                  "name": "ID",
+                  "column_id": "col_19a59892a78c4b6f99127231630ffe7f"
+                },
+                {
+                  "name": "Amount",
+                  "column_id": "col_b0ba21861c6248bf9ee784cb56fc36a2"
+                }
+              ]
+            }
+          ],
+          "operation": "lookup",
+          "query": {
+            "table_id": "tbl_9e602d756b954147a62a48052dadef36",
+            "query": {
+              "columns": [
+                "ID",
+                "Amount"
+              ],
+              "filters": [
+                {
+                  "column": "ID",
+                  "value": "a"
+                }
+              ],
+              "operation": "lookup",
+              "missing": "null"
+            }
+          },
+          "numeric_contract": {
+            "precision": 64,
+            "invalid_values": "reject",
+            "arithmetic": "exact_except_explicit_percentage_rounding",
+            "row_coordinates": "one_based_within_registered_range",
+            "empty_buckets": "zero_with_record_count"
+          },
+          "matched_rows": 1,
+          "record": {
+            "row": 2,
+            "values": {
+              "ID": {
+                "type": "str",
+                "value": "a"
+              },
+              "Amount": {
+                "type": "number",
+                "value": "120"
+              }
+            }
+          }
+        }
+      ],
+      "actual_state": {
+        "Actuals": [
+          [
+            "ID",
+            "Amount",
+            "Currency",
+            "Due"
+          ],
+          [
+            "a",
+            120,
+            "USD",
+            "2026-09-13"
+          ],
+          [
+            "b",
+            80,
+            "USD",
+            "2026-08-14"
+          ],
+          [
+            "c",
+            0,
+            "USD",
+            "2026-08-13"
+          ],
+          [
+            "d",
+            50,
+            "USD",
+            "2026-09-14"
+          ]
+        ],
+        "Baselines": [
+          [
+            "ID",
+            "Amount",
+            "Currency"
+          ],
+          [
+            "a",
+            100,
+            "USD"
+          ],
+          [
+            "b",
+            0,
+            "USD"
+          ],
+          [
+            "x",
+            30,
+            "USD"
+          ]
+        ]
+      }
+    },
+    "join": {
+      "status": "passed",
+      "user_id": 4,
+      "workbook_id": "bb0aed2bc6be4b19864a57b4fa57d518",
+      "elapsed_seconds": 11.631682625040412,
+      "response": {
+        "message": {
+          "role": "assistant",
+          "content": "The left join completed. Here are the results with labelled evidence.\n\n## Left join: Actuals \u2192 Baselines\n\n**Operation:** `join`, `join_kind=left`, `cardinality=one_to_one`, `null_keys=reject`, keys `ID` = `ID`, offset 0, limit 100.\n\n**Sources (both inspected, freshness = current):**\n\n| Side | Table | Table ID | Range | Sheet rev | Catalogue rev |\n|---|---|---|---|---|---|\n| Left | Actuals | `tbl_38b792f17897400dba61c9d995220a9c` | A1:D5 | 0 | 1 |\n| Right | Baselines | `tbl_0670bf7d82354118a4803a7d82f45f33` | A1:C4 | 0 | 1 |\n\n**Columns used:** Actuals `ID` (`col_1ae57cb2286349069bcd9641e8d68fbb`), `Amount` (`col_324a366c9edf4869be33292283d48060`); Baselines `ID` (`col_1768f1a9bf194762b7cf9ea9891cae4b`), `Amount` (`col_13f2eb540b7249688be87c45e6b27673`).\n\n**Result \u2014 `matched_rows` = 4** (whole result count; this page is complete, `next_offset` = null):\n\n| Actuals ID | Actuals Amount | Baselines ID | Baselines Amount |\n|---|---|---|---|\n| a | 120 | a | 100 |\n| b | 80 | b | 0 |\n| c | 0 | *(unmatched)* | \u2014 |\n| d | 50 | *(unmatched)* | \u2014 |\n\nRow coordinates are one-based within each registered range (header = row 1), so Actuals rows 2\u20135 and Baselines rows 2\u20133.\n\n**Notes and limitations:**\n- Unmatched Actuals `c` and `d` are retained, as required by the left join. Their right-side values are `null` \u2014 not zero.\n- Amounts are returned as exact numeric strings (`type=number`); no currency/unit was declared, and no unit column was supplied, so no currency conversion or unit verification was performed.\n- This is a read-only query. No cells were written, and no arithmetic beyond the join was performed.",
+          "attachments": null
+        },
+        "session_id": 3,
+        "processing_time_ms": 11630,
+        "tools_used": [
+          "load_skill",
+          "search_resources",
+          "inspect_resource",
+          "inspect_resource",
+          "financial_query"
+        ],
+        "metadata": {
+          "user_name": "User",
+          "date": "Tuesday, 30 June 2026",
+          "time": "19:22",
+          "timezone": "GMT+8"
+        },
+        "pending_approvals": [],
+        "task_id": "task:6dbebd1a60564e98846cedf8e56457c6",
+        "runtime": "main",
+        "run_status": "answered",
+        "operation_references": [],
+        "operation_receipts": []
+      },
+      "financial_evidence": [
+        {
+          "sources": [
+            {
+              "table_id": "tbl_38b792f17897400dba61c9d995220a9c",
+              "spreadsheet_id": "bb0aed2bc6be4b19864a57b4fa57d518",
+              "sheet_id": 2370,
+              "range": "A1:D5",
+              "sheet_revision": 0,
+              "catalogue_revision": 1,
+              "columns": [
+                {
+                  "name": "ID",
+                  "column_id": "col_1ae57cb2286349069bcd9641e8d68fbb"
+                },
+                {
+                  "name": "Amount",
+                  "column_id": "col_324a366c9edf4869be33292283d48060"
+                }
+              ]
+            },
+            {
+              "table_id": "tbl_0670bf7d82354118a4803a7d82f45f33",
+              "spreadsheet_id": "bb0aed2bc6be4b19864a57b4fa57d518",
+              "sheet_id": 2371,
+              "range": "A1:C4",
+              "sheet_revision": 0,
+              "catalogue_revision": 1,
+              "columns": [
+                {
+                  "name": "ID",
+                  "column_id": "col_1768f1a9bf194762b7cf9ea9891cae4b"
+                },
+                {
+                  "name": "Amount",
+                  "column_id": "col_13f2eb540b7249688be87c45e6b27673"
+                }
+              ]
+            }
+          ],
+          "operation": "join",
+          "query": {
+            "table_id": "tbl_38b792f17897400dba61c9d995220a9c",
+            "query": {
+              "offset": 0,
+              "limit": 100,
+              "right_table_id": "tbl_0670bf7d82354118a4803a7d82f45f33",
+              "left_keys": [
+                "ID"
+              ],
+              "right_keys": [
+                "ID"
+              ],
+              "null_keys": "reject",
+              "operation": "join",
+              "columns": [
+                "ID",
+                "Amount"
+              ],
+              "right_columns": [
+                "ID",
+                "Amount"
+              ],
+              "join_kind": "left",
+              "cardinality": "one_to_one"
+            }
+          },
+          "numeric_contract": {
+            "precision": 64,
+            "invalid_values": "reject",
+            "arithmetic": "exact_except_explicit_percentage_rounding",
+            "row_coordinates": "one_based_within_registered_range",
+            "empty_buckets": "zero_with_record_count"
+          },
+          "matched_rows": 4,
+          "records": [
+            {
+              "left": {
+                "row": 2,
+                "values": {
+                  "ID": {
+                    "type": "str",
+                    "value": "a"
+                  },
+                  "Amount": {
+                    "type": "number",
+                    "value": "120"
+                  }
+                }
+              },
+              "right": {
+                "row": 2,
+                "values": {
+                  "ID": {
+                    "type": "str",
+                    "value": "a"
+                  },
+                  "Amount": {
+                    "type": "number",
+                    "value": "100"
+                  }
+                }
+              }
+            },
+            {
+              "left": {
+                "row": 3,
+                "values": {
+                  "ID": {
+                    "type": "str",
+                    "value": "b"
+                  },
+                  "Amount": {
+                    "type": "number",
+                    "value": "80"
+                  }
+                }
+              },
+              "right": {
+                "row": 3,
+                "values": {
+                  "ID": {
+                    "type": "str",
+                    "value": "b"
+                  },
+                  "Amount": {
+                    "type": "number",
+                    "value": "0"
+                  }
+                }
+              }
+            },
+            {
+              "left": {
+                "row": 4,
+                "values": {
+                  "ID": {
+                    "type": "str",
+                    "value": "c"
+                  },
+                  "Amount": {
+                    "type": "number",
+                    "value": "0"
+                  }
+                }
+              },
+              "right": null
+            },
+            {
+              "left": {
+                "row": 5,
+                "values": {
+                  "ID": {
+                    "type": "str",
+                    "value": "d"
+                  },
+                  "Amount": {
+                    "type": "number",
+                    "value": "50"
+                  }
+                }
+              },
+              "right": null
+            }
+          ],
+          "next_offset": null
+        }
+      ],
+      "actual_state": {
+        "Actuals": [
+          [
+            "ID",
+            "Amount",
+            "Currency",
+            "Due"
+          ],
+          [
+            "a",
+            120,
+            "USD",
+            "2026-09-13"
+          ],
+          [
+            "b",
+            80,
+            "USD",
+            "2026-08-14"
+          ],
+          [
+            "c",
+            0,
+            "USD",
+            "2026-08-13"
+          ],
+          [
+            "d",
+            50,
+            "USD",
+            "2026-09-14"
+          ]
+        ],
+        "Baselines": [
+          [
+            "ID",
+            "Amount",
+            "Currency"
+          ],
+          [
+            "a",
+            100,
+            "USD"
+          ],
+          [
+            "b",
+            0,
+            "USD"
+          ],
+          [
+            "x",
+            30,
+            "USD"
+          ]
+        ]
+      }
+    },
+    "reconcile": {
+      "status": "passed",
+      "user_id": 5,
+      "workbook_id": "9f205465bd044b8cafc7078ed1a5925a",
+      "elapsed_seconds": 10.657548125018366,
+      "response": {
+        "message": {
+          "role": "assistant",
+          "content": "The reconciliation completed. Here is the labelled evidence.\n\n## Reconciliation: Actuals vs Baselines (by exact ID)\n\n**Sources (both current, `freshness: current`)**\n| Side | Table | Sheet | Range | Sheet rev | Catalogue rev | Key col | Amount col | Unit col |\n|---|---|---|---|---|---|---|---|---|\n| Left | Actuals `tbl_52d30288358f4c7ea88111b31e3182cb` | 2372 | A1:D5 | 0 | 1 | ID `col_c9d45fb450324e13b8bf24e28158a0f4` | Amount `col_18c2f4654f214982aa1ec9d132c188fb` | Currency `col_1f85e8b9dc3f437a9f906f5de50a28d9` |\n| Right | Baselines `tbl_ce0786a43a514b4c80ec6e02e4b1408f` | 2373 | A1:C4 | 0 | 1 | ID `col_e208d437252045fc9d7094b288d1d780` | Amount `col_f0377d8854684d7b8993ee1d174991e2` | Currency `col_71a5bfd7ed0549ab9a87f297d28a7db2` |\n\n**Applied query:** `reconcile`, left_keys=[ID], right_keys=[ID], null_keys=reject, left_amount=Amount, right_amount=Amount, tolerance=0 (absolute), offset=0, limit=100.\n**Policies:** numeric_text=reject, null_amounts=reject, unit=USD, left_unit_column=Currency, right_unit_column=Currency. Difference = left \u2212 right.\n\n**Result \u2014 5 records total (`matched_rows: 5`, no `next_offset`, so this is the complete comparison)**\n\n| Status | ID | Actuals (left) | Baselines (right) | Difference (L\u2212R) |\n|---|---|---|---|---|\n| different | a | 120 | 100 | 20 |\n| different | b | 80 | 0 | 80 |\n| left_only | c | 0 | \u2014 | \u2014 |\n| left_only | d | 50 | \u2014 | \u2014 |\n| right_only | x | \u2014 | 30 | \u2014 |\n\n**Status counts:** different = 2, left_only = 2, right_only = 1.\n**Excluded amounts:** left = 0, right = 0. **Unit:** USD.\n\n### Notes and limitations\n- The unit is a declared policy (USD) checked against the `Currency` column on every record; the tool verified the unit column matched the declared unit on all participating records. It does not convert currencies.\n- Missing sides are reported as `left_only`/`right_only` and are **not** treated as zero. The `difference` is null for those rows, so no L\u2212R figure is implied for c, d, or x.\n- Tolerance 0 means \"matched\" requires an exact zero difference; the two `different` rows (a: 20, b: 80) exceed it. The tolerance does not round or alter the differences.\n- This is a full outer comparison over both tables' registered ranges (4 Actuals rows, 3 Baselines rows). It is read-only evidence and does not write, post, or adjust any ledger data.\n\nWould you like me to also run a variance (percentage) analysis on the matched IDs, or an aging on the Actuals `Due` column?",
+          "attachments": null
+        },
+        "session_id": 4,
+        "processing_time_ms": 10656,
+        "tools_used": [
+          "load_skill",
+          "search_resources",
+          "inspect_resource",
+          "inspect_resource",
+          "financial_query"
+        ],
+        "metadata": {
+          "user_name": "User",
+          "date": "Tuesday, 30 June 2026",
+          "time": "19:22",
+          "timezone": "GMT+8"
+        },
+        "pending_approvals": [],
+        "task_id": "task:9e134304653341b49ea26e9292d4ce7e",
+        "runtime": "main",
+        "run_status": "answered",
+        "operation_references": [],
+        "operation_receipts": []
+      },
+      "financial_evidence": [
+        {
+          "sources": [
+            {
+              "table_id": "tbl_52d30288358f4c7ea88111b31e3182cb",
+              "spreadsheet_id": "9f205465bd044b8cafc7078ed1a5925a",
+              "sheet_id": 2372,
+              "range": "A1:D5",
+              "sheet_revision": 0,
+              "catalogue_revision": 1,
+              "columns": [
+                {
+                  "name": "ID",
+                  "column_id": "col_c9d45fb450324e13b8bf24e28158a0f4"
+                },
+                {
+                  "name": "Amount",
+                  "column_id": "col_18c2f4654f214982aa1ec9d132c188fb"
+                },
+                {
+                  "name": "Currency",
+                  "column_id": "col_1f85e8b9dc3f437a9f906f5de50a28d9"
+                }
+              ]
+            },
+            {
+              "table_id": "tbl_ce0786a43a514b4c80ec6e02e4b1408f",
+              "spreadsheet_id": "9f205465bd044b8cafc7078ed1a5925a",
+              "sheet_id": 2373,
+              "range": "A1:C4",
+              "sheet_revision": 0,
+              "catalogue_revision": 1,
+              "columns": [
+                {
+                  "name": "ID",
+                  "column_id": "col_e208d437252045fc9d7094b288d1d780"
+                },
+                {
+                  "name": "Amount",
+                  "column_id": "col_f0377d8854684d7b8993ee1d174991e2"
+                },
+                {
+                  "name": "Currency",
+                  "column_id": "col_71a5bfd7ed0549ab9a87f297d28a7db2"
+                }
+              ]
+            }
+          ],
+          "operation": "reconcile",
+          "query": {
+            "table_id": "tbl_52d30288358f4c7ea88111b31e3182cb",
+            "query": {
+              "offset": 0,
+              "limit": 100,
+              "right_table_id": "tbl_ce0786a43a514b4c80ec6e02e4b1408f",
+              "left_keys": [
+                "ID"
+              ],
+              "right_keys": [
+                "ID"
+              ],
+              "null_keys": "reject",
+              "left_amount": "Amount",
+              "right_amount": "Amount",
+              "policies": {
+                "numeric_text": "reject",
+                "null_amounts": "reject",
+                "unit": "USD",
+                "left_unit_column": "Currency",
+                "right_unit_column": "Currency"
+              },
+              "operation": "reconcile",
+              "tolerance": "0"
+            }
+          },
+          "numeric_contract": {
+            "precision": 64,
+            "invalid_values": "reject",
+            "arithmetic": "exact_except_explicit_percentage_rounding",
+            "row_coordinates": "one_based_within_registered_range",
+            "empty_buckets": "zero_with_record_count"
+          },
+          "matched_rows": 5,
+          "records": [
+            {
+              "left_row": 2,
+              "right_row": 2,
+              "left_amount": "120",
+              "right_amount": "100",
+              "difference": "20",
+              "status": "different",
+              "left_key": {
+                "ID": {
+                  "type": "str",
+                  "value": "a"
+                }
+              },
+              "right_key": {
+                "ID": {
+                  "type": "str",
+                  "value": "a"
+                }
+              }
+            },
+            {
+              "left_row": 3,
+              "right_row": 3,
+              "left_amount": "80",
+              "right_amount": "0",
+              "difference": "80",
+              "status": "different",
+              "left_key": {
+                "ID": {
+                  "type": "str",
+                  "value": "b"
+                }
+              },
+              "right_key": {
+                "ID": {
+                  "type": "str",
+                  "value": "b"
+                }
+              }
+            },
+            {
+              "left_row": 4,
+              "right_row": null,
+              "left_amount": "0",
+              "right_amount": null,
+              "difference": null,
+              "status": "left_only",
+              "left_key": {
+                "ID": {
+                  "type": "str",
+                  "value": "c"
+                }
+              },
+              "right_key": null
+            },
+            {
+              "left_row": 5,
+              "right_row": null,
+              "left_amount": "50",
+              "right_amount": null,
+              "difference": null,
+              "status": "left_only",
+              "left_key": {
+                "ID": {
+                  "type": "str",
+                  "value": "d"
+                }
+              },
+              "right_key": null
+            },
+            {
+              "left_row": null,
+              "right_row": 4,
+              "left_amount": null,
+              "right_amount": "30",
+              "difference": null,
+              "status": "right_only",
+              "left_key": null,
+              "right_key": {
+                "ID": {
+                  "type": "str",
+                  "value": "x"
+                }
+              }
+            }
+          ],
+          "next_offset": null,
+          "status_counts": {
+            "different": 2,
+            "left_only": 2,
+            "right_only": 1
+          },
+          "excluded_left_amounts": 0,
+          "excluded_right_amounts": 0,
+          "unit": "USD",
+          "left_amount_column": "Amount",
+          "right_amount_column": "Amount"
+        }
+      ],
+      "actual_state": {
+        "Actuals": [
+          [
+            "ID",
+            "Amount",
+            "Currency",
+            "Due"
+          ],
+          [
+            "a",
+            120,
+            "USD",
+            "2026-09-13"
+          ],
+          [
+            "b",
+            80,
+            "USD",
+            "2026-08-14"
+          ],
+          [
+            "c",
+            0,
+            "USD",
+            "2026-08-13"
+          ],
+          [
+            "d",
+            50,
+            "USD",
+            "2026-09-14"
+          ]
+        ],
+        "Baselines": [
+          [
+            "ID",
+            "Amount",
+            "Currency"
+          ],
+          [
+            "a",
+            100,
+            "USD"
+          ],
+          [
+            "b",
+            0,
+            "USD"
+          ],
+          [
+            "x",
+            30,
+            "USD"
+          ]
+        ]
+      }
+    },
+    "aging": {
+      "status": "passed",
+      "user_id": 6,
+      "workbook_id": "48507795543e4013bfb72ffeb2a5f86d",
+      "elapsed_seconds": 10.70770312496461,
+      "response": {
+        "message": {
+          "role": "assistant",
+          "content": "The aging query completed. Here is the labelled evidence.\n\n## Aging result \u2014 Actuals, signed outstanding Amount\n\n**Source (inspected, current):**\n- Table: `Actuals` \u2014 `tbl_3d3e4bac1be84082911f8721a7b15c0d`\n- Workbook: `financial-live-f143dc3bd2024e2d90905780fc7295c8` (`48507795543e4013bfb72ffeb2a5f86d`), sheet_id 2374, range `A1:D5`\n- Revisions: source_revision 0, current_sheet_revision 0, catalogue_revision 1 \u2014 freshness: current\n- Columns used: `Amount` (`col_a15ed860e9dd46ffbf311ad14163caef`), `Due` (`col_473b0ab3077547508ec0c864f0b1f657`), `Currency` (`col_38529843ea534600a1b510e7f7f14435`)\n\n**Applied query:** operation `aging`; amount = `Amount`; due_date = `Due`; as_of = `2026-09-13`; bucket_days = [30, 60, 90] (inclusive overdue upper bounds, separate `not_due` and `due_today`).\n**Policies:** numeric_text = reject; null_amounts = reject; unit = **USD**; left_unit_column = `Currency`; right_unit_column = null.\n\n**Buckets (unit USD):**\n\n| Bucket | Amount | Records |\n|---|---|---|\n| not_due | 50 | 1 |\n| due_today | 120 | 1 |\n| 1_30_days | 80 | 1 |\n| 31_60_days | 0 | 1 |\n| 61_90_days | 0 | 0 |\n| over_90_days | 0 | 0 |\n\n- matched_rows: 4; excluded_null_amounts: 0.\n\n**Interpretation notes / limitations:**\n- The `31_60_days` bucket shows amount 0 with record_count 1 \u2014 a record landed there with a zero (or net-zero) signed balance; it is not an empty bucket. The `61_90_days` and `over_90_days` buckets are genuinely empty (record_count 0).\n- `right_unit_column = null` is a caller declaration, not verified currency evidence. The `Currency` column was checked against the declared unit USD on every record (left_unit_column), so all included records carried USD.\n- This ages signed outstanding balances as supplied; the tool does not infer payments, open status or invoice totals. Negative balances would retain their signs.\n- The Baselines table (`tbl_7a6f656375e54685979c46469077e83d`, 3 records) was inspected but is not used by this aging request.\n\nNo cells were written and no formulas were evaluated.",
+          "attachments": null
+        },
+        "session_id": 5,
+        "processing_time_ms": 10706,
+        "tools_used": [
+          "load_skill",
+          "search_resources",
+          "inspect_resource",
+          "inspect_resource",
+          "financial_query"
+        ],
+        "metadata": {
+          "user_name": "User",
+          "date": "Tuesday, 30 June 2026",
+          "time": "19:22",
+          "timezone": "GMT+8"
+        },
+        "pending_approvals": [],
+        "task_id": "task:7149530c6d9e4d94a7eb024959c724dc",
+        "runtime": "main",
+        "run_status": "answered",
+        "operation_references": [],
+        "operation_receipts": []
+      },
+      "financial_evidence": [
+        {
+          "sources": [
+            {
+              "table_id": "tbl_3d3e4bac1be84082911f8721a7b15c0d",
+              "spreadsheet_id": "48507795543e4013bfb72ffeb2a5f86d",
+              "sheet_id": 2374,
+              "range": "A1:D5",
+              "sheet_revision": 0,
+              "catalogue_revision": 1,
+              "columns": [
+                {
+                  "name": "Amount",
+                  "column_id": "col_a15ed860e9dd46ffbf311ad14163caef"
+                },
+                {
+                  "name": "Currency",
+                  "column_id": "col_38529843ea534600a1b510e7f7f14435"
+                },
+                {
+                  "name": "Due",
+                  "column_id": "col_473b0ab3077547508ec0c864f0b1f657"
+                }
+              ]
+            }
+          ],
+          "operation": "aging",
+          "query": {
+            "table_id": "tbl_3d3e4bac1be84082911f8721a7b15c0d",
+            "query": {
+              "operation": "aging",
+              "amount": "Amount",
+              "due_date": "Due",
+              "as_of": "2026-09-13",
+              "bucket_days": [
+                30,
+                60,
+                90
+              ],
+              "policies": {
+                "numeric_text": "reject",
+                "null_amounts": "reject",
+                "unit": "USD",
+                "left_unit_column": "Currency",
+                "right_unit_column": null
+              }
+            }
+          },
+          "numeric_contract": {
+            "precision": 64,
+            "invalid_values": "reject",
+            "arithmetic": "exact_except_explicit_percentage_rounding",
+            "row_coordinates": "one_based_within_registered_range",
+            "empty_buckets": "zero_with_record_count"
+          },
+          "matched_rows": 4,
+          "excluded_null_amounts": 0,
+          "unit": "USD",
+          "amount_column": "Amount",
+          "date_column": "Due",
+          "buckets": [
+            {
+              "label": "not_due",
+              "amount": "50",
+              "record_count": 1
+            },
+            {
+              "label": "due_today",
+              "amount": "120",
+              "record_count": 1
+            },
+            {
+              "label": "1_30_days",
+              "amount": "80",
+              "record_count": 1
+            },
+            {
+              "label": "31_60_days",
+              "amount": "0",
+              "record_count": 1
+            },
+            {
+              "label": "61_90_days",
+              "amount": "0",
+              "record_count": 0
+            },
+            {
+              "label": "over_90_days",
+              "amount": "0",
+              "record_count": 0
+            }
+          ]
+        }
+      ],
+      "actual_state": {
+        "Actuals": [
+          [
+            "ID",
+            "Amount",
+            "Currency",
+            "Due"
+          ],
+          [
+            "a",
+            120,
+            "USD",
+            "2026-09-13"
+          ],
+          [
+            "b",
+            80,
+            "USD",
+            "2026-08-14"
+          ],
+          [
+            "c",
+            0,
+            "USD",
+            "2026-08-13"
+          ],
+          [
+            "d",
+            50,
+            "USD",
+            "2026-09-14"
+          ]
+        ],
+        "Baselines": [
+          [
+            "ID",
+            "Amount",
+            "Currency"
+          ],
+          [
+            "a",
+            100,
+            "USD"
+          ],
+          [
+            "b",
+            0,
+            "USD"
+          ],
+          [
+            "x",
+            30,
+            "USD"
+          ]
+        ]
+      }
+    },
+    "variance": {
+      "status": "passed",
+      "user_id": 7,
+      "workbook_id": "b1321495fe4245fb8aa5485d3d733c43",
+      "elapsed_seconds": 11.788190749997739,
+      "response": {
+        "message": {
+          "role": "assistant",
+          "content": "The variance completed successfully. Here is the labelled evidence.\n\n## Variance: Actuals Amount \u2212 Baselines Amount (by ID)\n\n**Sources (both current, sheet_revision 0, catalogue_revision 1):**\n- **Actuals** \u2014 `tbl_f3a21c09878b48a697c24d6f5082496c`, sheet 2376, range A1:D5\n  - ID `col_6047199c0a8847c6a998531654228714`, Amount `col_52c404c1834c4f15a87966a81a773faf`, Currency `col_6174821c6d5a4efd90a6d7376e381b33`\n- **Baselines** \u2014 `tbl_23eaf40bab734d38a784b83453f20e3d`, sheet 2377, range A1:C4\n  - ID `col_392d212c13974f0690920065a7c8565a`, Amount `col_794eec27f73e49d4b8affacfd7c23972`, Currency `col_ba4d54f4760f4b70915db0992ea6739b`\n\n**Applied policy:** keys = exact `ID` on both sides; `null_keys=reject`; amounts = `Amount`; `numeric_text=reject`; `null_amounts=reject`; `unit=USD` (verified against `Currency` on both sides); `direction=left_minus_right`; `zero_baseline=null`; `percentage_places=2`; `rounding=ROUND_HALF_EVEN`; offset 0, limit 100; full outer comparison.\n\n**Results (5 records, all sides included):**\n\n| ID | Actuals | Baselines | Difference (A\u2212B) | Status | % |\n|----|--------:|----------:|-----------------:|--------|---:|\n| a | 120 | 100 | 20 | compared | 20.00 |\n| b | 80 | 0 | 80 | compared | zero_baseline (null) |\n| c | 0 | \u2014 | \u2014 | left_only | not_comparable |\n| d | 50 | \u2014 | \u2014 | left_only | not_comparable |\n| x | \u2014 | 30 | \u2014 | right_only | not_comparable |\n\n**Status counts:** compared 2, left_only 2, right_only 1.\n**Excluded amounts:** left 0, right 0.\n\n### Notes on interpretation\n- **ID `b`**: baseline is 0, so the percentage is null with status `zero_baseline` (per your `zero_baseline=null` policy). The signed difference of 80 is still reported.\n- **ID `c`**: Actuals Amount is 0 and there is no baseline row \u2014 it is `left_only`, so no difference or percentage is computed. Missing sides are never treated as zero.\n- **ID `x`**: baseline exists with no actual \u2014 `right_only`.\n- The **signed baseline** (Baselines Amount) is the subtracted side, consistent with `left_minus_right`, so a positive difference means Actuals exceeded Baselines.\n\n### Limitations\n- This is a variance comparison, not a reconciliation; the tolerance-based matched/differing classification was not requested.\n- Percentages are rounded once under ROUND_HALF_EVEN; differences are exact.\n- `unit=USD` was verified against the `Currency` column on every participating record; the tool does not convert currencies.\n- No cells were written and no formulas were evaluated.",
+          "attachments": null
+        },
+        "session_id": 6,
+        "processing_time_ms": 11787,
+        "tools_used": [
+          "load_skill",
+          "search_resources",
+          "inspect_resource",
+          "inspect_resource",
+          "financial_query"
+        ],
+        "metadata": {
+          "user_name": "User",
+          "date": "Tuesday, 30 June 2026",
+          "time": "19:22",
+          "timezone": "GMT+8"
+        },
+        "pending_approvals": [],
+        "task_id": "task:68d23e7a4c964829a93139bc380354ff",
+        "runtime": "main",
+        "run_status": "answered",
+        "operation_references": [],
+        "operation_receipts": []
+      },
+      "financial_evidence": [
+        {
+          "sources": [
+            {
+              "table_id": "tbl_f3a21c09878b48a697c24d6f5082496c",
+              "spreadsheet_id": "b1321495fe4245fb8aa5485d3d733c43",
+              "sheet_id": 2376,
+              "range": "A1:D5",
+              "sheet_revision": 0,
+              "catalogue_revision": 1,
+              "columns": [
+                {
+                  "name": "ID",
+                  "column_id": "col_6047199c0a8847c6a998531654228714"
+                },
+                {
+                  "name": "Amount",
+                  "column_id": "col_52c404c1834c4f15a87966a81a773faf"
+                },
+                {
+                  "name": "Currency",
+                  "column_id": "col_6174821c6d5a4efd90a6d7376e381b33"
+                }
+              ]
+            },
+            {
+              "table_id": "tbl_23eaf40bab734d38a784b83453f20e3d",
+              "spreadsheet_id": "b1321495fe4245fb8aa5485d3d733c43",
+              "sheet_id": 2377,
+              "range": "A1:C4",
+              "sheet_revision": 0,
+              "catalogue_revision": 1,
+              "columns": [
+                {
+                  "name": "ID",
+                  "column_id": "col_392d212c13974f0690920065a7c8565a"
+                },
+                {
+                  "name": "Amount",
+                  "column_id": "col_794eec27f73e49d4b8affacfd7c23972"
+                },
+                {
+                  "name": "Currency",
+                  "column_id": "col_ba4d54f4760f4b70915db0992ea6739b"
+                }
+              ]
+            }
+          ],
+          "operation": "variance",
+          "query": {
+            "table_id": "tbl_f3a21c09878b48a697c24d6f5082496c",
+            "query": {
+              "offset": 0,
+              "limit": 100,
+              "right_table_id": "tbl_23eaf40bab734d38a784b83453f20e3d",
+              "left_keys": [
+                "ID"
+              ],
+              "right_keys": [
+                "ID"
+              ],
+              "null_keys": "reject",
+              "left_amount": "Amount",
+              "right_amount": "Amount",
+              "policies": {
+                "numeric_text": "reject",
+                "null_amounts": "reject",
+                "unit": "USD",
+                "left_unit_column": "Currency",
+                "right_unit_column": "Currency"
+              },
+              "operation": "variance",
+              "direction": "left_minus_right",
+              "zero_baseline": "null",
+              "percentage_places": 2,
+              "rounding": "ROUND_HALF_EVEN"
+            }
+          },
+          "numeric_contract": {
+            "precision": 64,
+            "invalid_values": "reject",
+            "arithmetic": "exact_except_explicit_percentage_rounding",
+            "row_coordinates": "one_based_within_registered_range",
+            "empty_buckets": "zero_with_record_count"
+          },
+          "matched_rows": 5,
+          "records": [
+            {
+              "left_row": 2,
+              "right_row": 2,
+              "left_amount": "120",
+              "right_amount": "100",
+              "difference": "20",
+              "status": "compared",
+              "percentage": "20.00",
+              "percentage_status": "calculated",
+              "left_key": {
+                "ID": {
+                  "type": "str",
+                  "value": "a"
+                }
+              },
+              "right_key": {
+                "ID": {
+                  "type": "str",
+                  "value": "a"
+                }
+              }
+            },
+            {
+              "left_row": 3,
+              "right_row": 3,
+              "left_amount": "80",
+              "right_amount": "0",
+              "difference": "80",
+              "status": "compared",
+              "percentage": null,
+              "percentage_status": "zero_baseline",
+              "left_key": {
+                "ID": {
+                  "type": "str",
+                  "value": "b"
+                }
+              },
+              "right_key": {
+                "ID": {
+                  "type": "str",
+                  "value": "b"
+                }
+              }
+            },
+            {
+              "left_row": 4,
+              "right_row": null,
+              "left_amount": "0",
+              "right_amount": null,
+              "difference": null,
+              "status": "left_only",
+              "percentage": null,
+              "percentage_status": "not_comparable",
+              "left_key": {
+                "ID": {
+                  "type": "str",
+                  "value": "c"
+                }
+              },
+              "right_key": null
+            },
+            {
+              "left_row": 5,
+              "right_row": null,
+              "left_amount": "50",
+              "right_amount": null,
+              "difference": null,
+              "status": "left_only",
+              "percentage": null,
+              "percentage_status": "not_comparable",
+              "left_key": {
+                "ID": {
+                  "type": "str",
+                  "value": "d"
+                }
+              },
+              "right_key": null
+            },
+            {
+              "left_row": null,
+              "right_row": 4,
+              "left_amount": null,
+              "right_amount": "30",
+              "difference": null,
+              "status": "right_only",
+              "percentage": null,
+              "percentage_status": "not_comparable",
+              "left_key": null,
+              "right_key": {
+                "ID": {
+                  "type": "str",
+                  "value": "x"
+                }
+              }
+            }
+          ],
+          "next_offset": null,
+          "status_counts": {
+            "compared": 2,
+            "left_only": 2,
+            "right_only": 1
+          },
+          "excluded_left_amounts": 0,
+          "excluded_right_amounts": 0,
+          "unit": "USD",
+          "left_amount_column": "Amount",
+          "right_amount_column": "Amount"
+        }
+      ],
+      "actual_state": {
+        "Actuals": [
+          [
+            "ID",
+            "Amount",
+            "Currency",
+            "Due"
+          ],
+          [
+            "a",
+            120,
+            "USD",
+            "2026-09-13"
+          ],
+          [
+            "b",
+            80,
+            "USD",
+            "2026-08-14"
+          ],
+          [
+            "c",
+            0,
+            "USD",
+            "2026-08-13"
+          ],
+          [
+            "d",
+            50,
+            "USD",
+            "2026-09-14"
+          ]
+        ],
+        "Baselines": [
+          [
+            "ID",
+            "Amount",
+            "Currency"
+          ],
+          [
+            "a",
+            100,
+            "USD"
+          ],
+          [
+            "b",
+            0,
+            "USD"
+          ],
+          [
+            "x",
+            30,
+            "USD"
+          ]
+        ]
+      }
+    }
+  }
+}

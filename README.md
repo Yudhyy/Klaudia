@@ -276,6 +276,11 @@ before pagination and return full status counts. These tools do not infer curren
 conversion, aggregate duplicate keys, execute arbitrary expressions or prove that
 final prose uses the correct metric labels.
 
+A [financial smoke run](tests/e2e/outputs/financial-execution-2026-09-14.md)
+passed all six scenarios once at clean revision `8cd6521`, checking native
+policies, labelled evidence and unchanged grids. This is narrow live evidence,
+not a reliability estimate or a default-runtime rollout gate.
+
 The backend also provides `LedgerStore.append_table_owned` for named records.
 Ownership stays locked through the cell, catalogue and receipt transaction.
 It checks observed revisions, consumes blank table rows and rejects collisions
