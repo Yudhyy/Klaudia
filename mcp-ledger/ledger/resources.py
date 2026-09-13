@@ -66,6 +66,7 @@ class TableUpdate(BaseModel):
     table_id: Name
     expected_catalogue_revision: Annotated[StrictInt, Field(gt=0)]
     definition: TableRegistration
+    column_ids: Annotated[list[Name | None], Field(max_length=256)] | None = None
 
 
 class ResourceSearch(BaseModel):

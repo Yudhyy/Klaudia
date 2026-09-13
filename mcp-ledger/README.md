@@ -189,3 +189,28 @@ request and key, including when a response is lost after commit.
 This is a backend entry point. Existing MCP tools, HTTP routes and the alternative
 agent do not expose it yet. Agent write integration still needs server-managed
 retry identity and receipt handling; the current agent remains read-only.
+
+
+## Checked table authoring
+
+`ledger.authoring` prepares and executes owner-checked table lifecycle operations
+using the existing operation and approval store. It supports `create_table`,
+`register_table`, `update_table`, `refresh_table` and `unregister_table`.
+
+Creation writes literal headers into a wholly blank finite region and registers
+it in the same transaction. Registration uses existing cells. Updates replace
+metadata and same-sheet bounds without moving cells. Changed headers require an
+explicit ordered mapping of old column IDs, with null for new columns; IDs cannot
+repeat or come from another table. Refresh preserves unchanged headers and IDs.
+Unregister requires human approval and preserves cells.
+
+Each preparation creates a fresh operation reference. Save it and reuse it for
+execution retries; a retry returns the original committed receipt under current
+ownership. A later intentional registration after unregistering gets a new table
+identity. Sheet and catalogue revision checks reject stale changes. Overlap or
+header validation failures roll back both header writes and metadata changes.
+Header writes preserve unrelated JSONB numeric values without float conversion.
+
+The existing workbook-bound MCP registration/update tools remain available.
+Formula evaluation, automatic region inference and physical row/column deletion
+are separate capabilities.

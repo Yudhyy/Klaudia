@@ -8,6 +8,7 @@ from typing import Any
 import asyncpg
 
 from ledger import grid
+from ledger.connections import ConnectionProvider
 from ledger.calculations import CheckedCalculation, decode_calculation_grid
 from ledger.query import AggregateQuery, aggregate_grid
 from ledger.errors import RevisionConflictError, SheetNotFoundError
@@ -180,7 +181,7 @@ def _table_metadata(
 class CatalogueStore:
     """Register, inspect and search table metadata inside a caller-bound workbook."""
 
-    def __init__(self, pool: asyncpg.Pool) -> None:
+    def __init__(self, pool: ConnectionProvider) -> None:
         """Use the ledger's existing database pool.
 
         Args:
@@ -333,14 +334,38 @@ class CatalogueStore:
                     )
                 fields = _table_metadata(change.definition, sheet)
                 old_columns = json.loads(current["columns"])
-                if [column["name"] for column in old_columns] != [
+                if change.column_ids is not None:
+                    if len(change.column_ids) != len(fields["columns"]):
+                        raise ValueError("Map every new column to an old ID or null")
+                    retained = [
+                        identity
+                        for identity in change.column_ids
+                        if identity is not None
+                    ]
+                    old_by_id = {column["column_id"]: column for column in old_columns}
+                    if (
+                        len(set(retained)) != len(retained)
+                        or not set(retained) <= old_by_id.keys()
+                    ):
+                        raise ValueError(
+                            "Column IDs must be distinct identities from this table"
+                        )
+                    for column, identity in zip(fields["columns"], change.column_ids):
+                        if identity is not None:
+                            column["column_id"] = identity
+                            column["semantic_type"] = old_by_id[identity][
+                                "semantic_type"
+                            ]
+                elif [column["name"] for column in old_columns] != [
                     column["name"] for column in fields["columns"]
                 ]:
                     raise ValueError(
                         "Changed source headers need explicit column identity remapping"
                     )
                 await self._check_overlap(connection, (fields, change.table_id))
-                fields["columns"] = json.dumps(old_columns)
+                fields["columns"] = json.dumps(
+                    fields["columns"] if change.column_ids is not None else old_columns
+                )
                 assignments = ", ".join(
                     f"{name} = ${index}" for index, name in enumerate(fields, 1)
                 )

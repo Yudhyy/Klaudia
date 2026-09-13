@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from uuid import uuid4
 from typing import Any
 
 import asyncpg
@@ -23,12 +24,14 @@ def approval_payload(operation: asyncpg.Record) -> dict[str, Any]:
     proposal.pop("idempotency_key", None)
     return {
         "approval_id": operation["approval_id"],
-        "action": "checked_table_append",
+        "action": proposal.get("action", "checked_table_append"),
         "operation_ref": operation["idempotency_key"],
         "proposal": proposal,
-        "summary": f"Append {len(proposal['records'])} record(s) to the selected table",
-        "rows_affected": len(proposal["records"]),
-        "columns_affected": len(proposal["records"][0]),
+        "summary": proposal["action"].replace("_", " ")
+        if "action" in proposal
+        else f"Append {len(proposal['records'])} record(s) to the selected table",
+        "rows_affected": len(proposal["records"]) if "records" in proposal else 0,
+        "columns_affected": len(proposal["records"][0]) if "records" in proposal else 0,
         "expires_at": operation["approval_expires_at"].isoformat(),
     }
 
@@ -118,9 +121,22 @@ async def decide_approval(
             ):
                 raise IdempotencyConflictError("Stored proposal fingerprint changed")
             if approve:
-                request = TableAppend.model_validate_json(operation["request_payload"])
-                target = await _lock_target(connection, user_id, request.table_id)
-                _plan_append(target, request)
+                if operation["idempotency_key"].startswith("authoring:"):
+                    from ledger.authoring import AuthoringProposal, lock_authoring
+
+                    await lock_authoring(
+                        connection,
+                        user_id,
+                        AuthoringProposal.model_validate_json(
+                            operation["request_payload"]
+                        ),
+                    )
+                else:
+                    request = TableAppend.model_validate_json(
+                        operation["request_payload"]
+                    )
+                    target = await _lock_target(connection, user_id, request.table_id)
+                    _plan_append(target, request)
             await connection.execute(
                 "UPDATE ledger_table_operation SET approval_status = $3, approved_fingerprint = $4 WHERE user_id = $1 AND approval_id = $2",
                 user_id,
@@ -133,3 +149,35 @@ async def decide_approval(
                 "approved": approve,
                 "operation_ref": operation["idempotency_key"],
             }
+
+
+async def prepare_approval(
+    connection: asyncpg.Connection, identity: tuple[int, str], required: bool
+) -> str | None:
+    """Attach or renew human consent under the proposal's existing transaction.
+
+    Args:
+        connection: Active proposal transaction.
+        identity: Authenticated user and original operation reference.
+        required: Server policy requiring consent for this operation.
+
+    Returns:
+        Current approval identity, or None for an ungated proposal.
+    """
+    user_id, reference = identity
+    if required:
+        await connection.execute(
+            """UPDATE ledger_table_operation SET approval_required=TRUE,
+               approval_id=$3, approval_status='pending', approved_fingerprint=NULL,
+               approval_expires_at=clock_timestamp()+interval '24 hours'
+               WHERE user_id=$1 AND idempotency_key=$2 AND receipt IS NULL
+               AND (NOT approval_required OR approval_expires_at<=clock_timestamp())""",
+            user_id,
+            reference,
+            "checked:" + uuid4().hex,
+        )
+    return await connection.fetchval(
+        "SELECT approval_id FROM ledger_table_operation WHERE user_id=$1 AND idempotency_key=$2",
+        user_id,
+        reference,
+    )

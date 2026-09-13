@@ -4,13 +4,13 @@ import hashlib
 from dataclasses import dataclass
 import json
 import uuid
-from typing import Annotated, Any
+from typing import Annotated, Any, Mapping
 
 import asyncpg
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 
 from ledger import grid
-from ledger.approvals import check_approval
+from ledger.approvals import check_approval, prepare_approval
 from ledger.errors import IdempotencyConflictError, RevisionConflictError
 from ledger.operations import CellValue
 from ledger.resources import ResourceNotFoundError
@@ -107,23 +107,10 @@ async def prepare_table_append(
                 workspace,
                 payload,
             )
-            if require_approval:
-                await connection.execute(
-                    """UPDATE ledger_table_operation SET approval_required = TRUE,
-                       approval_id = $3, approval_status = 'pending',
-                       approval_expires_at = clock_timestamp() + interval '24 hours',
-                       approved_fingerprint = NULL
-                       WHERE user_id = $1 AND idempotency_key = $2 AND receipt IS NULL
-                         AND (NOT approval_required OR approval_expires_at <= clock_timestamp())""",
-                    user_id,
-                    operation_ref,
-                    "checked:" + uuid.uuid4().hex,
-                )
-            approval_id = await connection.fetchval(
-                "SELECT approval_id FROM ledger_table_operation WHERE user_id = $1 AND idempotency_key = $2",
-                user_id,
-                operation_ref,
+            approval_id = await prepare_approval(
+                connection, (user_id, operation_ref), require_approval
             )
+
     prepared = {
         "operation_ref": operation_ref,
         "status": "prepared",
@@ -132,6 +119,26 @@ async def prepare_table_append(
     if approval_id is not None:
         prepared["approval_id"] = approval_id
     return prepared
+
+
+async def execute_prepared_operation(
+    pool: asyncpg.Pool, user_id: int, operation_ref: str
+) -> dict[str, Any]:
+    """Dispatch a stored operation without accepting replacement arguments.
+
+    Args:
+        pool: Existing ledger operation storage.
+        user_id: Authenticated owner.
+        operation_ref: Original prepared append or authoring identity.
+
+    Returns:
+        Committed receipt after the matching operation's checks.
+    """
+    if operation_ref.startswith("authoring:"):
+        from ledger.authoring import execute_authoring
+
+        return await execute_authoring(pool, user_id, operation_ref)
+    return await execute_prepared_append(pool, user_id, operation_ref)
 
 
 async def execute_prepared_append(
@@ -482,7 +489,7 @@ def _append_receipt(
 
 async def _write_records(
     connection: asyncpg.Connection,
-    target: asyncpg.Record,
+    target: Mapping[str, Any],
     insertion: tuple[int, list[list[CellValue]]],
 ) -> int:
     """Patch JSONB rows in PostgreSQL without decoding unaffected numeric values.
