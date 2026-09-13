@@ -817,7 +817,7 @@ class KlaudiaOrchestrator:
             r"<think>.*?</think>", "", outcome.content, flags=re.DOTALL
         ).strip()
         if outcome.status == "awaiting_approval":
-            content = "The proposed append is waiting for your approval. Earlier committed steps remain recorded; the pending append has not run."
+            content = "The proposed operation is waiting for your approval. Earlier committed steps remain recorded; the pending operation has not run."
         elif outcome.status != "answered":
             content = (
                 f"The task stopped ({outcome.status}). Completion is not confirmed."

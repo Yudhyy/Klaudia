@@ -10,6 +10,7 @@ from klaudia.core.agent.tools import DiscoveryTools
 from ledger.evidence import bounded_evidence
 from ledger.errors import RevisionConflictError
 from ledger.table_operations import TableAppendProposal, TableRecord
+from ledger.authoring import AuthoringProposal
 
 
 class OperationExecutor(Protocol):
@@ -26,6 +27,20 @@ class OperationExecutor(Protocol):
 
         Returns:
             Stored proposal reference without claiming a committed write.
+        """
+        ...
+
+    async def prepare_authoring(
+        self, user_id: int, request: AuthoringProposal
+    ) -> dict[str, Any]:
+        """Persist an owned table-authoring proposal before execution.
+
+        Args:
+            user_id: Server-authenticated task owner.
+            request: Exact authoring action and observed revisions.
+
+        Returns:
+            Original stored reference with optional approval identity.
         """
         ...
 
@@ -81,7 +96,7 @@ class WriteTools:
             StructuredTool.from_function(
                 coroutine=self.execute,
                 name="execute_operation",
-                description="Execute a prepared append reference, or retry that same reference after a lost response. Rechecks current ownership. Only a committed receipt proves the append; preparation is not approval or completion.",
+                description="Execute a prepared operation reference, or retry that same reference after a lost response. Rechecks current ownership. Only a committed receipt proves the change; preparation is not approval or completion.",
                 args_schema=ExecuteOperation,
             ),
         )
@@ -146,6 +161,22 @@ class WriteTools:
         )
         self._references[prepared_operation["operation_ref"]] = None
         return bounded_evidence(prepared_operation)
+
+    async def prepare_authoring(self, **arguments: Any) -> dict[str, Any]:
+        """Persist exact authoring arguments and retain their recovery reference.
+
+        Args:
+            arguments: Action and observed revisions from placement inspection.
+
+        Returns:
+            Bounded proposal identity without claiming execution.
+        """
+        request = AuthoringProposal.model_validate(arguments)
+        prepared = await self._executor.prepare_authoring(
+            self._discovery.context.user_id, request
+        )
+        self._references[prepared["operation_ref"]] = None
+        return bounded_evidence(prepared)
 
     async def execute(self, **arguments: Any) -> dict[str, Any]:
         """Replay the persisted request and retain only committed evidence.

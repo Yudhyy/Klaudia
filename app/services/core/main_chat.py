@@ -3,6 +3,9 @@
 import json
 import logging
 from dataclasses import asdict, dataclass, replace
+from ledger.authoring import AuthoringProposal
+from klaudia.core.agent.authoring import AuthoringReader
+
 from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -157,6 +160,22 @@ class _SessionOperations:
         await self._record(proposal)
         return proposal
 
+    async def prepare_authoring(
+        self, user_id: int, request: AuthoringProposal
+    ) -> dict[str, Any]:
+        """Journal an exact authoring reference before the agent can execute it.
+
+        Args:
+            user_id: Server-authenticated task owner.
+            request: Exact authoring action and observed revisions.
+
+        Returns:
+            Original stored reference with optional approval identity.
+        """
+        proposal = await self._executor.prepare_authoring(user_id, request)
+        await self._record(proposal)
+        return proposal
+
     async def execute(self, user_id: int, operation_ref: str) -> dict[str, Any]:
         """Retain a recovery reference before execution, including prior-turn retries.
 
@@ -190,6 +209,7 @@ class MainChatService:
         operations: OperationExecutor | None = None,
         langfuse: LangfuseService | None = None,
         tasks: TaskStore | None = None,
+        authoring: AuthoringReader | None = None,
     ) -> None:
         """Share immutable dependencies while each turn creates local execution state.
 
@@ -207,6 +227,7 @@ class MainChatService:
         self._operations = operations
         self._langfuse = langfuse
         self._tasks = tasks
+        self._authoring = authoring
 
     async def run(self, turn: MainChatTurn) -> RunOutcome:
         """Load history, persist inputs and execute once without automatic retries.
@@ -338,6 +359,7 @@ class MainChatService:
             self._catalogue,
             operations=executor,
             archive_tools=ArchiveTools(self._database, turn.user_id).tools,
+            authoring=self._authoring,
         )
         config = (
             self._langfuse.langchain_config(

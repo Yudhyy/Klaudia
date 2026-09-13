@@ -22,6 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt, ValidationError
 
 from klaudia.core.agent.context import ResourceReference, TaskContext
 from klaudia.core.agent.checkpoints import CheckpointStore
+from klaudia.core.agent.authoring import AuthoringReader, AuthoringTools
 from klaudia.core.agent.prompt import (
     APPEND_CONTRACT,
     READ_CONTRACT,
@@ -30,7 +31,7 @@ from klaudia.core.agent.prompt import (
 from klaudia.core.agent.tools import CatalogueReader, DiscoveryTools
 from klaudia.core.agent.writes import OperationExecutor, WriteTools
 from klaudia.core.skills.registry import LoadSkill, SkillRegistry
-from ledger.resources import ResourceNotFoundError
+from ledger.resources import ResourceExistsError, ResourceNotFoundError
 from ledger.errors import RevisionConflictError, ApprovalRequiredError
 
 
@@ -129,6 +130,7 @@ class MainAgent:
         limits: RunLimits | None = None,
         operations: OperationExecutor | None = None,
         archive_tools: tuple[StructuredTool, ...] = (),
+        authoring: AuthoringReader | None = None,
     ) -> None:
         """Accept the same configured chat model used for runtime comparisons.
 
@@ -138,12 +140,14 @@ class MainAgent:
             limits: Server-controlled budgets, independent of model arguments.
             operations: Explicit opt-in executor for durable checked appends.
             archive_tools: Server-bound document retrieval tools for chat.
+            authoring: Optional owner-checked table placement reader.
         """
         self._model = model
         self._catalogue = catalogue
         self._limits = limits or RunLimits()
         self._operations = operations
         self._archive_tools = archive_tools
+        self._authoring = authoring
         self._registry = SkillRegistry()
         self._prompt = build_system_prompt(
             self._registry, APPEND_CONTRACT if operations is not None else READ_CONTRACT
@@ -240,6 +244,11 @@ class _RunSession:
         self.tools = {tool.name: tool for tool in (*self.discovery.tools, skill_tool)}
         if self.writes is not None:
             self.tools.update({tool.name: tool for tool in self.writes.tools})
+            if agent._authoring is not None:
+                authoring = AuthoringTools(
+                    agent._authoring, self.writes, context.user_id
+                )
+                self.tools.update({tool.name: tool for tool in authoring.tools})
         for tool in agent._archive_tools:
             if (
                 tool.name not in {"search_documents", "read_document_page"}
@@ -456,6 +465,8 @@ class _RunSession:
             )
         except ValidationError:
             detail = "Invalid tool arguments; follow the declared schema and omit authority fields"
+        except ResourceExistsError:
+            detail = "Another registered table overlaps this region; inspect current placement and choose a non-overlapping region or clarify the intended existing table."
         except ResourceNotFoundError:
             detail = "Table or operation not found"
         except RevisionConflictError:

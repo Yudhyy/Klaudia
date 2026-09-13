@@ -19,6 +19,11 @@ class SkillDescription:
 
 _SKILLS = (
     SkillDescription(
+        "table-authoring",
+        "1",
+        "Create or register table regions, maintain names and column identities, refresh metadata and request approval to unregister tables when authoring tools are enabled.",
+    ),
+    SkillDescription(
         "table-append",
         "2",
         "Prepare and execute complete literal records when optional append tools are enabled; retry stored references and report committed receipts.",

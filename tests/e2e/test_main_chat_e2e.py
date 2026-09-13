@@ -52,7 +52,9 @@ def chat_report():
         "git_dirty": bool(
             subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()
         ),
-        "cases": {name: {"status": "unrun"} for name in ("sum_1000", "append")},
+        "cases": {
+            name: {"status": "unrun"} for name in ("sum_1000", "append", "authoring")
+        },
     }
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     path = (
@@ -68,7 +70,7 @@ def chat_report():
 
 
 @pytest.mark.asyncio(loop_scope="module")
-@pytest.mark.parametrize("scenario", ["sum_1000", "append"])
+@pytest.mark.parametrize("scenario", ["sum_1000", "append", "authoring"])
 async def test_main_chat_live(scenario, container, orchestrator, chat_report):
     """Grade exact outcomes through extraction-ready app services and guardrails."""
     observed = chat_report["cases"][scenario]
@@ -78,12 +80,22 @@ async def test_main_chat_live(scenario, container, orchestrator, chat_report):
         async with comparison_owner(store.pool) as user_id:
             observed["user_id"] = user_id
             async with seeded_capability_case(
-                store, scenario, user_id=user_id
+                store,
+                "append" if scenario == "authoring" else scenario,
+                user_id=user_id,
             ) as fixture:
                 observed["workbook_id"] = fixture.workbook_id
                 turn = fixture.case.turns[0]
+                message = turn.user
+                expected_state = turn.expect.ledger_state
+                if scenario == "authoring":
+                    message = "Create and register a table named Budgets in H1:I3 on the Claims sheet in this workbook, with exact headers Category and Budget. Keep all existing claims unchanged. Execute the operation and report its receipt."
+                    expected_state = await fixture.observe_state()
+                    expected_state["Claims"][0].extend(
+                        [None, None, None, "Category", "Budget"]
+                    )
                 response = await orchestrator.process(
-                    [KlaudiaMessage(role="user", content=turn.user)],
+                    [KlaudiaMessage(role="user", content=message)],
                     None,
                     user_id,
                     spreadsheet_id=fixture.workbook_id,
@@ -92,8 +104,23 @@ async def test_main_chat_live(scenario, container, orchestrator, chat_report):
                 observed["actual_state"] = await fixture.observe_state()
                 assert response.runtime == "main"
                 assert response.run_status == "answered"
-                assert observed["actual_state"] == turn.expect.ledger_state
-                if scenario == "append":
+                assert observed["actual_state"] == expected_state
+                if scenario == "authoring":
+                    assert len(response.operation_receipts) == 1
+                    receipt = response.operation_receipts[0]
+                    assert receipt["operation_type"] == "create_table"
+                    assert receipt["changes"]["cells_changed"] == 2
+                    descriptor = await container.catalogue._store.inspect_owned(
+                        user_id, receipt["target"]["table_id"]
+                    )
+                    observed["table"] = descriptor
+                    assert descriptor["name"] == "Budgets"
+                    assert descriptor["range"] == "H1:I3"
+                    assert [column["name"] for column in descriptor["columns"]] == [
+                        "Category",
+                        "Budget",
+                    ]
+                elif scenario == "append":
                     assert len(response.operation_receipts) == 1
                     assert response.operation_receipts[0]["status"] == "committed"
                     assert len(response.operation_references) == 1

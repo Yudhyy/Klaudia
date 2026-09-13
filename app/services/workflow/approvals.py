@@ -5,7 +5,7 @@ from typing import Any
 import asyncpg
 
 from ledger.approvals import approval_payload, decide_approval
-from ledger.table_operations import execute_prepared_append
+from ledger.table_operations import execute_prepared_operation
 
 
 class CheckedApprovals:
@@ -53,7 +53,7 @@ class CheckedApprovals:
             ResourceNotFoundError: Current ownership no longer permits the action.
         """
         decision = await decide_approval(self._pool, user_id, approval_id, approve=True)
-        receipt = await execute_prepared_append(
+        receipt = await execute_prepared_operation(
             self._pool, user_id, decision["operation_ref"]
         )
         return {**decision, "executed": True, "result": receipt}

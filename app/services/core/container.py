@@ -22,6 +22,7 @@ from klaudia.interfaces.tool_registry import MCPToolRegistry
 from ledger.store import LedgerStore
 from ledger.catalogue import CatalogueStore
 from app.services.catalogue.service import CatalogueService
+from app.services.catalogue.authoring import AuthoringService
 from app.services.core.main_chat import MainChatService
 from app.services.workflow.store import TaskStore
 from app.services.workflow.approvals import CheckedApprovals
@@ -169,6 +170,7 @@ class KlaudiaContainer:
         self.ledger_store: Optional[LedgerStore] = None
         self.spreadsheets: Optional[SpreadsheetService] = None
         self.catalogue: Optional[CatalogueService] = None
+        self.authoring: Optional[AuthoringService] = None
         self.main_chat: Optional[MainChatService] = None
         self.tasks: Optional[TaskStore] = None
         self.memory: Optional[MemoryService] = None
@@ -252,6 +254,12 @@ class KlaudiaContainer:
             container.llm_client, guardrails_config, langfuse=container.langfuse
         )
 
+        if container.ledger_store is not None:
+            container.authoring = AuthoringService(
+                container.ledger_store.pool,
+                require_approval=settings.main_chat_require_approval,
+            )
+            container.approvals.checked = CheckedApprovals(container.ledger_store.pool)
         openai_base_url, openai_api_key = settings.active_openai_endpoint()
         if settings.chat_runtime == "main":
             container.tasks = TaskStore(
@@ -279,6 +287,7 @@ class KlaudiaContainer:
                 container.db_client,
                 operations=OperationService(container.ledger_store),
                 tasks=container.tasks,
+                authoring=container.authoring,
                 langfuse=container.langfuse,
             )
         container.supervisor = SupervisorAgent(

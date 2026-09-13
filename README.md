@@ -164,6 +164,46 @@ discards the previous reference. These observations grant no write permission.
 The working set can be restored from a bounded durable checkpoint in main chat.
 The legacy chat runtime is still the default.
 
+Table authoring operates on existing owned sheets, through main chat or these
+JWT-authenticated ledger endpoints:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /v1/catalogue/sheets` | Page through owned sheet IDs; optional `workbook_id` and `offset` filters |
+| `GET /v1/catalogue/sheets/{sheet_id}/region?table_range=H1:I3` | Inspect up to 4096 cells and overlapping table identities |
+| `POST /v1/catalogue/proposals` | Prepare an exact lifecycle action without changing cells or metadata |
+| `POST /v1/catalogue/operations/{operation_ref}/execute` | Execute or replay the original checked reference |
+
+Actions are `create_table`, `register_table`, `update_table`, `refresh_table` and
+`unregister_table`. Create writes supplied headers into a wholly blank region;
+register uses existing cells. Update replaces names, aliases, business metadata
+and same-sheet bounds without moving cells or editing stored headers. For changed
+headers, `column_ids` maps each current column to its old ID or null for a new ID.
+Refresh rebuilds counts and search metadata while preserving unchanged schemas.
+Unregister always requires human approval and preserves cells. Multiple disjoint
+tables on one sheet retain separate identities.
+
+Create/register/update take a `definition` using the existing registration fields,
+including `sheet_id`, `expected_sheet_revision`, `table_range` and `name`. Create
+also requires `headers`. Update adds `table_id` and `expected_catalogue_revision`.
+Refresh/unregister use `table_id` and both expected revisions without a definition.
+The optional authoring tools load the `table-authoring` procedure and placement
+evidence on demand. The model never supplies the authenticated owner.
+
+Each authoring preparation creates a fresh reference. Save it for execution retries;
+preparing again creates another proposal. A later intentional re-registration gets
+a new table ID. Current ownership, revisions, overlap and header checks guard each
+commit. `MAIN_CHAT_REQUIRE_APPROVAL=true` gates other authoring actions as well as
+appends; unregister requires approval under either setting. Use the existing
+approval endpoints, then resume the durable task when applicable. Receipts state
+metadata and cell changes separately and do not claim formula recalculation.
+
+Region inspection returns fractional JSON numbers as exact decimal strings with
+an explicit representation label. Financial arithmetic still belongs to the
+checked calculation tools. Automatic region inference, formula relationships and
+physical grid schema edits remain separate work.
+
+
 `MainAgent` adds a programmatic alternative loop, read-only by default. It accepts a
 tool-capable chat model from the existing provider factory and an ownership-checked
 `CatalogueService`. Each `run(message, TaskContext(...))` creates fresh tools and
@@ -223,7 +263,7 @@ and original cause. External cancellation carries the same evidence through
 timeout outcome, including observed references. Callers must retain these references
 and retry them rather than start a new append when the outcome is unknown.
 Main chat persists checkpoints and exposes explicit task resume; it does not retry automatically.
-No standalone HTTP/MCP proposal endpoint or default runtime cutover is enabled.
+Standalone checked-append preparation over HTTP/MCP and default runtime cutover remain pending.
 
 With `CHAT_RUNTIME=main` and `SHEETS_BACKEND=ledger`, both `POST /v1/chat` and
 `POST /v1/chat/stream` use the main agent. JWT identity controls access across
@@ -232,7 +272,7 @@ hint. The main path does not load the legacy prompt or fetch a sheet inventory.
 It retains input/output guardrails, extraction handoff, session history and
 Langfuse callbacks. Streaming buffers the reply until output checks finish.
 
-Main chat exposes checked append, discovery and calculation, plus bounded
+Main chat exposes checked append, table authoring, discovery and calculation, plus bounded
 `search_documents` and `read_document_page` tools over the existing archive.
 Document reads check both file and session ownership. Search returns at most 20
 records; page reads return at most 8,192 characters with continuation offsets.
@@ -276,9 +316,9 @@ cannot authorize execution. Resume the task after the decision to continue its
 saved pending call. Earlier committed receipts remain visible when a later step
 waits or fails. Each operation is atomic; the full task is not one transaction.
 
-The main path exposes no destructive tools, formula edits or legacy arbitrary SQL
-execution. Existing destructive approvals remain on the legacy path; the new
-revision-bound approval flow covers checked appends only. `NUMERIC_VERIFY_MODE=enforce` blocks ungrounded
+Main tools do not delete financial cells, edit formulas or execute arbitrary SQL.
+Existing grid-deletion approvals remain on the legacy path. The revision-bound
+approval flow covers checked appends and table authoring. `NUMERIC_VERIFY_MODE=enforce` blocks ungrounded
 main-agent prose without a supervisor rewrite and keeps operation evidence in the
 response. This check still does not prove metric-label or financial correctness.
 Switch `CHAT_RUNTIME` back to `legacy` to restore the existing route; stored

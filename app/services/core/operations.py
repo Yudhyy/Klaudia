@@ -1,12 +1,14 @@
 """Authenticated access to durable ledger append proposals and receipts."""
 
+from ledger.authoring import AuthoringProposal, prepare_authoring
+
 from typing import Any
 
 from ledger.store import LedgerStore
 from ledger.table_operations import (
     TableAppendProposal,
     prepare_table_append,
-    execute_prepared_append,
+    execute_prepared_operation,
 )
 
 
@@ -39,6 +41,20 @@ class OperationService:
         """
         return await prepare_table_append(self._store.pool, user_id, request)
 
+    async def prepare_authoring(
+        self, user_id: int, request: AuthoringProposal
+    ) -> dict[str, Any]:
+        """Persist an owned table-authoring proposal for later checked execution.
+
+        Args:
+            user_id: Server-authenticated task owner.
+            request: Exact authoring action and observed revisions.
+
+        Returns:
+            Original stored reference with optional approval identity.
+        """
+        return await prepare_authoring(self._store.pool, user_id, request)
+
     async def execute(self, user_id: int, operation_ref: str) -> dict[str, Any]:
         """Execute the stored request or replay its committed receipt.
 
@@ -54,4 +70,6 @@ class OperationService:
             RevisionConflictError: Uncommitted input revisions changed.
             ValueError: Append validation fails.
         """
-        return await execute_prepared_append(self._store.pool, user_id, operation_ref)
+        return await execute_prepared_operation(
+            self._store.pool, user_id, operation_ref
+        )

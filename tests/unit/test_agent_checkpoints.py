@@ -77,3 +77,32 @@ async def test_checkpoint_rejects_different_identity_or_request():
         await agent.run(
             "Different intent", TaskContext(user_id=42), checkpoint=checkpoint
         )
+
+
+async def test_overlap_is_repairable_and_does_not_trap_checkpoint_resume():
+    """A raced table registration becomes tool evidence rather than a stuck task."""
+    from ledger.resources import ResourceExistsError
+
+    checkpoint = MemoryCheckpoint()
+    operations = AsyncMock()
+    operations.execute.side_effect = ResourceExistsError("Region already registered")
+    model = ScriptedModel(
+        [
+            call("execute_operation", {"operation_ref": "authoring:overlap"}),
+            AIMessage(
+                content="That region already contains a table. Please clarify the intended destination."
+            ),
+        ]
+    )
+    agent = MainAgent(model, AsyncMock(), operations=operations)
+    outcome = await agent.run(
+        "Create a table", TaskContext(user_id=42), checkpoint=checkpoint
+    )
+    assert outcome.status == "answered"
+    assert outcome.operation_receipts == ()
+    assert checkpoint.state["pending_calls"] == []
+    replay = await agent.run(
+        "Create a table", TaskContext(user_id=42), checkpoint=checkpoint
+    )
+    assert replay.content == outcome.content
+    operations.execute.assert_awaited_once()

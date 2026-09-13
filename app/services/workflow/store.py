@@ -3,6 +3,8 @@
 from contextlib import asynccontextmanager
 import hashlib
 import json
+from ledger.authoring import AuthoringProposal, prepare_authoring
+
 from typing import Any, AsyncIterator
 from uuid import uuid4
 
@@ -15,7 +17,7 @@ from ledger.approvals import approval_payload
 from ledger.table_operations import (
     TableAppendProposal,
     prepare_table_append,
-    execute_prepared_append,
+    execute_prepared_operation,
 )
 
 _SCHEMA = """
@@ -167,6 +169,27 @@ class TaskSession:
             require_approval=self.record["require_approval"],
         )
 
+    async def prepare_authoring(
+        self, user_id: int, request: AuthoringProposal
+    ) -> dict[str, Any]:
+        """Persist authoring on the task-owned connection under server approval policy.
+
+        Args:
+            user_id: Server-authenticated task owner.
+            request: Exact authoring action and observed revisions.
+
+        Returns:
+            Original stored reference with optional approval identity.
+        """
+        if user_id != self.record["user_id"]:
+            raise ResourceNotFoundError("Task not found")
+        return await prepare_authoring(
+            self.pool,
+            user_id,
+            request,
+            require_approval=self.record["require_approval"],
+        )
+
     async def execute(self, user_id: int, operation_ref: str) -> dict[str, Any]:
         """Execute under the same connection and lock as the pending checkpoint.
 
@@ -179,7 +202,7 @@ class TaskSession:
         """
         if user_id != self.record["user_id"]:
             raise ResourceNotFoundError("Task not found")
-        return await execute_prepared_append(self.pool, user_id, operation_ref)
+        return await execute_prepared_operation(self.pool, user_id, operation_ref)
 
 
 class TaskStore:
@@ -376,7 +399,11 @@ class TaskStore:
         documents = set(json.loads(record["input_payload"])["turn"]["document_ids"])
         for name, _, encoded in state.get("evidence", []):
             evidence = json.loads(encoded)
-            if name == "search_resources":
+            if name == "list_authoring_sheets":
+                workbooks.update(item["spreadsheet_id"] for item in evidence["sheets"])
+            elif name == "inspect_sheet_region":
+                workbooks.add(evidence["spreadsheet_id"])
+            elif name == "search_resources":
                 workbooks.update(
                     item["spreadsheet_id"] for item in evidence["candidates"]
                 )
