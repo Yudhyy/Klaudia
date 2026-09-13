@@ -331,6 +331,9 @@ rollout readiness or replace the historical benchmark.
 A [durable-task smoke run](tests/e2e/outputs/durable-main-chat-2026-09-13.md)
 at clean commit `2b6f4f0` also passed both cases once with task IDs. Restart,
 concurrency and human approval have separate scripted-model PostgreSQL coverage.
+A [table-authoring smoke run](tests/e2e/outputs/table-authoring-2026-09-13.md)
+at clean commit `9d2feec` passed sum, append and second-table creation once each,
+including exact preservation of existing claims.
 
 ---
 
