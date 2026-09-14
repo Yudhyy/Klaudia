@@ -236,6 +236,9 @@ through the current JSON numeric format also fail instead of rounding.
 
 The legacy runtime remains the default. Set `CHAT_RUNTIME=main` to use the main
 agent through the existing chat endpoints. Formula evaluation remains separate work.
+An [IronCalc capability check](docs/IRONCALC_CAPABILITIES.md) found binary numeric
+results and loss of numeric formula text on round-trip. The production formula
+engine and its numeric contract remain open; no formula runtime is enabled.
 The backend still reads a whole JSONB sheet before selecting the registered region.
 This adds a checked calculation path, not a row-level SQL query engine.
 
