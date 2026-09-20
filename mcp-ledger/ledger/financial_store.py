@@ -89,7 +89,9 @@ async def execute_owned(
         rows = await connection.fetch(
             """
             SELECT r.resource_id, r.table_range, r.columns, r.revision AS catalogue_revision,
-                   r.source_revision, s.sheet_id, s.workspace, s.revision AS sheet_revision, s.grid
+                   r.source_revision, s.sheet_id, s.workspace, s.revision AS sheet_revision, s.grid,
+                   EXISTS(SELECT 1 FROM ledger_typed_cell c WHERE c.sheet_id=s.sheet_id
+                          AND c.calculation_status IN ('pending','failed')) AS uncalculated
             FROM ledger_resource r
             JOIN ledger_sheet s ON s.sheet_id = r.sheet_id
             JOIN ledger_spreadsheet w ON w.spreadsheet_id = s.workspace
@@ -103,6 +105,10 @@ async def execute_owned(
     selected = source_columns(request)
     regions, sources = {}, {}
     for row in rows:
+        if row["uncalculated"]:
+            raise ValueError(
+                "Source has failed or pending formulas; inspect typed workbook status"
+            )
         identity = row["resource_id"]
         observed = revisions[identity]
         if (

@@ -432,7 +432,9 @@ class CatalogueStore:
         row = await self._pool.fetchrow(
             """
             SELECT r.resource_id, r.table_range, r.columns, r.revision AS catalogue_revision,
-                   r.source_revision, s.sheet_id, s.workspace, s.revision AS sheet_revision, s.grid
+                   r.source_revision, s.sheet_id, s.workspace, s.revision AS sheet_revision, s.grid,
+                   EXISTS(SELECT 1 FROM ledger_typed_cell c WHERE c.sheet_id=s.sheet_id
+                          AND c.calculation_status IN ('pending','failed')) AS uncalculated
             FROM ledger_resource r
             JOIN ledger_sheet s ON s.sheet_id = r.sheet_id
             JOIN ledger_spreadsheet w ON w.spreadsheet_id = s.workspace
@@ -443,6 +445,10 @@ class CatalogueStore:
         )
         if row is None:
             raise ResourceNotFoundError("Table not found")
+        if row["uncalculated"]:
+            raise ValueError(
+                "Source has failed or pending formulas; inspect typed workbook status"
+            )
         if (
             row["sheet_revision"] != request.expected_sheet_revision
             or row["catalogue_revision"] != request.expected_catalogue_revision

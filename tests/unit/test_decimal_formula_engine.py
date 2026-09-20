@@ -71,6 +71,18 @@ def test_inexact_division_requires_explicit_rounding():
     assert evaluate_graph({}, {"a": rounded})["a"]["value"] == "0.33"
 
 
+def test_downstream_formulas_consume_rounded_cell_values():
+    """Each computed cell rounds before its value enters a dependent formula."""
+    policy = {"places": 2, "mode": "ROUND_HALF_EVEN"}
+    expressions = {
+        "third": formula("divide", "1", "3", rounding=policy),
+        "total": formula("multiply", "@third", "3", rounding=policy),
+    }
+    calculated = evaluate_graph({}, expressions)
+    assert calculated["third"] == {"status": "current", "value": "0.33", "error": None}
+    assert calculated["total"] == {"status": "current", "value": "0.99", "error": None}
+
+
 @pytest.mark.parametrize(
     "mode,expected",
     [("ROUND_HALF_EVEN", "0.12"), ("ROUND_HALF_UP", "0.13"), ("ROUND_DOWN", "0.12")],

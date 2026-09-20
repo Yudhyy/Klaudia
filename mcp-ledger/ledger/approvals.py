@@ -97,7 +97,7 @@ async def decide_approval(
             if operation is None:
                 raise ResourceNotFoundError("Approval not found")
             owned = await connection.fetchval(
-                "SELECT spreadsheet_id FROM ledger_spreadsheet WHERE spreadsheet_id = $1 AND user_id = $2 FOR SHARE",
+                "SELECT spreadsheet_id FROM ledger_spreadsheet WHERE spreadsheet_id = $1 AND user_id = $2 FOR UPDATE",
                 operation["workspace"],
                 user_id,
             )
@@ -121,7 +121,18 @@ async def decide_approval(
             ):
                 raise IdempotencyConflictError("Stored proposal fingerprint changed")
             if approve:
-                if operation["idempotency_key"].startswith("authoring:"):
+                if operation["idempotency_key"].startswith("typed:"):
+                    from ledger.typed_cells import validate_snapshot
+                    from ledger.typed_contracts import TypedEditProposal
+
+                    await validate_snapshot(
+                        connection,
+                        user_id,
+                        TypedEditProposal.model_validate_json(
+                            operation["request_payload"]
+                        ),
+                    )
+                elif operation["idempotency_key"].startswith("authoring:"):
                     from ledger.authoring import AuthoringProposal, lock_authoring
 
                     await lock_authoring(

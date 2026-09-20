@@ -28,6 +28,7 @@ import asyncpg
 from ledger.errors import SheetNotFoundError
 from ledger.operations import AppendRows, execute_append
 from ledger.catalogue import CATALOGUE_SCHEMA
+from ledger.typed_schema import TYPED_SCHEMA
 from ledger.table_operations import (
     TABLE_OPERATION_SCHEMA,
     TableAppend,
@@ -137,6 +138,7 @@ class LedgerStore:
             await conn.execute(_SCHEMA)
             await conn.execute(CATALOGUE_SCHEMA)
             await conn.execute(TABLE_OPERATION_SCHEMA)
+            await conn.execute(TYPED_SCHEMA)
         logger.info("Ledger store connected (schema applied)")
 
     async def close(self) -> None:
@@ -317,13 +319,18 @@ class LedgerStore:
             SheetNotFoundError: The sheet is absent from this workbook.
         """
         row = await self.pool.fetchrow(
-            "SELECT sheet_id, title, revision, grid FROM ledger_sheet "
+            "SELECT sheet_id, title, revision, grid, EXISTS(SELECT 1 FROM ledger_typed_cell c "
+            "WHERE c.sheet_id=ledger_sheet.sheet_id AND c.calculation_status IN ('pending','failed')) AS uncalculated FROM ledger_sheet "
             "WHERE workspace = $1 AND title = $2",
             workspace,
             title,
         )
         if row is None:
             raise SheetNotFoundError(f"Sheet '{title}' not found")
+        if row["uncalculated"]:
+            raise ValueError(
+                "Sheet has failed or pending formulas; inspect typed workbook status"
+            )
         return SheetSnapshot(
             row["sheet_id"], row["title"], row["revision"], json.loads(row["grid"])
         )

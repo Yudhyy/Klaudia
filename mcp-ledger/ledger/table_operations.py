@@ -134,6 +134,10 @@ async def execute_prepared_operation(
     Returns:
         Committed receipt after the matching operation's checks.
     """
+    if operation_ref.startswith("typed:"):
+        from ledger.typed_cells import execute_typed_edit
+
+        return await execute_typed_edit(pool, user_id, operation_ref)
     if operation_ref.startswith("authoring:"):
         from ledger.authoring import execute_authoring
 
