@@ -19,8 +19,10 @@ _CAPABILITY_TOOLS = {
     "discover_resources": {"search_resources", "tool_search_resources"},
     "inspect_resource": {"inspect_resource", "tool_inspect_resource"},
     "calculate": {"calculate", "tool_aggregate_sheet"},
+    "inspect_typed_workbook": {"inspect_typed_workbook"},
+    "edit_typed_cells": {"prepare_typed_edit"},
     "append_records": {
-        "execute_operation",
+        "prepare_table_append",
         "tool_append_rows",
         "tool_append_rows_checked",
     },

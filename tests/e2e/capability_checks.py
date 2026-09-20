@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, StrictStr, ValidationError
 
-from tests.e2e.schema import Expect, MetricExpectation
+from tests.e2e.schema import Expect, FormulaReceiptExpectation, MetricExpectation
 
 if TYPE_CHECKING:
     from tests.e2e.checks import ResponseView
@@ -89,6 +89,10 @@ def check_capabilities(expect: Expect, view: "ResponseView") -> dict[str, bool]:
         Results for requested checks; missing observations fail.
     """
     checks = {}
+    if expect.formula_receipts is not None:
+        checks["formula_receipts"] = _formula_receipts_match(
+            expect.formula_receipts, view.operation_receipts
+        )
     if expect.capabilities_all:
         checks["capabilities_all"] = set(expect.capabilities_all).issubset(
             view.capabilities_attempted
@@ -116,3 +120,47 @@ def check_capabilities(expect: Expect, view: "ResponseView") -> dict[str, bool]:
             view.ledger_state, sort_keys=True, allow_nan=False
         ) == json.dumps(expect.ledger_state, sort_keys=True, allow_nan=False)
     return checks
+
+
+def _formula_receipts_match(
+    expected: list[FormulaReceiptExpectation], receipts: list[dict]
+) -> bool:
+    """Compare the full ordered calculation evidence without numeric coercion.
+
+    Args:
+        expected: Fixture-authored outcomes for every operation in this turn.
+        receipts: Receipts observed at the service boundary.
+
+    Returns:
+        Whether distinct commits match every target, status and calculation field.
+    """
+    if len(expected) != len(receipts):
+        return False
+    identities = set()
+    for outcome, receipt in zip(expected, receipts, strict=True):
+        try:
+            identity = _CommittedReceipt.model_validate(receipt).operation_id
+        except ValidationError:
+            return False
+        if identity in identities:
+            return False
+        identities.add(identity)
+        required = {
+            "operation_type": "edit_typed_cells",
+            "target": {
+                "spreadsheet_id": outcome.workbook_id,
+                "sheet_id": outcome.sheet_id,
+            },
+            "accounting_validation": "not_run",
+            "calculation_status": outcome.calculation_status,
+            "calculation": outcome.calculation,
+        }
+        observed = {field: receipt.get(field) for field in required}
+        try:
+            if json.dumps(observed, sort_keys=True, allow_nan=False) != json.dumps(
+                required, sort_keys=True, allow_nan=False
+            ):
+                return False
+        except (TypeError, ValueError):
+            return False
+    return True

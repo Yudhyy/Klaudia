@@ -18,6 +18,38 @@ By default a behavioral miss is **recorded, not failed** — a run produces a fu
 results table rather than stopping at the first problem. `E2E_STRICT=1` turns
 misses into failures when you want a gate.
 
+## Strict native formula acceptance
+
+The deterministic formula checks always fail on a mismatch, regardless of
+`E2E_STRICT`. They reuse this harness's `Expect`, `ResponseView`, and `evaluate`
+with scripted models, the HTTP chat routes, and real PostgreSQL:
+
+```bash
+uv run pytest tests/unit/test_formula_acceptance.py tests/integration/api/test_typed_formula_chat.py tests/integration/mcp-ledger/test_persistent_decimal_formulas.py -q
+```
+
+Use an isolated database through `PG_TEST_URL`; the local default is
+`localhost:5433/klaudia_sandbox`. These tests need no model credentials.
+CircleCI includes them in its unit and integration jobs and lints `mcp-ledger`.
+
+`formula_receipts` requires an ordered list of distinct committed typed operations.
+Each expectation declares `workbook_id`, `sheet_id`, `calculation_status`, and
+the complete `calculation` object: engine version, invalidated/recalculated/failed
+counts, and results with cell IDs, exact value strings, statuses, and errors.
+Missing or extra receipts, stale results, wrong destinations, and numeric
+coercion fail. An empty list requires no receipts; omitting the field disables
+this check. Pair it with full workbook state checks and persisted typed-cell
+checks, as the API tests do. Receipt evidence alone cannot prove stored state.
+
+Capability labels describe attempts. `prepare_table_append` indicates an append
+attempt; `prepare_typed_edit` indicates a typed edit attempt. The shared
+`execute_operation` tool alone establishes neither. Historical reports remain
+unchanged; account for this mapping correction when comparing new scores.
+
+These checks cover deterministic execution and replay. Natural-language resource
+discovery, intent fidelity, and how the model explains a failed calculation need
+separate live-model trials with fixed fixtures and recorded failure denominators.
+
 ## Quick start
 
 ```bash

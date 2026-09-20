@@ -190,6 +190,7 @@ Run the focused tests against an isolated PostgreSQL database:
 
 ```bash
 uv run pytest tests/unit/test_decimal_formula_engine.py tests/unit/test_typed_value_contracts.py -q
+uv run pytest tests/unit/test_formula_acceptance.py -q
 uv run pytest tests/integration/mcp-ledger/test_persistent_decimal_formulas.py tests/integration/api/test_typed_formula_chat.py -q
 ```
 
@@ -197,5 +198,9 @@ These tests cover exact typed reads, recalculation and repair, stale snapshots,
 write guards, catalogue refresh, approval rejection/expiry/concurrency, revoked
 ownership, HTTP/streamed receipts, and replay after an injected post-commit
 checkpoint failure. The API tests use scripted models and real PostgreSQL.
+The shared acceptance grader checks distinct operation receipts, exact result
+strings, failure evidence, and calculation counts. API tests also check persisted
+dependencies, whole-workbook grids, typed literal preservation, and unchanged
+state in another owned workbook. These assertions always fail on a mismatch.
 They do not prove recovery from an actual process kill, live-model task fidelity,
 or production-scale performance. Those remain separate acceptance measurements.

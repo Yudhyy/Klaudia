@@ -28,7 +28,19 @@ Capability = Literal[
     "calculate",
     "append_records",
     "search_documents",
+    "inspect_typed_workbook",
+    "edit_typed_cells",
 ]
+
+
+class FormulaReceiptExpectation(BaseModel):
+    """Exact calculation evidence for one distinct committed typed operation."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+    workbook_id: str = Field(min_length=1)
+    sheet_id: int = Field(gt=0)
+    calculation_status: Literal["not_required", "current", "failed"]
+    calculation: dict[str, JsonValue]
 
 
 class MetricExpectation(BaseModel):
@@ -62,6 +74,7 @@ class Expect(BaseModel):
     capabilities_all: list[Capability] = Field(default_factory=list)
     answer_lines: list[str] = Field(default_factory=list)
     metric_evidence: list[MetricExpectation] = Field(default_factory=list)
+    formula_receipts: list[FormulaReceiptExpectation] | None = None
     committed_operations_min: int | None = Field(default=None, ge=1)
     ledger_state: dict[str, list[list[JsonValue]]] = Field(default_factory=dict)
 

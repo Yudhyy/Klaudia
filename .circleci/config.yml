@@ -43,10 +43,10 @@ jobs:
       - install-deps
       - run:
           name: Ruff check
-          command: uv run ruff check app/ klaudia/ config/ tests/
+          command: uv run ruff check app/ klaudia/ config/ mcp-ledger/ tests/
       - run:
           name: Ruff format check
-          command: uv run ruff format --check app/ klaudia/ config/ tests/
+          command: uv run ruff format --check app/ klaudia/ config/ mcp-ledger/ tests/
 
   unit-test:
     executor: python
@@ -83,7 +83,7 @@ jobs:
             done
             echo "services did not come up" >&2; exit 1
       - run:
-          name: Run extraction pipeline integration tests (mock KIE)
+          name: Run API, financial core, and service integration tests (mock KIE)
           command: >
             uv run pytest
             tests/integration/api
