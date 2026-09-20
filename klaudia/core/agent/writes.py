@@ -11,6 +11,7 @@ from ledger.evidence import bounded_evidence
 from ledger.errors import RevisionConflictError
 from ledger.table_operations import TableAppendProposal, TableRecord
 from ledger.authoring import AuthoringProposal
+from ledger.typed_contracts import TypedEditProposal, WorkbookInspection
 
 
 class OperationExecutor(Protocol):
@@ -41,6 +42,32 @@ class OperationExecutor(Protocol):
 
         Returns:
             Original stored reference with optional approval identity.
+        """
+        ...
+
+    async def inspect_typed(self, user_id: int, workbook_id: str) -> dict[str, Any]:
+        """Read typed cells from one owned snapshot.
+
+        Args:
+            user_id: Authenticated owner.
+            workbook_id: Selected workbook.
+
+        Returns:
+            Bounded typed evidence and source fingerprint.
+        """
+        ...
+
+    async def prepare_typed(
+        self, user_id: int, request: TypedEditProposal
+    ) -> dict[str, Any]:
+        """Store checked typed edits without changing financial cells.
+
+        Args:
+            user_id: Authenticated owner.
+            request: Exact batch and observed fingerprint.
+
+        Returns:
+            Original proposal reference.
         """
         ...
 
@@ -87,6 +114,18 @@ class WriteTools:
         self._receipts: dict[str, dict[str, Any]] = {}
         self._references: dict[str, None] = {}
         self.tools = (
+            StructuredTool.from_function(
+                coroutine=self.inspect_typed,
+                name="inspect_typed_workbook",
+                description="Inspect managed inputs, native formulas, stable cell IDs, calculation status and all sheet revisions in an owned workbook. Returns an opaque source fingerprint for checked edits. Load decimal-formulas first. Does not dump unrelated grid cells.",
+                args_schema=WorkbookInspection,
+            ),
+            StructuredTool.from_function(
+                coroutine=self.prepare_typed,
+                name="prepare_typed_edit",
+                description="Prepare typed input or native decimal formula edits using the unchanged fingerprint from inspect_typed_workbook. Same-workbook cell dependencies only; no Excel syntax. Persisted formulas require explicit 2- or 4-place rounding. Computed cells reject set_input. Execute the original returned reference and inspect its calculation status.",
+                args_schema=TypedEditProposal,
+            ),
             StructuredTool.from_function(
                 coroutine=self.prepare,
                 name="prepare_table_append",
@@ -201,4 +240,38 @@ class WriteTools:
             raise RuntimeError("Operation executor returned no committed receipt")
         self._receipts[receipt["operation_id"]] = deepcopy(receipt)
         await self._discovery.invalidate_sheet(receipt["target"]["sheet_id"])
+        for changed in receipt.get("changed_sheets", []):
+            await self._discovery.invalidate_sheet(changed["sheet_id"])
         return bounded_evidence(receipt)
+
+    async def inspect_typed(self, **arguments: Any) -> dict[str, Any]:
+        """Read managed-cell evidence under server-supplied ownership.
+
+        Args:
+            arguments: Selected workbook identity.
+
+        Returns:
+            Bounded typed snapshot with an opaque optimistic concurrency token.
+        """
+        request = WorkbookInspection.model_validate(arguments)
+        return bounded_evidence(
+            await self._executor.inspect_typed(
+                self._discovery.context.user_id, request.workbook_id
+            )
+        )
+
+    async def prepare_typed(self, **arguments: Any) -> dict[str, Any]:
+        """Retain typed edit references for durable execution and retry.
+
+        Args:
+            arguments: Exact typed edits and observed snapshot fingerprint.
+
+        Returns:
+            Bounded prepared-operation evidence.
+        """
+        request = TypedEditProposal.model_validate(arguments)
+        prepared = await self._executor.prepare_typed(
+            self._discovery.context.user_id, request
+        )
+        self._references[prepared["operation_ref"]] = None
+        return bounded_evidence(prepared)

@@ -1,6 +1,8 @@
 """Authenticated access to durable ledger append proposals and receipts."""
 
 from ledger.authoring import AuthoringProposal, prepare_authoring
+from ledger.typed_contracts import TypedEditProposal
+from ledger.typed_cells import inspect_workbook, prepare_typed_edit
 
 from typing import Any
 
@@ -73,3 +75,29 @@ class OperationService:
         return await execute_prepared_operation(
             self._store.pool, user_id, operation_ref
         )
+
+    async def inspect_typed(self, user_id: int, workbook_id: str) -> dict[str, Any]:
+        """Inspect typed state under current ownership.
+
+        Args:
+            user_id: Authenticated owner.
+            workbook_id: Selected workbook identity.
+
+        Returns:
+            Typed cells and a whole-workbook snapshot fingerprint.
+        """
+        return await inspect_workbook(self._store.pool, user_id, workbook_id)
+
+    async def prepare_typed(
+        self, user_id: int, request: TypedEditProposal
+    ) -> dict[str, Any]:
+        """Persist an exact owned typed edit and its source fingerprint.
+
+        Args:
+            user_id: Authenticated owner.
+            request: Input or formula edits from observed source evidence.
+
+        Returns:
+            Original operation reference for execution and retries.
+        """
+        return await prepare_typed_edit(self._store.pool, user_id, request)

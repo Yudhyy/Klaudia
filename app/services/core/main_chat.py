@@ -4,6 +4,7 @@ import json
 import logging
 from dataclasses import asdict, dataclass, replace
 from ledger.authoring import AuthoringProposal
+from ledger.typed_contracts import TypedEditProposal
 from klaudia.core.agent.authoring import AuthoringReader
 
 from typing import Any
@@ -173,6 +174,34 @@ class _SessionOperations:
             Original stored reference with optional approval identity.
         """
         proposal = await self._executor.prepare_authoring(user_id, request)
+        await self._record(proposal)
+        return proposal
+
+    async def inspect_typed(self, user_id: int, workbook_id: str) -> dict[str, Any]:
+        """Read owned typed state without creating operation evidence.
+
+        Args:
+            user_id: Authenticated owner.
+            workbook_id: Selected workbook.
+
+        Returns:
+            Bounded typed state and source fingerprint.
+        """
+        return await self._executor.inspect_typed(user_id, workbook_id)
+
+    async def prepare_typed(
+        self, user_id: int, request: TypedEditProposal
+    ) -> dict[str, Any]:
+        """Journal the original typed edit reference before execution can begin.
+
+        Args:
+            user_id: Authenticated owner.
+            request: Exact input or formula edit batch.
+
+        Returns:
+            Stored operation reference with optional approval identity.
+        """
+        proposal = await self._executor.prepare_typed(user_id, request)
         await self._record(proposal)
         return proposal
 

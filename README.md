@@ -235,10 +235,13 @@ remain Decimal operands through calculation; sums reject results beyond the
 through the current JSON numeric format also fail instead of rounding.
 
 The legacy runtime remains the default. Set `CHAT_RUNTIME=main` to use the main
-agent through the existing chat endpoints. Formula evaluation remains separate work.
-An [IronCalc capability check](docs/IRONCALC_CAPABILITIES.md) found binary numeric
-results and loss of numeric formula text on round-trip. The production formula
-engine and its numeric contract remain open; no formula runtime is enabled.
+agent through the existing chat endpoints. A bounded
+[native decimal formula contract](docs/TYPED_FORMULAS.md) defines the typed inputs,
+per-cell rounding, dependency edits and calculation receipts available in the
+opt-in main runtime. It does not claim Excel compatibility or release readiness.
+The [IronCalc capability check](docs/IRONCALC_CAPABILITIES.md) distinguishes raw
+Model from UserModel in 0.8.3 and records numeric precision limits. IronCalc remains
+a separate compatibility candidate, not a production dependency.
 The backend still reads a whole JSONB sheet before selecting the registered region.
 This adds a checked calculation path, not a row-level SQL query engine.
 
@@ -361,9 +364,11 @@ cannot authorize execution. Resume the task after the decision to continue its
 saved pending call. Earlier committed receipts remain visible when a later step
 waits or fails. Each operation is atomic; the full task is not one transaction.
 
-Main tools do not delete financial cells, edit formulas or execute arbitrary SQL.
+Main tools can inspect typed workbooks and prepare native formula/input edits,
+then execute the stored operation reference. They do not delete financial cells,
+accept Excel expressions or execute arbitrary SQL.
 Existing grid-deletion approvals remain on the legacy path. The revision-bound
-approval flow covers checked appends and table authoring. `NUMERIC_VERIFY_MODE=enforce` blocks ungrounded
+approval flow covers checked appends, table authoring and typed edits. `NUMERIC_VERIFY_MODE=enforce` blocks ungrounded
 main-agent prose without a supervisor rewrite and keeps operation evidence in the
 response. This check still does not prove metric-label or financial correctness.
 Switch `CHAT_RUNTIME` back to `legacy` to restore the existing route; stored

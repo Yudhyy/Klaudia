@@ -4,6 +4,8 @@ from contextlib import asynccontextmanager
 import hashlib
 import json
 from ledger.authoring import AuthoringProposal, prepare_authoring
+from ledger.typed_cells import inspect_workbook, prepare_typed_edit
+from ledger.typed_contracts import TypedEditProposal
 
 from typing import Any, AsyncIterator
 from uuid import uuid4
@@ -184,6 +186,41 @@ class TaskSession:
         if user_id != self.record["user_id"]:
             raise ResourceNotFoundError("Task not found")
         return await prepare_authoring(
+            self.pool,
+            user_id,
+            request,
+            require_approval=self.record["require_approval"],
+        )
+
+    async def inspect_typed(self, user_id: int, workbook_id: str) -> dict[str, Any]:
+        """Read typed evidence on the durable task's connection.
+
+        Args:
+            user_id: Authenticated owner.
+            workbook_id: Selected workbook identity.
+
+        Returns:
+            Bounded typed source evidence.
+        """
+        if user_id != self.record["user_id"]:
+            raise ResourceNotFoundError("Task not found")
+        return await inspect_workbook(self.pool, user_id, workbook_id)
+
+    async def prepare_typed(
+        self, user_id: int, request: TypedEditProposal
+    ) -> dict[str, Any]:
+        """Prepare typed edits under the task's current approval policy.
+
+        Args:
+            user_id: Authenticated owner.
+            request: Exact typed edit intent.
+
+        Returns:
+            Stored operation reference with optional approval identity.
+        """
+        if user_id != self.record["user_id"]:
+            raise ResourceNotFoundError("Task not found")
+        return await prepare_typed_edit(
             self.pool,
             user_id,
             request,
@@ -403,6 +440,8 @@ class TaskStore:
                 workbooks.update(item["spreadsheet_id"] for item in evidence["sheets"])
             elif name == "inspect_sheet_region":
                 workbooks.add(evidence["spreadsheet_id"])
+            elif name == "inspect_typed_workbook":
+                workbooks.add(evidence["workbook_id"])
             elif name == "search_resources":
                 workbooks.update(
                     item["spreadsheet_id"] for item in evidence["candidates"]
