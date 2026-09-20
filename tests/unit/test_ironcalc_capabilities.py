@@ -8,7 +8,7 @@ from zipfile import ZipFile
 import pytest
 
 ironcalc = pytest.importorskip(
-    "ironcalc", reason="Run the isolated IronCalc capability suite with ironcalc==0.8.2"
+    "ironcalc", reason="Run the isolated IronCalc capability suite with ironcalc==0.8.3"
 )
 CELL_NAMESPACE = {"sheet": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 
@@ -18,9 +18,9 @@ def formula_model():
     """Create a fresh model under the exact version being evaluated.
 
     Returns:
-        Empty IronCalc workbook with fixed locale and timezone.
+        Raw Model with fixed locale and timezone and explicit evaluation.
     """
-    assert version("ironcalc") == "0.8.2"
+    assert version("ironcalc") == "0.8.3"
     return ironcalc.create("capability-probe", "en", "UTC", "en")
 
 
@@ -96,10 +96,37 @@ def test_cross_sheet_sum_tracks_input_rename_and_insertion(formula_model):
     assert formula_model.get_formatted_cell_value(0, 1, 1) == "#REF!"
 
 
-def test_binding_has_no_public_dependency_or_raw_value_reader(formula_model):
-    """The adapter cannot promise APIs absent from the pinned Python binding."""
+def test_raw_model_exposes_value_and_formula_readers(formula_model):
+    """Released raw readers return calculated values separately from expressions."""
+    assert isinstance(formula_model, ironcalc.Model)
+    formula_model.set_user_input(0, 1, 1, "=0.1+0.2")
+    formula_model.set_user_input(0, 2, 1, "reference text")
+    formula_model.set_user_input(0, 3, 1, "TRUE")
+    formula_model.evaluate()
+    value = formula_model.get_cell_value(0, 1, 1)
+    assert type(value) is float
+    assert value == 0.30000000000000004
+    assert formula_model.get_cell_value_by_ref("Sheet1!A1") == value
+    assert formula_model.get_cell_value(0, 2, 1) == "reference text"
+    assert formula_model.get_cell_value(0, 3, 1) is True
+    assert formula_model.get_cell_value(0, 4, 1) is None
+    assert formula_model.get_cell_formula(0, 1, 1) == "=0.1+0.2"
+    assert formula_model.get_cell_formula(0, 2, 1) is None
+
+
+def test_raw_model_has_no_named_dependency_or_parser_api(formula_model):
+    """Reference rewriting does not establish a public dependency reader."""
     names = {name for name in dir(formula_model) if not name.startswith("_")}
-    assert "get_cell_content" in names
-    assert "get_formatted_cell_value" in names
-    assert "get_cell_value" not in names
+    assert not any("depend" in name or "parse" in name for name in names)
+
+
+def test_released_user_model_evaluates_without_native_readers():
+    """UserModel 0.8.3 evaluates edits but lacks the later cell-reader additions."""
+    assert version("ironcalc") == "0.8.3"
+    model = ironcalc.UserModel("user-capability-probe", "en", "UTC", "en")
+    model.set_user_input(0, 1, 1, "=0.1+0.2")
+    assert model.get_formatted_cell_value(0, 1, 1) == "0.3"
+    assert model.get_cell_content(0, 1, 1) == "=0.1+0.2"
+    names = {name for name in dir(model) if not name.startswith("_")}
+    assert not {"get_cell_value", "get_cell_value_by_ref", "get_cell_formula"} & names
     assert not any("depend" in name or "parse" in name for name in names)
