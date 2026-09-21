@@ -50,6 +50,34 @@ These checks cover deterministic execution and replay. Natural-language resource
 discovery, intent fidelity, and how the model explains a failed calculation need
 separate live-model trials with fixed fixtures and recorded failure denominators.
 
+## Live formula acceptance
+
+The opt-in HTTP suite runs four fixed workflows three times each with fresh
+owners and workbooks: typed literal discovery, formula recalculation,
+calculation failure and repair, and approval with repeated task resume.
+
+```bash
+E2E_FORMULA_CHAT=1 CHAT_RUNTIME=main MEMORY_MODE=off MOCK_KIE=true SHEETS_BACKEND=ledger uv run pytest tests/e2e/test_formula_chat_e2e.py -q
+```
+
+Set the intended provider/model and spending limit before running paid trials.
+The suite uses the configured live model and guardrails. It retains all 12
+scheduled outcomes, HTTP responses, exact persisted state, receipts, model
+configuration, revision and elapsed time in a unique JSON report under `outputs/`.
+It checks complete target grids and the unchanged distractor after replay.
+Token usage and monetary cost are not yet collected by this runner.
+
+A passing state check has status `state_passed_prose_pending`. Review the saved
+answers separately for requested labels and truthful calculation failures before
+accepting the feature. Twelve trials do not establish production reliability,
+actual process-kill recovery or scale performance.
+
+The runner itself has offline PostgreSQL checks:
+
+```bash
+uv run pytest tests/unit/test_live_formula_cases.py tests/integration/api/test_formula_trial_runner.py -q
+```
+
 ## Quick start
 
 ```bash
