@@ -48,7 +48,7 @@ GitHub status checked on 2026-09-20:
 
 - [PR #1421](https://github.com/ironcalc/IronCalc/pull/1421) merged on September 17,
   adding `get_cell_value` to Python UserModel.
-- [PR #1427](https://github.com/ironcalc/IronCalc/pull/1427) remained open, adding
+- [PR #1427](https://github.com/ironcalc/IronCalc/pull/1427) merged on September 20, adding
   `get_cell_value_by_ref` and `get_cell_formula` to UserModel.
 
 The proposed numeric readers return floats. These changes improve access to
