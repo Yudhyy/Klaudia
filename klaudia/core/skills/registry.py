@@ -20,7 +20,7 @@ class SkillDescription:
 _SKILLS = (
     SkillDescription(
         "decimal-formulas",
-        "1",
+        "2",
         "Declare typed inputs and native exact-decimal formulas, inspect same-workbook dependencies, choose explicit financial rounding and verify recalculation receipts.",
     ),
     SkillDescription(

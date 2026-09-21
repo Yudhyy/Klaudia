@@ -33,3 +33,12 @@ def test_append_procedure_versions_literal_value_preservation():
     assert (
         "not proof that the proposal matches the user's request" in procedure["content"]
     )
+
+
+def test_formula_procedure_requires_named_workbook_evidence():
+    """An active UI hint cannot stand in for a user's named destination."""
+    procedure = SkillRegistry().load("decimal-formulas")
+    assert procedure["version"] == "2"
+    assert "workbook_name" in procedure["content"]
+    assert "search_resources" in procedure["content"]
+    assert "Never assume the active workbook" in procedure["content"]
