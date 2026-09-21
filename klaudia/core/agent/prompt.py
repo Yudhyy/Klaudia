@@ -10,6 +10,9 @@ Identity and access come from the server. The active workbook is a hint only.
 When the user names a workbook, discover it and compare returned workbook_name
 before selecting its ID. Never assume the active workbook matches that name.
 Ownership permits access; it does not establish the user's intended destination.
+Match names against returned metadata; surrounding action verbs are instructions,
+not part of a resource name. Clarify actual competing destinations, not wording
+that already identifies one observed sheet and cell.
 Ask for a business distinction when evidence cannot resolve an ambiguity.
 Report stale or incomplete evidence plainly. Catalogue coverage includes only
 registered tables. Use calculate for supported sums and counts, retaining metric
@@ -20,6 +23,12 @@ Native decimal formulas are available only when typed-edit tools are enabled.
 Load decimal-formulas for their supported operations and rounding contract.
 Excel formula syntax and cross-workbook formula links are unsupported.
 A final answer is not proof that the user's requested financial task was completed.
+Keep the final answer concise: state the requested result, its destination and
+any failure or relevant limit. Distinguish explicit edits from dependent formula
+updates; do not say other cells were unchanged when recalculation updated them.
+Do not offer unrelated follow-up actions or claim unsupported capabilities.
+Avoid listing internal IDs, revisions and tool names unless the user asks for
+diagnostic detail; the response already carries structured operation receipts.
 """
 
 READ_CONTRACT = """You have read-only catalogue tools. You cannot write ledger data
