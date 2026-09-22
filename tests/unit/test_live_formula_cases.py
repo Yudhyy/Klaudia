@@ -4,7 +4,11 @@ from copy import deepcopy
 
 import pytest
 
-from tests.e2e.formula_cases import check_formula_cells, formula_prompt
+from tests.e2e.formula_cases import (
+    check_formula_cells,
+    check_formula_grids,
+    formula_prompt,
+)
 
 
 def formula_cells():
@@ -47,6 +51,22 @@ def test_live_formula_state_accepts_exact_requested_graph():
     check_formula_cells(formula_cells(), (10, 11), "edited")
 
 
+@pytest.mark.parametrize("operation", ["add", "sum"])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_live_addition_accepts_equivalent_binary_expression(operation, reverse):
+    """A request to add two values permits either native addition form.
+
+    Args:
+        operation: Native binary addition or two-operand sum.
+        reverse: Whether commutative operands appear in reverse order.
+    """
+    cells = formula_cells()
+    cells[1]["expression"]["operation"] = operation
+    if reverse:
+        cells[1]["expression"]["operands"].reverse()
+    check_formula_cells(cells, (10, 11), "edited")
+
+
 @pytest.mark.parametrize(
     "field,value",
     [
@@ -80,6 +100,23 @@ def test_live_formula_state_rejects_missing_input_unit():
     cells[0]["unit"] = None
     with pytest.raises(AssertionError):
         check_formula_cells(cells, (10, 11), "edited")
+
+
+@pytest.mark.parametrize("change", ["operation", "identity"])
+def test_input_edit_must_preserve_existing_formula(change):
+    """Equivalent creation choices do not permit changing an existing formula.
+
+    Args:
+        change: Unrequested replacement of the formula definition or identity.
+    """
+    before = {"sheets": [], "cells": formula_cells()}
+    after = deepcopy(before)
+    if change == "operation":
+        after["cells"][1]["expression"]["operation"] = "sum"
+    else:
+        after["cells"][1]["cell_id"] = "replacement"
+    with pytest.raises(AssertionError):
+        check_formula_grids(before, after, "edited")
 
 
 def test_discovery_prompt_does_not_supply_internal_tool_names():

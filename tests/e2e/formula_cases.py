@@ -69,9 +69,17 @@ def check_formula_cells(
     assert total["kind"] == "decimal"
     assert total["unit"] == "USD"
     assert total["dependencies"] == [source["cell_id"]]
-    assert total["expression"] == {
-        "operation": operation,
-        "operands": [{"cell_id": source["cell_id"]}, {"literal": literal}],
+    expression = total["expression"]
+    operands = [{"cell_id": source["cell_id"]}, {"literal": literal}]
+    if operation == "add":
+        assert expression["operation"] in ("add", "sum")
+        assert expression["operands"] in (operands, list(reversed(operands)))
+    else:
+        assert expression["operation"] == operation
+        assert expression["operands"] == operands
+    assert expression == {
+        "operation": expression["operation"],
+        "operands": expression["operands"],
         "rounding": {"places": 2, "mode": "ROUND_HALF_EVEN"},
     }
     assert total["calculated_value"] == value
@@ -127,3 +135,17 @@ def check_formula_grids(before: dict, after: dict, stage: str) -> None:
         for sheet in after["sheets"]
     }
     assert actual == expected
+    if stage == "edited":
+        original = {
+            cell["cell_id"]: cell
+            for cell in before["cells"]
+            if cell["expression"] is not None
+        }
+        current = {
+            cell["cell_id"]: cell
+            for cell in after["cells"]
+            if cell["expression"] is not None
+        }
+        assert set(original) == set(current)
+        for identity, cell in original.items():
+            assert current[identity]["expression"] == cell["expression"]
