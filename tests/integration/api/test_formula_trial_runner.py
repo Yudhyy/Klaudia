@@ -6,7 +6,7 @@ import pytest
 from langchain_core.messages import AIMessage
 
 from tests.e2e.formula_cases import formula_prompt
-from tests.e2e.test_formula_chat_e2e import (
+from tests.e2e.formula_trial import (
     FormulaTrial,
     retain_final_state,
     run_formula_trial,

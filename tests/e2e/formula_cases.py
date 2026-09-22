@@ -149,3 +149,43 @@ def check_formula_grids(before: dict, after: dict, stage: str) -> None:
         assert set(original) == set(current)
         for identity, cell in original.items():
             assert current[identity]["expression"] == cell["expression"]
+
+
+def formula_expectation(workbook_id, sheet_id, cell_id=None, value=None):
+    """Describe independent exact outcomes for this fixture's single formula.
+
+    Args:
+        workbook_id: Expected operation destination.
+        sheet_id: Expected first edited sheet.
+        cell_id: Persisted formula identity, absent for input declaration.
+        value: Expected exact result, or None for arithmetic failure.
+
+    Returns:
+        Complete calculation evidence expected by the shared acceptance grader.
+    """
+    status = (
+        "not_required" if cell_id is None else "failed" if value is None else "current"
+    )
+    return {
+        "workbook_id": workbook_id,
+        "sheet_id": sheet_id,
+        "calculation_status": status,
+        "calculation": {
+            "engine_version": "native-decimal-v1",
+            "invalidated": int(cell_id is not None),
+            "recalculated": int(cell_id is not None),
+            "failed": int(status == "failed"),
+            "results": []
+            if cell_id is None
+            else [
+                {
+                    "cell_id": cell_id,
+                    "status": status,
+                    "value": value,
+                    "error": "invalid_or_inexact_arithmetic"
+                    if status == "failed"
+                    else None,
+                }
+            ],
+        },
+    }

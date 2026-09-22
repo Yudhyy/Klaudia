@@ -1,6 +1,9 @@
 """Live formula grading rejects plausible but incorrect persisted state."""
 
 from copy import deepcopy
+import os
+import subprocess
+import sys
 
 import pytest
 
@@ -9,6 +12,23 @@ from tests.e2e.formula_cases import (
     check_formula_grids,
     formula_prompt,
 )
+
+
+def test_offline_formula_runner_import_preserves_database_configuration():
+    """Importing deterministic helpers must not rebind CI or application stores."""
+    environment = {**os.environ, "DATABASE_URL": "postgresql://fixture/unchanged"}
+    environment.pop("E2E_SANDBOX_ACTIVE", None)
+    check = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import os; import tests.e2e.formula_trial; assert os.environ['DATABASE_URL'] == 'postgresql://fixture/unchanged'; assert 'E2E_SANDBOX_ACTIVE' not in os.environ",
+        ],
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
+    assert check.returncode == 0, check.stderr
 
 
 def formula_cells():

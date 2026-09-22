@@ -12,6 +12,7 @@ from ledger.typed_cells import inspect_workbook
 from tests.e2e.capability_cases import CapabilityFixture
 from tests.e2e.checks import ResponseView, evaluate
 from tests.e2e.schema import Expect
+from tests.e2e.formula_cases import formula_expectation
 from tests.integration.api.test_durable_tasks import durable_client, approval_client  # noqa: F401
 from tests.integration.api.test_main_chat_routes import main_chat_client  # noqa: F401
 from tests.unit.test_main_agent import ScriptedModel, call
@@ -285,46 +286,6 @@ async def test_chat_receipt_distinguishes_commit_from_calculation_failure(
         ),
     )
     assert grade.passed, grade
-
-
-def formula_expectation(workbook_id, sheet_id, cell_id=None, value=None):
-    """Describe independent exact outcomes for this fixture's single formula.
-
-    Args:
-        workbook_id: Expected operation destination.
-        sheet_id: Expected first edited sheet.
-        cell_id: Persisted formula identity, absent for input declaration.
-        value: Expected exact result, or None for arithmetic failure.
-
-    Returns:
-        Complete calculation evidence expected by the shared acceptance grader.
-    """
-    status = (
-        "not_required" if cell_id is None else "failed" if value is None else "current"
-    )
-    return {
-        "workbook_id": workbook_id,
-        "sheet_id": sheet_id,
-        "calculation_status": status,
-        "calculation": {
-            "engine_version": "native-decimal-v1",
-            "invalidated": int(cell_id is not None),
-            "recalculated": int(cell_id is not None),
-            "failed": int(status == "failed"),
-            "results": []
-            if cell_id is None
-            else [
-                {
-                    "cell_id": cell_id,
-                    "status": status,
-                    "value": value,
-                    "error": "invalid_or_inexact_arithmetic"
-                    if status == "failed"
-                    else None,
-                }
-            ],
-        },
-    }
 
 
 @pytest.mark.parametrize(
