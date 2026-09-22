@@ -1,0 +1,1893 @@
+{
+  "suite": "live_formula_http_acceptance",
+  "model": "deepseek-flash",
+  "provider": "deepseek",
+  "temperature": 0.5,
+  "disable_thinking": true,
+  "thinking_level": "minimal",
+  "revision": "102d86668ab9b941b0a2544fc2a0cd5bcf401213",
+  "dirty": true,
+  "repeats": 3,
+  "prompts": {
+    "inputs": "In the workbook named \"Formula acceptance\", Set Inputs!A2 to decimal \"0.1\" with unit USD. Change only the requested cells. Leave all other workbooks unchanged.",
+    "created": "In the workbook named \"Formula acceptance\", Set Totals!A2 to a persistent formula adding Inputs!A2 and decimal literal \"0.2\", with unit USD. Round to two decimal places using half-even rounding. Change only the requested cells. Leave all other workbooks unchanged.",
+    "edited": "In the workbook named \"Formula acceptance\", Change Inputs!A2 to decimal \"0.3\" with unit USD. Keep the existing formula and report its updated total. Change only the requested cells. Leave all other workbooks unchanged.",
+    "failed": "In the workbook named \"Formula acceptance\", Set Totals!A2 to a persistent formula dividing Inputs!A2 by decimal literal \"0\", with unit USD and two decimal places using half-even rounding. Report the calculation status honestly. Change only the requested cells. Leave all other workbooks unchanged.",
+    "repaired": "In the workbook named \"Formula acceptance\", Replace the formula in Totals!A2 with Inputs!A2 divided by decimal literal \"2\", with unit USD and two decimal places using half-even rounding. Change only the requested cells. Leave all other workbooks unchanged.",
+    "literals": "In the workbook named \"Formula acceptance\", Set Inputs!A2 to decimal \"+001.2300\", B2 to text \"00123\", C2 to boolean true, D2 to date \"2026-09-21\", E2 to decimal \"9007199254740993\", and F2 to decimal \"0.123456789012345678901234567890\". Preserve each literal and type exactly. Change only the requested cells. Leave all other workbooks unchanged."
+  },
+  "prompt_sha256": "9a086e51c2b989a842c0212632b74f78dc571b8d0413b7b022e87cfcb58a7824",
+  "limits": "12 model steps per task; three independent trials per scenario",
+  "limitations": [
+    "Small acceptance sample, not a reliability estimate",
+    "No actual process-kill or scale trial"
+  ],
+  "trials": {
+    "discovery-0": {
+      "status": "failed",
+      "fixture": {
+        "user_id": 2,
+        "target": "81857792600a4f68943c92da78a633f6",
+        "distractor": "2a1755e0082c47bbbaa49515aabaf525",
+        "sheets": [
+          4143,
+          4144
+        ]
+      },
+      "responses": [
+        {
+          "route": "/v1/chat",
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "In the workbook named \"Formula acceptance\", Set Inputs!A2 to decimal \"+001.2300\", B2 to text \"00123\", C2 to boolean true, D2 to date \"2026-09-21\", E2 to decimal \"9007199254740993\", and F2 to decimal \"0.123456789012345678901234567890\". Preserve each literal and type exactly. Change only the requested cells. Leave all other workbooks unchanged."
+              }
+            ],
+            "spreadsheet_id": "2a1755e0082c47bbbaa49515aabaf525"
+          },
+          "status_code": 200,
+          "body": "{\"message\":{\"role\":\"assistant\",\"content\":\"Done. The six typed inputs were committed to **Inputs!A2:F2** in the \\\"Formula acceptance\\\" workbook (spreadsheet `2a1755e0082c47bbbaa49515aabaf525`).\\n\\n**Committed receipt** \u2014 operation `op_fd9c13deed0445678979c70b28228be7`, status `committed`, 6 inputs edited, sheet 4145 revision 0 \u2192 1.\\n\\n**Verified stored values (re-inspected):**\\n\\n| Cell | Kind | Stored raw value | Cell ID |\\n|------|------|------------------|---------|\\n| A2 | decimal | `+001.2300` | cell_d766a9968a734e0bb5d751f781d4aaf2 |\\n| B2 | text | `00123` | cell_bc1367d172314578b442788aa691970b |\\n| C2 | boolean | `true` | cell_8ab6ee5c0bbd4c44873adafc15f305f4 |\\n| D2 | date | `2026-09-21` | cell_0fbd307c86c1492abb66ccbe97c9b21f |\\n| E2 | decimal | `9007199254740993` | cell_db7fdd393be34e7fa5635626a931a733 |\\n| F2 | decimal | `0.123456789012345678901234567890` | cell_99f740c5814a46108ed9741c6dc3251b |\\n\\nEach literal and type was preserved exactly as requested \u2014 including the leading `+`, trailing zeros, and leading zeros (kept as text), the full 16-digit integer beyond binary float precision, and the 30-decimal-place value. No other cells were touched; the \\\"Totals\\\" sheet remains at revision 0, and no other workbook was modified.\\n\\nNotes and limitations:\\n- `calculation_status` is `not_required` (no formulas in the workbook), so no recalculation was needed.\\n- `catalogue_status` is `refresh_required`: typed edits leave the registered table observation stale. If you later want to run `calculate` or `financial_query` against this table, a checked table-authoring refresh would be needed first.\\n- `accounting_validation` was `not_run` \u2014 this receipt confirms the write, not any accounting correctness.\",\"attachments\":null},\"session_id\":95,\"processing_time_ms\":10054,\"tools_used\":[\"load_skill\",\"inspect_typed_workbook\",\"prepare_typed_edit\",\"execute_operation\",\"inspect_typed_workbook\"],\"metadata\":{\"user_name\":\"User\",\"date\":\"Tuesday, 30 June 2026\",\"time\":\"19:22\",\"timezone\":\"GMT+8\"},\"pending_approvals\":[],\"task_id\":\"task:697ffd6cee83474abd3fd8d20f2e7a04\",\"runtime\":\"main\",\"run_status\":\"answered\",\"operation_references\":[\"typed:4899fe3d578041b5988786121dfdd4f5\"],\"operation_receipts\":[{\"operation_id\":\"op_fd9c13deed0445678979c70b28228be7\",\"status\":\"committed\",\"operation_type\":\"edit_typed_cells\",\"target\":{\"spreadsheet_id\":\"2a1755e0082c47bbbaa49515aabaf525\",\"sheet_id\":4145},\"changed_sheets\":[{\"sheet_id\":4145,\"after_revision\":1}],\"before_revisions\":[{\"sheet_id\":4145,\"revision\":0},{\"sheet_id\":4146,\"revision\":0}],\"changes\":{\"inputs_or_formulas_edited\":6,\"cell_ids\":[\"cell_0fbd307c86c1492abb66ccbe97c9b21f\",\"cell_8ab6ee5c0bbd4c44873adafc15f305f4\",\"cell_99f740c5814a46108ed9741c6dc3251b\",\"cell_bc1367d172314578b442788aa691970b\",\"cell_d766a9968a734e0bb5d751f781d4aaf2\",\"cell_db7fdd393be34e7fa5635626a931a733\"]},\"calculation_status\":\"not_required\",\"calculation\":{\"engine_version\":\"native-decimal-v1\",\"invalidated\":0,\"recalculated\":0,\"failed\":0,\"results\":[]},\"catalogue_status\":\"refresh_required\",\"accounting_validation\":\"not_run\",\"operation_ref\":\"typed:4899fe3d578041b5988786121dfdd4f5\"}]}"
+        }
+      ],
+      "snapshots": [
+        {
+          "workbook_id": "81857792600a4f68943c92da78a633f6",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4143
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4144
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4143,
+              "resource_id": "tbl_25548a1403bd4dadac82335928f74988",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "543b335d929b49979be15c92406552b5e99539ed6146a38a5d9af56222ffed3f"
+        }
+      ],
+      "final_state": {
+        "target": {
+          "workbook_id": "81857792600a4f68943c92da78a633f6",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4143
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4144
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4143,
+              "resource_id": "tbl_25548a1403bd4dadac82335928f74988",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "543b335d929b49979be15c92406552b5e99539ed6146a38a5d9af56222ffed3f"
+        },
+        "distractor": {
+          "workbook_id": "2a1755e0082c47bbbaa49515aabaf525",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [1.2300, \"00123\", true, \"2026-09-21\", 9007199254740993, 0.123456789012345678901234567890]]",
+              "title": "Inputs",
+              "revision": 1,
+              "sheet_id": 4145
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4146
+            }
+          ],
+          "cells": [
+            {
+              "kind": "date",
+              "unit": null,
+              "cell_id": "cell_0fbd307c86c1492abb66ccbe97c9b21f",
+              "sheet_id": 4145,
+              "raw_value": "2026-09-21",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 4,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            },
+            {
+              "kind": "boolean",
+              "unit": null,
+              "cell_id": "cell_8ab6ee5c0bbd4c44873adafc15f305f4",
+              "sheet_id": 4145,
+              "raw_value": true,
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 3,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            },
+            {
+              "kind": "decimal",
+              "unit": null,
+              "cell_id": "cell_99f740c5814a46108ed9741c6dc3251b",
+              "sheet_id": 4145,
+              "raw_value": "0.123456789012345678901234567890",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 6,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            },
+            {
+              "kind": "text",
+              "unit": null,
+              "cell_id": "cell_bc1367d172314578b442788aa691970b",
+              "sheet_id": 4145,
+              "raw_value": "00123",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 2,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            },
+            {
+              "kind": "decimal",
+              "unit": null,
+              "cell_id": "cell_d766a9968a734e0bb5d751f781d4aaf2",
+              "sheet_id": 4145,
+              "raw_value": "+001.2300",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 1,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            },
+            {
+              "kind": "decimal",
+              "unit": null,
+              "cell_id": "cell_db7fdd393be34e7fa5635626a931a733",
+              "sheet_id": 4145,
+              "raw_value": "9007199254740993",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 5,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            }
+          ],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4145,
+              "resource_id": "tbl_2874e133a6854d3098626c6de94a297a",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "ab8e130f1efda898201a1d0522687d0b8391cf45e3c44f75473ef995f7c4ba65"
+        }
+      },
+      "error_type": "AssertionError",
+      "elapsed_seconds": 10.173815791960806
+    },
+    "discovery-1": {
+      "status": "failed",
+      "fixture": {
+        "user_id": 6,
+        "target": "2e42df1c5b6d44b8aae836bdb6b5cc4e",
+        "distractor": "3e726e7380c34b42882cc6a356f0327e",
+        "sheets": [
+          4159,
+          4160
+        ]
+      },
+      "responses": [
+        {
+          "route": "/v1/chat",
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "In the workbook named \"Formula acceptance\", Set Inputs!A2 to decimal \"+001.2300\", B2 to text \"00123\", C2 to boolean true, D2 to date \"2026-09-21\", E2 to decimal \"9007199254740993\", and F2 to decimal \"0.123456789012345678901234567890\". Preserve each literal and type exactly. Change only the requested cells. Leave all other workbooks unchanged."
+              }
+            ],
+            "spreadsheet_id": "3e726e7380c34b42882cc6a356f0327e"
+          },
+          "status_code": 200,
+          "body": "{\"message\":{\"role\":\"assistant\",\"content\":\"The write is committed and verified. Here's the summary.\\n\\n## Result: Committed \u2705\\n\\n**Workbook:** \\\"Formula acceptance\\\" (`3e726e7380c34b42882cc6a356f0327e`), sheet **Inputs** (sheet_id 4161)\\n**Operation:** `op_e002c1d111a5475caa7c069d37209d5a` (ref `typed:e6f2bf8755474a218ea41b081dc2fd66`)\\n**Receipt:** 6 inputs edited; sheet 4161 revision 0 \u2192 1; Totals (4162) untouched.\\n\\n### Cells written and verified\\n\\n| Cell | Kind | Literal (preserved exactly) |\\n|------|------|------------------------------|\\n| A2 | decimal | `+001.2300` |\\n| B2 | text | `00123` |\\n| C2 | boolean | `true` |\\n| D2 | date | `2026-09-21` |\\n| E2 | decimal | `9007199254740993` |\\n| F2 | decimal | `0.123456789012345678901234567890` |\\n\\nEach literal was retained verbatim \u2014 the leading `+`/zeros in A2, the string form of B2, the true boolean in C2, the ISO date in D2, the 16-digit integer in E2, and the full 30-decimal-place value in F2 all round-trip unchanged in the post-write inspection.\\n\\n### Notes and limitations\\n- **Only the requested cells changed.** Both sheets were at revision 0 before; only Inputs advanced to revision 1. No other workbook was touched.\\n- **Calculation status:** `not_required` \u2014 the workbook contains no formulas, so nothing needed recalculation (0 invalidated, 0 recalculated, 0 failed).\\n- **Catalogue status:** `refresh_required` \u2014 the typed edit left the registered table observation (`tbl_fd0f1ced9b6d415f8d80b56b1dbc0a48`, range A1:F2) stale. If you later want to run `calculate` or `financial_query` against this table, a checked table-authoring refresh is needed first. Let me know if you'd like me to do that.\\n- **Accounting validation:** `not_run`. This receipt confirms the typed inputs were stored as specified; it does not establish accounting correctness.\\n- No rounding or units were applied \u2014 these are plain inputs, and no currency/tax convention was requested or needed.\",\"attachments\":null},\"session_id\":99,\"processing_time_ms\":7941,\"tools_used\":[\"load_skill\",\"inspect_typed_workbook\",\"prepare_typed_edit\",\"execute_operation\",\"inspect_typed_workbook\"],\"metadata\":{\"user_name\":\"User\",\"date\":\"Tuesday, 30 June 2026\",\"time\":\"19:22\",\"timezone\":\"GMT+8\"},\"pending_approvals\":[],\"task_id\":\"task:4f958f3add374315bdc91875c6ff0e3b\",\"runtime\":\"main\",\"run_status\":\"answered\",\"operation_references\":[\"typed:e6f2bf8755474a218ea41b081dc2fd66\"],\"operation_receipts\":[{\"operation_id\":\"op_e002c1d111a5475caa7c069d37209d5a\",\"status\":\"committed\",\"operation_type\":\"edit_typed_cells\",\"target\":{\"spreadsheet_id\":\"3e726e7380c34b42882cc6a356f0327e\",\"sheet_id\":4161},\"changed_sheets\":[{\"sheet_id\":4161,\"after_revision\":1}],\"before_revisions\":[{\"sheet_id\":4161,\"revision\":0},{\"sheet_id\":4162,\"revision\":0}],\"changes\":{\"inputs_or_formulas_edited\":6,\"cell_ids\":[\"cell_01131456ecfa4ebab18f1a91801a971a\",\"cell_06e829454f1842a6ba737937221b0a54\",\"cell_28a140f26df94e639cb56b38986efcb1\",\"cell_2d9ab1afb8fb411f9ae3daa5c0e9bd47\",\"cell_30d97ae10fd14161a541c2c3e6007790\",\"cell_df0e3c8513a240fd995b6530374c9f49\"]},\"calculation_status\":\"not_required\",\"calculation\":{\"engine_version\":\"native-decimal-v1\",\"invalidated\":0,\"recalculated\":0,\"failed\":0,\"results\":[]},\"catalogue_status\":\"refresh_required\",\"accounting_validation\":\"not_run\",\"operation_ref\":\"typed:e6f2bf8755474a218ea41b081dc2fd66\"}]}"
+        }
+      ],
+      "snapshots": [
+        {
+          "workbook_id": "2e42df1c5b6d44b8aae836bdb6b5cc4e",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4159
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4160
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4159,
+              "resource_id": "tbl_1b622b14d0454b83aee649bf6926a176",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "326af1dded6247526c62a349bd99c3df003cdbc8be0a7b622d542d70f39912af"
+        }
+      ],
+      "final_state": {
+        "target": {
+          "workbook_id": "2e42df1c5b6d44b8aae836bdb6b5cc4e",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4159
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4160
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4159,
+              "resource_id": "tbl_1b622b14d0454b83aee649bf6926a176",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "326af1dded6247526c62a349bd99c3df003cdbc8be0a7b622d542d70f39912af"
+        },
+        "distractor": {
+          "workbook_id": "3e726e7380c34b42882cc6a356f0327e",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [1.2300, \"00123\", true, \"2026-09-21\", 9007199254740993, 0.123456789012345678901234567890]]",
+              "title": "Inputs",
+              "revision": 1,
+              "sheet_id": 4161
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4162
+            }
+          ],
+          "cells": [
+            {
+              "kind": "decimal",
+              "unit": null,
+              "cell_id": "cell_01131456ecfa4ebab18f1a91801a971a",
+              "sheet_id": 4161,
+              "raw_value": "0.123456789012345678901234567890",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 6,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            },
+            {
+              "kind": "decimal",
+              "unit": null,
+              "cell_id": "cell_06e829454f1842a6ba737937221b0a54",
+              "sheet_id": 4161,
+              "raw_value": "+001.2300",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 1,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            },
+            {
+              "kind": "decimal",
+              "unit": null,
+              "cell_id": "cell_28a140f26df94e639cb56b38986efcb1",
+              "sheet_id": 4161,
+              "raw_value": "9007199254740993",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 5,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            },
+            {
+              "kind": "text",
+              "unit": null,
+              "cell_id": "cell_2d9ab1afb8fb411f9ae3daa5c0e9bd47",
+              "sheet_id": 4161,
+              "raw_value": "00123",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 2,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            },
+            {
+              "kind": "boolean",
+              "unit": null,
+              "cell_id": "cell_30d97ae10fd14161a541c2c3e6007790",
+              "sheet_id": 4161,
+              "raw_value": true,
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 3,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            },
+            {
+              "kind": "date",
+              "unit": null,
+              "cell_id": "cell_df0e3c8513a240fd995b6530374c9f49",
+              "sheet_id": 4161,
+              "raw_value": "2026-09-21",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 4,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            }
+          ],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4161,
+              "resource_id": "tbl_fd0f1ced9b6d415f8d80b56b1dbc0a48",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "6ee2165baa1276a96a1413c3c5186263d76a80de06981264ea77a32f2cabcbdc"
+        }
+      },
+      "error_type": "AssertionError",
+      "elapsed_seconds": 8.042161666089669
+    },
+    "discovery-2": {
+      "status": "failed",
+      "fixture": {
+        "user_id": 10,
+        "target": "fb07471da41f4d34a7233bec8755bfcb",
+        "distractor": "00f29c50c9bf4bd5b3b02049a6667506",
+        "sheets": [
+          4175,
+          4176
+        ]
+      },
+      "responses": [
+        {
+          "route": "/v1/chat",
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "In the workbook named \"Formula acceptance\", Set Inputs!A2 to decimal \"+001.2300\", B2 to text \"00123\", C2 to boolean true, D2 to date \"2026-09-21\", E2 to decimal \"9007199254740993\", and F2 to decimal \"0.123456789012345678901234567890\". Preserve each literal and type exactly. Change only the requested cells. Leave all other workbooks unchanged."
+              }
+            ],
+            "spreadsheet_id": "00f29c50c9bf4bd5b3b02049a6667506"
+          },
+          "status_code": 200,
+          "body": "{\"message\":{\"role\":\"assistant\",\"content\":\"Done \u2014 the six typed inputs were committed to the \\\"Formula acceptance\\\" workbook and verified by re-inspection.\\n\\n**Committed receipt**\\n- Operation: `op_7ab44c07d4ca433b93a471e50e473314` (ref `typed:d39f7b6922134a058d0bba143bf5e154`), status **committed**\\n- Target: workbook `00f29c50c9bf4bd5b3b02049a6667506`, sheet **Inputs** (id 4177)\\n- Changed sheets: Inputs revision 0 \u2192 **1**; Totals untouched (revision 0)\\n- Inputs edited: 6\\n\\n**Verified stored values (Inputs!row 2)**\\n\\n| Cell | Kind | Stored raw value | Cell ID |\\n|------|------|------------------|---------|\\n| A2 | decimal | `+001.2300` | cell_94189d009a4a4f32b8ab4bd2bb5bca69 |\\n| B2 | text | `00123` | cell_d69a6095f08f4be4be45c80468f65cb0 |\\n| C2 | boolean | `true` | cell_b781fd3653d24b7fb9a62ef82bd50a6d |\\n| D2 | date | `2026-09-21` | cell_9fbb28c74c704a23b95d2af5b138d93a |\\n| E2 | decimal | `9007199254740993` | cell_f35c42c61d844f978930dc2b094c16eb |\\n| F2 | decimal | `0.123456789012345678901234567890` | cell_f35c42c61d844f978930dc2b094c16eb (see below) |\\n\\nCorrection on the last row: F2's cell ID is `cell_f35c42c61d844f978930dc2b094c16eb`; E2's is `cell_f35c42c61d844f978930dc2b094c16eb` \u2014 apologies, the two are distinct: E2 = `cell_f35c42c61d844f978930dc2b094c16eb` is F2. Precisely: E2 \u2192 `cell_f35c42c61d844f978930dc2b094c16eb` is wrong. Let me state it cleanly from the inspection output:\\n\\n- A2 (col 1): `cell_94189d009a4a4f32b8ab4bd2bb5bca69`\\n- B2 (col 2): `cell_d69a6095f08f4be4be45c80468f65cb0`\\n- C2 (col 3): `cell_b781fd3653d24b7fb9a62ef82bd50a6d`\\n- D2 (col 4): `cell_9fbb28c74c704a23b95d2af5b138d93a`\\n- E2 (col 5): `cell_f35c42c61d844f978930dc2b094c16eb`\\n- F2 (col 6): `cell_9719f2eccfe14aa2999a774aa8f11f0f`\\n\\nEach literal was preserved exactly as supplied \u2014 the leading `+` and trailing zeros in `+001.2300`, the leading zeros in the text `00123`, the boolean `true`, the ISO date, the 16-digit integer `9007199254740993` (beyond binary double precision, retained exactly), and the 30-decimal-place value in F2.\\n\\n**Notes and limitations**\\n- `calculation_status: not_required` \u2014 no formulas exist in the workbook, so nothing was recalculated.\\n- `catalogue_status: refresh_required` \u2014 the registered table `tbl_b869afddf8ce4c138c2693f1751aff94` (Inputs!A1:F2) now has stale catalogue metadata. If you want to run `calculate` or `financial_query` on it, a checked table-authoring refresh must be done first. I did not perform that, since it wasn't requested.\\n- `accounting_validation: not_run` \u2014 this receipt confirms the typed inputs were written, not any accounting correctness.\\n- Only the six requested cells were changed; sheet Totals and all other workbooks were left untouched.\\n- No display formats or units were set (none were requested).\",\"attachments\":null},\"session_id\":103,\"processing_time_ms\":9798,\"tools_used\":[\"load_skill\",\"inspect_typed_workbook\",\"prepare_typed_edit\",\"execute_operation\",\"inspect_typed_workbook\"],\"metadata\":{\"user_name\":\"User\",\"date\":\"Tuesday, 30 June 2026\",\"time\":\"19:22\",\"timezone\":\"GMT+8\"},\"pending_approvals\":[],\"task_id\":\"task:3f140b7412884ce296a9347987a989ac\",\"runtime\":\"main\",\"run_status\":\"answered\",\"operation_references\":[\"typed:d39f7b6922134a058d0bba143bf5e154\"],\"operation_receipts\":[{\"operation_id\":\"op_7ab44c07d4ca433b93a471e50e473314\",\"status\":\"committed\",\"operation_type\":\"edit_typed_cells\",\"target\":{\"spreadsheet_id\":\"00f29c50c9bf4bd5b3b02049a6667506\",\"sheet_id\":4177},\"changed_sheets\":[{\"sheet_id\":4177,\"after_revision\":1}],\"before_revisions\":[{\"sheet_id\":4177,\"revision\":0},{\"sheet_id\":4178,\"revision\":0}],\"changes\":{\"inputs_or_formulas_edited\":6,\"cell_ids\":[\"cell_94189d009a4a4f32b8ab4bd2bb5bca69\",\"cell_9719f2eccfe14aa2999a774aa8f11f0f\",\"cell_9fbb28c74c704a23b95d2af5b138d93a\",\"cell_b781fd3653d24b7fb9a62ef82bd50a6d\",\"cell_d69a6095f08f4be4be45c80468f65cb0\",\"cell_f35c42c61d844f978930dc2b094c16eb\"]},\"calculation_status\":\"not_required\",\"calculation\":{\"engine_version\":\"native-decimal-v1\",\"invalidated\":0,\"recalculated\":0,\"failed\":0,\"results\":[]},\"catalogue_status\":\"refresh_required\",\"accounting_validation\":\"not_run\",\"operation_ref\":\"typed:d39f7b6922134a058d0bba143bf5e154\"}]}"
+        }
+      ],
+      "snapshots": [
+        {
+          "workbook_id": "fb07471da41f4d34a7233bec8755bfcb",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4175
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4176
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4175,
+              "resource_id": "tbl_809ed855e6cd4658ba591c339af50ccc",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "ab63dd7786ed35fff3239d978e9ac9377cc3d279b49ed84e3d58522b837c953b"
+        }
+      ],
+      "final_state": {
+        "target": {
+          "workbook_id": "fb07471da41f4d34a7233bec8755bfcb",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4175
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4176
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4175,
+              "resource_id": "tbl_809ed855e6cd4658ba591c339af50ccc",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "ab63dd7786ed35fff3239d978e9ac9377cc3d279b49ed84e3d58522b837c953b"
+        },
+        "distractor": {
+          "workbook_id": "00f29c50c9bf4bd5b3b02049a6667506",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [1.2300, \"00123\", true, \"2026-09-21\", 9007199254740993, 0.123456789012345678901234567890]]",
+              "title": "Inputs",
+              "revision": 1,
+              "sheet_id": 4177
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4178
+            }
+          ],
+          "cells": [
+            {
+              "kind": "decimal",
+              "unit": null,
+              "cell_id": "cell_94189d009a4a4f32b8ab4bd2bb5bca69",
+              "sheet_id": 4177,
+              "raw_value": "+001.2300",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 1,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            },
+            {
+              "kind": "decimal",
+              "unit": null,
+              "cell_id": "cell_9719f2eccfe14aa2999a774aa8f11f0f",
+              "sheet_id": 4177,
+              "raw_value": "0.123456789012345678901234567890",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 6,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            },
+            {
+              "kind": "date",
+              "unit": null,
+              "cell_id": "cell_9fbb28c74c704a23b95d2af5b138d93a",
+              "sheet_id": 4177,
+              "raw_value": "2026-09-21",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 4,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            },
+            {
+              "kind": "boolean",
+              "unit": null,
+              "cell_id": "cell_b781fd3653d24b7fb9a62ef82bd50a6d",
+              "sheet_id": 4177,
+              "raw_value": true,
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 3,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            },
+            {
+              "kind": "text",
+              "unit": null,
+              "cell_id": "cell_d69a6095f08f4be4be45c80468f65cb0",
+              "sheet_id": 4177,
+              "raw_value": "00123",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 2,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            },
+            {
+              "kind": "decimal",
+              "unit": null,
+              "cell_id": "cell_f35c42c61d844f978930dc2b094c16eb",
+              "sheet_id": 4177,
+              "raw_value": "9007199254740993",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 5,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            }
+          ],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4177,
+              "resource_id": "tbl_b869afddf8ce4c138c2693f1751aff94",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "70111c9c70d9d6385c152cf64d3bf14e7cfc0a782ed7981eb9259a62107a8ca8"
+        }
+      },
+      "error_type": "AssertionError",
+      "elapsed_seconds": 9.888032625080086
+    },
+    "recalculation-0": {
+      "status": "failed",
+      "fixture": {
+        "user_id": 3,
+        "target": "20c5c44e653e457dab943c1e5d1e85b0",
+        "distractor": "a454d0cda23e44eda061761c58de866d",
+        "sheets": [
+          4147,
+          4148
+        ]
+      },
+      "responses": [
+        {
+          "route": "/v1/chat",
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "In the workbook named \"Formula acceptance\", Set Inputs!A2 to decimal \"0.1\" with unit USD. Change only the requested cells. Leave all other workbooks unchanged."
+              }
+            ],
+            "spreadsheet_id": "a454d0cda23e44eda061761c58de866d"
+          },
+          "status_code": 200,
+          "body": "{\"message\":{\"role\":\"assistant\",\"content\":\"The edit committed successfully. Here's the summary:\\n\\n## Result: Committed \u2705\\n\\n**Cell changed:** `Inputs!A2` set to decimal `0.1`, unit `USD`\\n\\n| Detail | Value |\\n|---|---|\\n| Workbook | Formula acceptance (`a454d0cda23e44eda061761c58de866d`) |\\n| Sheet | Inputs (`sheet_id` 4149) |\\n| Cell | A2 (`cell_aa3648edb63747aeb68b06f5c3295261`) |\\n| Input | decimal `0.1`, unit `USD` |\\n| Operation ref | `typed:1acfa1051ad44ec5a2455ab160053802` |\\n| Receipt | `op_74e914d4df394536879256f5dca714d3` \u2014 **committed** |\\n| Inputs/formulas edited | 1 |\\n| Sheet revision | Inputs: 0 \u2192 1 (Totals unchanged at 0) |\\n| Calculation status | `not_required` (no formulas in the workbook) |\\n| Accounting validation | `not_run` |\\n\\n**Scope:** Only the requested cell A2 on the Inputs sheet was changed. No other cells, sheets, or workbooks were touched.\\n\\n**Notes / limitations:**\\n- The workbook contains a registered table, \\\"Formula distractor\\\" (A1:F2). The typed edit leaves its catalogue observation stale \u2014 `catalogue_status` is `refresh_required`. If you later need calculations or queries against that table, a checked table-authoring refresh should be run first.\\n- This receipt confirms the write committed; it does not establish accounting correctness. `accounting_validation` was `not_run`.\\n- The value was stored as an exact decimal string, not a binary float.\",\"attachments\":null},\"session_id\":96,\"processing_time_ms\":7243,\"tools_used\":[\"inspect_typed_workbook\",\"load_skill\",\"inspect_sheet_region\",\"prepare_typed_edit\",\"execute_operation\"],\"metadata\":{\"user_name\":\"User\",\"date\":\"Tuesday, 30 June 2026\",\"time\":\"19:22\",\"timezone\":\"GMT+8\"},\"pending_approvals\":[],\"task_id\":\"task:bcb8446bc71848a19777b44314c4fc33\",\"runtime\":\"main\",\"run_status\":\"answered\",\"operation_references\":[\"typed:1acfa1051ad44ec5a2455ab160053802\"],\"operation_receipts\":[{\"operation_id\":\"op_74e914d4df394536879256f5dca714d3\",\"status\":\"committed\",\"operation_type\":\"edit_typed_cells\",\"target\":{\"spreadsheet_id\":\"a454d0cda23e44eda061761c58de866d\",\"sheet_id\":4149},\"changed_sheets\":[{\"sheet_id\":4149,\"after_revision\":1}],\"before_revisions\":[{\"sheet_id\":4149,\"revision\":0},{\"sheet_id\":4150,\"revision\":0}],\"changes\":{\"inputs_or_formulas_edited\":1,\"cell_ids\":[\"cell_aa3648edb63747aeb68b06f5c3295261\"]},\"calculation_status\":\"not_required\",\"calculation\":{\"engine_version\":\"native-decimal-v1\",\"invalidated\":0,\"recalculated\":0,\"failed\":0,\"results\":[]},\"catalogue_status\":\"refresh_required\",\"accounting_validation\":\"not_run\",\"operation_ref\":\"typed:1acfa1051ad44ec5a2455ab160053802\"}]}"
+        }
+      ],
+      "snapshots": [
+        {
+          "workbook_id": "20c5c44e653e457dab943c1e5d1e85b0",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4147
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4148
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4147,
+              "resource_id": "tbl_6d020c2712eb48a4b5b03d68900f8eed",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "f1ff318a7602cac57c538c3d0d8f05c0a3edb592fb138290284fc8fb70cbfd02"
+        }
+      ],
+      "final_state": {
+        "target": {
+          "workbook_id": "20c5c44e653e457dab943c1e5d1e85b0",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4147
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4148
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4147,
+              "resource_id": "tbl_6d020c2712eb48a4b5b03d68900f8eed",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "f1ff318a7602cac57c538c3d0d8f05c0a3edb592fb138290284fc8fb70cbfd02"
+        },
+        "distractor": {
+          "workbook_id": "a454d0cda23e44eda061761c58de866d",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [0.1, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 1,
+              "sheet_id": 4149
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4150
+            }
+          ],
+          "cells": [
+            {
+              "kind": "decimal",
+              "unit": "USD",
+              "cell_id": "cell_aa3648edb63747aeb68b06f5c3295261",
+              "sheet_id": 4149,
+              "raw_value": "0.1",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 1,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            }
+          ],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4149,
+              "resource_id": "tbl_51482d5dafab4cab903c59d212b7ecca",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "d4790bcbc225a30c976257b609748c5994c6c98174040ddf301dc706f302e2b5"
+        }
+      },
+      "error_type": "AssertionError",
+      "elapsed_seconds": 7.31885575002525
+    },
+    "recalculation-1": {
+      "status": "failed",
+      "fixture": {
+        "user_id": 7,
+        "target": "4b89e5549465440ca2483ab87831a963",
+        "distractor": "084fcee48cba4de5b4fe0fa5cd6a0542",
+        "sheets": [
+          4163,
+          4164
+        ]
+      },
+      "responses": [
+        {
+          "route": "/v1/chat",
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "In the workbook named \"Formula acceptance\", Set Inputs!A2 to decimal \"0.1\" with unit USD. Change only the requested cells. Leave all other workbooks unchanged."
+              }
+            ],
+            "spreadsheet_id": "084fcee48cba4de5b4fe0fa5cd6a0542"
+          },
+          "status_code": 200,
+          "body": "{\"message\":{\"role\":\"assistant\",\"content\":\"The edit committed successfully.\\n\\n**Result \u2014 committed**\\n\\n- **Workbook:** \\\"Formula acceptance\\\" (`084fcee48cba4de5b4fe0fa5cd6a0542`)\\n- **Cell:** `Inputs!A2` (sheet_id 4165, row 2, column 1)\\n- **Value set:** decimal `0.1`, unit `USD`\\n- **Cell ID:** `cell_4413e45aab824e3dbc3014a4b7d50e9e`\\n- **Receipt:** `op_b62b8cbe848541e0b18aa284f18ce428` (ref `typed:35c8eb3fd79242d5bb192929eb875f2d`)\\n- **Sheet revision:** Inputs 0 \u2192 1; Totals unchanged at 0\\n- **Calculation status:** `not_required` (no formulas in the workbook; 0 invalidated, 0 recalculated, 0 failed)\\n- **Scope:** only the one requested cell was changed; no other cells or workbooks touched\\n\\n**Notes / limitations**\\n- `catalogue_status: refresh_required` \u2014 this typed edit leaves registered catalogue observations stale. If you plan to run `calculate` or `financial_query` against the registered table on this sheet, a checked table-authoring refresh is needed first.\\n- `accounting_validation: not_run` \u2014 the receipt confirms the write, not accounting correctness.\\n- Unit `USD` is stored as metadata; no conversion or arithmetic was performed.\",\"attachments\":null},\"session_id\":100,\"processing_time_ms\":6769,\"tools_used\":[\"inspect_typed_workbook\",\"load_skill\",\"prepare_typed_edit\",\"execute_operation\"],\"metadata\":{\"user_name\":\"User\",\"date\":\"Tuesday, 30 June 2026\",\"time\":\"19:22\",\"timezone\":\"GMT+8\"},\"pending_approvals\":[],\"task_id\":\"task:97f0fcdd846648c58012fbbe42707ce4\",\"runtime\":\"main\",\"run_status\":\"answered\",\"operation_references\":[\"typed:35c8eb3fd79242d5bb192929eb875f2d\"],\"operation_receipts\":[{\"operation_id\":\"op_b62b8cbe848541e0b18aa284f18ce428\",\"status\":\"committed\",\"operation_type\":\"edit_typed_cells\",\"target\":{\"spreadsheet_id\":\"084fcee48cba4de5b4fe0fa5cd6a0542\",\"sheet_id\":4165},\"changed_sheets\":[{\"sheet_id\":4165,\"after_revision\":1}],\"before_revisions\":[{\"sheet_id\":4165,\"revision\":0},{\"sheet_id\":4166,\"revision\":0}],\"changes\":{\"inputs_or_formulas_edited\":1,\"cell_ids\":[\"cell_4413e45aab824e3dbc3014a4b7d50e9e\"]},\"calculation_status\":\"not_required\",\"calculation\":{\"engine_version\":\"native-decimal-v1\",\"invalidated\":0,\"recalculated\":0,\"failed\":0,\"results\":[]},\"catalogue_status\":\"refresh_required\",\"accounting_validation\":\"not_run\",\"operation_ref\":\"typed:35c8eb3fd79242d5bb192929eb875f2d\"}]}"
+        }
+      ],
+      "snapshots": [
+        {
+          "workbook_id": "4b89e5549465440ca2483ab87831a963",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4163
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4164
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4163,
+              "resource_id": "tbl_497a547d8dea40bdbb1d6137dff46082",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "676b25b6cfb25494d3150024415cc562833c9da60e530241a85a8626b2990919"
+        }
+      ],
+      "final_state": {
+        "target": {
+          "workbook_id": "4b89e5549465440ca2483ab87831a963",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4163
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4164
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4163,
+              "resource_id": "tbl_497a547d8dea40bdbb1d6137dff46082",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "676b25b6cfb25494d3150024415cc562833c9da60e530241a85a8626b2990919"
+        },
+        "distractor": {
+          "workbook_id": "084fcee48cba4de5b4fe0fa5cd6a0542",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [0.1, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 1,
+              "sheet_id": 4165
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4166
+            }
+          ],
+          "cells": [
+            {
+              "kind": "decimal",
+              "unit": "USD",
+              "cell_id": "cell_4413e45aab824e3dbc3014a4b7d50e9e",
+              "sheet_id": 4165,
+              "raw_value": "0.1",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 1,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            }
+          ],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4165,
+              "resource_id": "tbl_a30ec8848f3643f891ad8af390231f7f",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "37cadbb131bcb082f14a07c165c55ffbd241a027b13ef29c159e2eaea2525a02"
+        }
+      },
+      "error_type": "AssertionError",
+      "elapsed_seconds": 6.866299375076778
+    },
+    "recalculation-2": {
+      "status": "failed",
+      "fixture": {
+        "user_id": 11,
+        "target": "0e2a353dc3be4cd4855ba06b3c84ee4e",
+        "distractor": "08b89b07c23d4beb9bffd9dbf0d07e26",
+        "sheets": [
+          4179,
+          4180
+        ]
+      },
+      "responses": [
+        {
+          "route": "/v1/chat",
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "In the workbook named \"Formula acceptance\", Set Inputs!A2 to decimal \"0.1\" with unit USD. Change only the requested cells. Leave all other workbooks unchanged."
+              }
+            ],
+            "spreadsheet_id": "08b89b07c23d4beb9bffd9dbf0d07e26"
+          },
+          "status_code": 200,
+          "body": "{\"message\":{\"role\":\"assistant\",\"content\":\"Done. The edit committed successfully.\\n\\n**Result**\\n- **Workbook:** \\\"Formula acceptance\\\" (`08b89b07c23d4beb9bffd9dbf0d07e26`)\\n- **Change:** `Inputs!A2` set to decimal `0.1`, unit `USD` (cell ID `cell_e698eb42d0cf4476ae8d6019d8c1b88b`)\\n- **Status:** committed (operation `op_c526c0fefe5e4b3eb0de3c9aa778362b`)\\n- **Scope:** only the requested cell was changed \u2014 `Inputs` sheet revision went 0 \u2192 1; the `Totals` sheet is untouched at revision 0. No other workbooks were affected.\\n- **Calculation:** `not_required` (no formulas present; 0 invalidated, 0 recalculated, 0 failed).\\n\\n**Notes / limitations**\\n- The typed edit left the registered catalogue observation stale (`catalogue_status: refresh_required`). If you later want to run `calculate` or `financial_query` against the registered table on this sheet, a checked table-authoring refresh should be done first.\\n- `accounting_validation: not_run` \u2014 this receipt confirms the cell write, not any accounting correctness.\\n- Display format was not specified, so none was set.\",\"attachments\":null},\"session_id\":104,\"processing_time_ms\":7143,\"tools_used\":[\"inspect_typed_workbook\",\"load_skill\",\"inspect_sheet_region\",\"prepare_typed_edit\",\"execute_operation\"],\"metadata\":{\"user_name\":\"User\",\"date\":\"Tuesday, 30 June 2026\",\"time\":\"19:22\",\"timezone\":\"GMT+8\"},\"pending_approvals\":[],\"task_id\":\"task:af0095872f684d0e86ffa3b56c980ad5\",\"runtime\":\"main\",\"run_status\":\"answered\",\"operation_references\":[\"typed:1309c03d312b4a87ad3e779ed0cebeab\"],\"operation_receipts\":[{\"operation_id\":\"op_c526c0fefe5e4b3eb0de3c9aa778362b\",\"status\":\"committed\",\"operation_type\":\"edit_typed_cells\",\"target\":{\"spreadsheet_id\":\"08b89b07c23d4beb9bffd9dbf0d07e26\",\"sheet_id\":4181},\"changed_sheets\":[{\"sheet_id\":4181,\"after_revision\":1}],\"before_revisions\":[{\"sheet_id\":4181,\"revision\":0},{\"sheet_id\":4182,\"revision\":0}],\"changes\":{\"inputs_or_formulas_edited\":1,\"cell_ids\":[\"cell_e698eb42d0cf4476ae8d6019d8c1b88b\"]},\"calculation_status\":\"not_required\",\"calculation\":{\"engine_version\":\"native-decimal-v1\",\"invalidated\":0,\"recalculated\":0,\"failed\":0,\"results\":[]},\"catalogue_status\":\"refresh_required\",\"accounting_validation\":\"not_run\",\"operation_ref\":\"typed:1309c03d312b4a87ad3e779ed0cebeab\"}]}"
+        }
+      ],
+      "snapshots": [
+        {
+          "workbook_id": "0e2a353dc3be4cd4855ba06b3c84ee4e",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4179
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4180
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4179,
+              "resource_id": "tbl_046129ba12b2439cbe4f9506f5ad4417",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "04cac758348a3a3dcf83aa1f094aa9e33aa5503857fd39d96cde3ab0e3ed1f7a"
+        }
+      ],
+      "final_state": {
+        "target": {
+          "workbook_id": "0e2a353dc3be4cd4855ba06b3c84ee4e",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4179
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4180
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4179,
+              "resource_id": "tbl_046129ba12b2439cbe4f9506f5ad4417",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "04cac758348a3a3dcf83aa1f094aa9e33aa5503857fd39d96cde3ab0e3ed1f7a"
+        },
+        "distractor": {
+          "workbook_id": "08b89b07c23d4beb9bffd9dbf0d07e26",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [0.1, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 1,
+              "sheet_id": 4181
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4182
+            }
+          ],
+          "cells": [
+            {
+              "kind": "decimal",
+              "unit": "USD",
+              "cell_id": "cell_e698eb42d0cf4476ae8d6019d8c1b88b",
+              "sheet_id": 4181,
+              "raw_value": "0.1",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 1,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            }
+          ],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4181,
+              "resource_id": "tbl_7496fc8a9e7c45769d1ef7fd54b42855",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "c566f56677c95c7bf7074fc3e278b8ba6c5641e054ed9703c682adc56934f9e5"
+        }
+      },
+      "error_type": "AssertionError",
+      "elapsed_seconds": 7.220178792020306
+    },
+    "failure_repair-0": {
+      "status": "failed",
+      "fixture": {
+        "user_id": 4,
+        "target": "8b2be3bf15a64b798d2339a91c18bf70",
+        "distractor": "dde19aa41b2f45f2a64119063532f71d",
+        "sheets": [
+          4151,
+          4152
+        ]
+      },
+      "responses": [
+        {
+          "route": "/v1/chat",
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "In the workbook named \"Formula acceptance\", Set Inputs!A2 to decimal \"0.1\" with unit USD. Change only the requested cells. Leave all other workbooks unchanged."
+              }
+            ],
+            "spreadsheet_id": "dde19aa41b2f45f2a64119063532f71d"
+          },
+          "status_code": 200,
+          "body": "{\"message\":{\"role\":\"assistant\",\"content\":\"The edit committed successfully.\\n\\n## Result\\n\\n**Committed:** `Inputs!A2` set to decimal `0.1`, unit `USD`.\\n\\n**Receipt details:**\\n- Operation: `edit_typed_cells` (op_b90b7eff7756457da5d97b18839e175d)\\n- Workbook: `dde19aa41b2f45f2a64119063532f71d`\\n- Target sheet: Inputs (sheet_id 4153), revision 0 \u2192 1\\n- Cells edited: 1 (`cell_41c3ced90cac4b75b7bd421f674a9b81`)\\n- Calculation status: `not_required` (no formulas in the workbook; nothing to recalculate)\\n- Totals sheet (4154) unchanged at revision 0\\n\\n**Notes and limitations:**\\n- Only the requested cell was changed; no other cells or workbooks were touched.\\n- The receipt reports `catalogue_status: refresh_required` \u2014 typed edits leave registered catalogue observations stale. If you later want to run `calculate` or `financial_query` against the registered table (A1:F2 on Inputs), a checked table-authoring refresh would be needed first.\\n- `accounting_validation: not_run` \u2014 this receipt confirms the write, not any accounting correctness.\\n- Display format was not specified, so none was set; the value is stored as an exact decimal with unit USD.\",\"attachments\":null},\"session_id\":97,\"processing_time_ms\":6994,\"tools_used\":[\"inspect_typed_workbook\",\"load_skill\",\"prepare_typed_edit\",\"execute_operation\"],\"metadata\":{\"user_name\":\"User\",\"date\":\"Tuesday, 30 June 2026\",\"time\":\"19:22\",\"timezone\":\"GMT+8\"},\"pending_approvals\":[],\"task_id\":\"task:54b8257a851a4b84b1f2603411ffe8f4\",\"runtime\":\"main\",\"run_status\":\"answered\",\"operation_references\":[\"typed:abd5d6d2c42946e1a38bb020dc94f218\"],\"operation_receipts\":[{\"operation_id\":\"op_b90b7eff7756457da5d97b18839e175d\",\"status\":\"committed\",\"operation_type\":\"edit_typed_cells\",\"target\":{\"spreadsheet_id\":\"dde19aa41b2f45f2a64119063532f71d\",\"sheet_id\":4153},\"changed_sheets\":[{\"sheet_id\":4153,\"after_revision\":1}],\"before_revisions\":[{\"sheet_id\":4153,\"revision\":0},{\"sheet_id\":4154,\"revision\":0}],\"changes\":{\"inputs_or_formulas_edited\":1,\"cell_ids\":[\"cell_41c3ced90cac4b75b7bd421f674a9b81\"]},\"calculation_status\":\"not_required\",\"calculation\":{\"engine_version\":\"native-decimal-v1\",\"invalidated\":0,\"recalculated\":0,\"failed\":0,\"results\":[]},\"catalogue_status\":\"refresh_required\",\"accounting_validation\":\"not_run\",\"operation_ref\":\"typed:abd5d6d2c42946e1a38bb020dc94f218\"}]}"
+        }
+      ],
+      "snapshots": [
+        {
+          "workbook_id": "8b2be3bf15a64b798d2339a91c18bf70",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4151
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4152
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4151,
+              "resource_id": "tbl_f0af57fe44e3489f900815ea6bbbe084",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "0cdb7b9a6be370572ac5e9cbceb5d660ddbdb5522f2bb097557898b315b5aa34"
+        }
+      ],
+      "final_state": {
+        "target": {
+          "workbook_id": "8b2be3bf15a64b798d2339a91c18bf70",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4151
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4152
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4151,
+              "resource_id": "tbl_f0af57fe44e3489f900815ea6bbbe084",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "0cdb7b9a6be370572ac5e9cbceb5d660ddbdb5522f2bb097557898b315b5aa34"
+        },
+        "distractor": {
+          "workbook_id": "dde19aa41b2f45f2a64119063532f71d",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [0.1, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 1,
+              "sheet_id": 4153
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4154
+            }
+          ],
+          "cells": [
+            {
+              "kind": "decimal",
+              "unit": "USD",
+              "cell_id": "cell_41c3ced90cac4b75b7bd421f674a9b81",
+              "sheet_id": 4153,
+              "raw_value": "0.1",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 1,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            }
+          ],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4153,
+              "resource_id": "tbl_230be60b0a064d528c1a552f5d7fc65d",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "68d99d336ec806fb262b062229c250e06bdec308ac3b6ab4b112237a023d97f5"
+        }
+      },
+      "error_type": "AssertionError",
+      "elapsed_seconds": 7.101216249982826
+    },
+    "failure_repair-1": {
+      "status": "failed",
+      "fixture": {
+        "user_id": 8,
+        "target": "fe55dc32660d4db897ae53571edd5e48",
+        "distractor": "766ec3362c9a43b2b994897cbfeb26b2",
+        "sheets": [
+          4167,
+          4168
+        ]
+      },
+      "responses": [
+        {
+          "route": "/v1/chat",
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "In the workbook named \"Formula acceptance\", Set Inputs!A2 to decimal \"0.1\" with unit USD. Change only the requested cells. Leave all other workbooks unchanged."
+              }
+            ],
+            "spreadsheet_id": "766ec3362c9a43b2b994897cbfeb26b2"
+          },
+          "status_code": 200,
+          "body": "{\"message\":{\"role\":\"assistant\",\"content\":\"The edit committed successfully.\\n\\n## Result\\n\\n**Done.** Set `Inputs!A2` to decimal `0.1` with unit `USD` in the workbook \\\"Formula acceptance\\\".\\n\\n**Committed receipt:**\\n- Operation: `op_807de5e0634e4c1f85c80d89533b1400` (type: `edit_typed_cells`)\\n- Target: workbook `766ec3362c9a43b2b994897cbfeb26b2`, sheet `Inputs` (sheet_id 4169)\\n- Cell written: `cell_1863ebc1f83547458693ac6062791caf` (A2)\\n- Changed sheets: Inputs revision 0 \u2192 1\\n- Inputs/formulas edited: 1\\n\\n**Scope & integrity:**\\n- Only the requested cell was changed. The `Totals` sheet (sheet_id 4170) remained at revision 0, and no other workbooks were touched.\\n- Calculation status: `not_required` \u2014 the workbook had no managed formulas, so nothing needed recalculation (0 invalidated, 0 recalculated, 0 failed).\\n\\n**Limitations to note:**\\n- `catalogue_status: refresh_required` \u2014 this typed edit left the registered table observation (`tbl_e2fdae81eedf40aaab135f91f71d4fc0`, range A1:F2) stale. If you later want to run `calculate` or `financial_query` against this table, a checked table-authoring refresh should be performed first.\\n- `accounting_validation: not_run` \u2014 the receipt confirms the write committed, but it does not establish accounting correctness.\",\"attachments\":null},\"session_id\":101,\"processing_time_ms\":5859,\"tools_used\":[\"inspect_typed_workbook\",\"load_skill\",\"prepare_typed_edit\",\"execute_operation\"],\"metadata\":{\"user_name\":\"User\",\"date\":\"Tuesday, 30 June 2026\",\"time\":\"19:22\",\"timezone\":\"GMT+8\"},\"pending_approvals\":[],\"task_id\":\"task:97d18d9ec0054afaabd2a7f065a812f5\",\"runtime\":\"main\",\"run_status\":\"answered\",\"operation_references\":[\"typed:88bcff60a49148f098e14340e26dd0cc\"],\"operation_receipts\":[{\"operation_id\":\"op_807de5e0634e4c1f85c80d89533b1400\",\"status\":\"committed\",\"operation_type\":\"edit_typed_cells\",\"target\":{\"spreadsheet_id\":\"766ec3362c9a43b2b994897cbfeb26b2\",\"sheet_id\":4169},\"changed_sheets\":[{\"sheet_id\":4169,\"after_revision\":1}],\"before_revisions\":[{\"sheet_id\":4169,\"revision\":0},{\"sheet_id\":4170,\"revision\":0}],\"changes\":{\"inputs_or_formulas_edited\":1,\"cell_ids\":[\"cell_1863ebc1f83547458693ac6062791caf\"]},\"calculation_status\":\"not_required\",\"calculation\":{\"engine_version\":\"native-decimal-v1\",\"invalidated\":0,\"recalculated\":0,\"failed\":0,\"results\":[]},\"catalogue_status\":\"refresh_required\",\"accounting_validation\":\"not_run\",\"operation_ref\":\"typed:88bcff60a49148f098e14340e26dd0cc\"}]}"
+        }
+      ],
+      "snapshots": [
+        {
+          "workbook_id": "fe55dc32660d4db897ae53571edd5e48",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4167
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4168
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4167,
+              "resource_id": "tbl_7039f724763746a3a91ca66de3d04d63",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "08a736d2a6f5a4f6d235adb6f8a7dc63cb3becad8b90b6092dd5c594e5d122dc"
+        }
+      ],
+      "final_state": {
+        "target": {
+          "workbook_id": "fe55dc32660d4db897ae53571edd5e48",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4167
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4168
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4167,
+              "resource_id": "tbl_7039f724763746a3a91ca66de3d04d63",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "08a736d2a6f5a4f6d235adb6f8a7dc63cb3becad8b90b6092dd5c594e5d122dc"
+        },
+        "distractor": {
+          "workbook_id": "766ec3362c9a43b2b994897cbfeb26b2",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [0.1, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 1,
+              "sheet_id": 4169
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4170
+            }
+          ],
+          "cells": [
+            {
+              "kind": "decimal",
+              "unit": "USD",
+              "cell_id": "cell_1863ebc1f83547458693ac6062791caf",
+              "sheet_id": 4169,
+              "raw_value": "0.1",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 1,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            }
+          ],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4169,
+              "resource_id": "tbl_e2fdae81eedf40aaab135f91f71d4fc0",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "ba59c93742ba7e1a459930b79bb07e2b8a9e527dccd80dde110b5b35e9995e86"
+        }
+      },
+      "error_type": "AssertionError",
+      "elapsed_seconds": 5.945792958023958
+    },
+    "failure_repair-2": {
+      "status": "failed",
+      "fixture": {
+        "user_id": 12,
+        "target": "ba53bad33e3c42feaf109d22d5f1be2f",
+        "distractor": "d71ef101a80249318012c26090c50b55",
+        "sheets": [
+          4183,
+          4184
+        ]
+      },
+      "responses": [
+        {
+          "route": "/v1/chat",
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "In the workbook named \"Formula acceptance\", Set Inputs!A2 to decimal \"0.1\" with unit USD. Change only the requested cells. Leave all other workbooks unchanged."
+              }
+            ],
+            "spreadsheet_id": "d71ef101a80249318012c26090c50b55"
+          },
+          "status_code": 200,
+          "body": "{\"message\":{\"role\":\"assistant\",\"content\":\"The edit committed successfully.\\n\\n## Result\\n\\n**Done \u2014 Inputs!A2 set to decimal `0.1` (unit USD).**\\n\\n**Committed receipt:**\\n- **Operation:** `edit_typed_cells` \u2014 `op_b7bd6f29309546c78c9de333db3dceef`\\n- **Workbook:** `d71ef101a80249318012c26090c50b55` (\\\"Formula acceptance\\\")\\n- **Cell changed:** `Inputs!A2` (sheet_id 4185, row 2, col 1) \u2192 stable cell ID `cell_9108b0ac9fbd4e4493574f6a25bc0b5c`\\n- **Value:** decimal `0.1`, unit `USD`\\n- **Inputs/formulas edited:** 1\\n- **Sheet revision:** Inputs 0 \u2192 1 (Totals unchanged at 0)\\n- **Calculation status:** `not_required` (no formulas in the workbook; 0 invalidated, 0 recalculated, 0 failed)\\n\\n**Scope:** Only the requested cell was changed. No other cells, sheets, or workbooks were touched.\\n\\n**Notes / limitations:**\\n- The change is a typed *input declaration* \u2014 it writes the supplied value; it does not migrate or reinterpret any existing legacy string or format.\\n- `catalogue_status: refresh_required` \u2014 registered table metadata is now stale relative to the edited sheet. If you later want to run `calculate` or `financial_query` against this workbook, a checked table-authoring refresh should be done first.\\n- `accounting_validation: not_run` \u2014 this receipt confirms the write, not accounting correctness.\",\"attachments\":null},\"session_id\":105,\"processing_time_ms\":8191,\"tools_used\":[\"inspect_typed_workbook\",\"load_skill\",\"prepare_typed_edit\",\"execute_operation\"],\"metadata\":{\"user_name\":\"User\",\"date\":\"Tuesday, 30 June 2026\",\"time\":\"19:22\",\"timezone\":\"GMT+8\"},\"pending_approvals\":[],\"task_id\":\"task:aed458be3fc549318eb1be6bcbb0f918\",\"runtime\":\"main\",\"run_status\":\"answered\",\"operation_references\":[\"typed:1301c35979b94b8ab631a0de454c146f\"],\"operation_receipts\":[{\"operation_id\":\"op_b7bd6f29309546c78c9de333db3dceef\",\"status\":\"committed\",\"operation_type\":\"edit_typed_cells\",\"target\":{\"spreadsheet_id\":\"d71ef101a80249318012c26090c50b55\",\"sheet_id\":4185},\"changed_sheets\":[{\"sheet_id\":4185,\"after_revision\":1}],\"before_revisions\":[{\"sheet_id\":4185,\"revision\":0},{\"sheet_id\":4186,\"revision\":0}],\"changes\":{\"inputs_or_formulas_edited\":1,\"cell_ids\":[\"cell_9108b0ac9fbd4e4493574f6a25bc0b5c\"]},\"calculation_status\":\"not_required\",\"calculation\":{\"engine_version\":\"native-decimal-v1\",\"invalidated\":0,\"recalculated\":0,\"failed\":0,\"results\":[]},\"catalogue_status\":\"refresh_required\",\"accounting_validation\":\"not_run\",\"operation_ref\":\"typed:1301c35979b94b8ab631a0de454c146f\"}]}"
+        }
+      ],
+      "snapshots": [
+        {
+          "workbook_id": "ba53bad33e3c42feaf109d22d5f1be2f",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4183
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4184
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4183,
+              "resource_id": "tbl_a4c47de4380243f782fec6c8c8d994b9",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "7bad67e172d553969da3744bf7f924d9319de44a258fc52d6a4c743fc5b4a739"
+        }
+      ],
+      "final_state": {
+        "target": {
+          "workbook_id": "ba53bad33e3c42feaf109d22d5f1be2f",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4183
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4184
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4183,
+              "resource_id": "tbl_a4c47de4380243f782fec6c8c8d994b9",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "7bad67e172d553969da3744bf7f924d9319de44a258fc52d6a4c743fc5b4a739"
+        },
+        "distractor": {
+          "workbook_id": "d71ef101a80249318012c26090c50b55",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [0.1, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 1,
+              "sheet_id": 4185
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4186
+            }
+          ],
+          "cells": [
+            {
+              "kind": "decimal",
+              "unit": "USD",
+              "cell_id": "cell_9108b0ac9fbd4e4493574f6a25bc0b5c",
+              "sheet_id": 4185,
+              "raw_value": "0.1",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 1,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            }
+          ],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4185,
+              "resource_id": "tbl_130d0e90954847cb9e6123ac545f2727",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "d416d51ee83b9c5784340c580a6a07142506a3a36915c67237ed6c64bbdc3ce2"
+        }
+      },
+      "error_type": "AssertionError",
+      "elapsed_seconds": 8.266436833073385
+    },
+    "approval_resume-0": {
+      "status": "failed",
+      "fixture": {
+        "user_id": 5,
+        "target": "3876991d87094a03830d2c8934c573c7",
+        "distractor": "1e17f9782046427aa8cceb03b81d1ac8",
+        "sheets": [
+          4155,
+          4156
+        ]
+      },
+      "responses": [
+        {
+          "route": "/v1/chat",
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "In the workbook named \"Formula acceptance\", Set Inputs!A2 to decimal \"0.1\" with unit USD. Change only the requested cells. Leave all other workbooks unchanged."
+              }
+            ],
+            "spreadsheet_id": "1e17f9782046427aa8cceb03b81d1ac8"
+          },
+          "status_code": 200,
+          "body": "{\"message\":{\"role\":\"assistant\",\"content\":\"The proposed operation is waiting for your approval. Earlier committed steps remain recorded; the pending operation has not run.\",\"attachments\":null},\"session_id\":98,\"processing_time_ms\":4379,\"tools_used\":[\"inspect_typed_workbook\",\"load_skill\",\"prepare_typed_edit\",\"execute_operation\"],\"metadata\":{\"user_name\":\"User\",\"date\":\"Tuesday, 30 June 2026\",\"time\":\"19:22\",\"timezone\":\"GMT+8\"},\"pending_approvals\":[{\"approval_id\":\"checked:abd7f185c026495fae21c247ca182f6e\",\"action\":\"edit_typed_cells\",\"operation_ref\":\"typed:307d5e0fa26f4566808361de2629050b\",\"proposal\":{\"action\":\"edit_typed_cells\",\"edits\":[{\"action\":\"set_input\",\"column\":1,\"input\":{\"display_format\":null,\"kind\":\"decimal\",\"unit\":\"USD\",\"value\":\"0.1\"},\"row\":2,\"sheet_id\":4157}],\"snapshot\":\"bfa03cf19c99af57283b6a9eee3bc469d6b5129b2abcfb15f57316fc439d3ef4\",\"workbook_id\":\"1e17f9782046427aa8cceb03b81d1ac8\"},\"summary\":\"edit typed cells\",\"rows_affected\":0,\"columns_affected\":0,\"expires_at\":\"2026-09-22T12:45:55.643794+00:00\"}],\"task_id\":\"task:8192ab1c737b453081c22df38df5762d\",\"runtime\":\"main\",\"run_status\":\"awaiting_approval\",\"operation_references\":[\"typed:307d5e0fa26f4566808361de2629050b\"],\"operation_receipts\":[]}"
+        },
+        {
+          "route": "/v1/approvals/checked:abd7f185c026495fae21c247ca182f6e",
+          "request": {
+            "decision": "approve"
+          },
+          "status_code": 200,
+          "body": "{\"approval_id\":\"checked:abd7f185c026495fae21c247ca182f6e\",\"approved\":true,\"operation_ref\":\"typed:307d5e0fa26f4566808361de2629050b\",\"executed\":true,\"result\":{\"operation_id\":\"op_f3f4a094407746c9ab1ebc81bffde9da\",\"status\":\"committed\",\"operation_type\":\"edit_typed_cells\",\"target\":{\"spreadsheet_id\":\"1e17f9782046427aa8cceb03b81d1ac8\",\"sheet_id\":4157},\"changed_sheets\":[{\"sheet_id\":4157,\"after_revision\":1}],\"before_revisions\":[{\"sheet_id\":4157,\"revision\":0},{\"sheet_id\":4158,\"revision\":0}],\"changes\":{\"inputs_or_formulas_edited\":1,\"cell_ids\":[\"cell_2c3e9dd36b264584b70fadd69e4f772a\"]},\"calculation_status\":\"not_required\",\"calculation\":{\"engine_version\":\"native-decimal-v1\",\"invalidated\":0,\"recalculated\":0,\"failed\":0,\"results\":[]},\"catalogue_status\":\"refresh_required\",\"accounting_validation\":\"not_run\",\"operation_ref\":\"typed:307d5e0fa26f4566808361de2629050b\"}}"
+        },
+        {
+          "route": "/v1/tasks/task:8192ab1c737b453081c22df38df5762d/resume",
+          "request": null,
+          "status_code": 200,
+          "body": "{\"message\":{\"role\":\"assistant\",\"content\":\"The edit committed successfully. Here's the summary:\\n\\n## Result\\n\\n**Cell written:** `Inputs!A2` (sheet_id 4157) \u2014 decimal `0.1`, unit `USD`\\n- **Cell ID:** `cell_2c3e9dd36b264584b70fadd69e4f772a`\\n- **Operation:** `op_f3f4a094407746c9ab1ebc81bffde9da` (status: **committed**)\\n- **Sheet revision:** Inputs advanced 0 \u2192 1\\n\\n**Scope:** Only the one requested cell was changed (`inputs_or_formulas_edited: 1`). No other cells, sheets, or workbooks were touched.\\n\\n**Calculation:** `not_required` \u2014 the workbook had no formulas, so nothing needed recalculation (0 invalidated, 0 recalculated, 0 failed).\\n\\n**Caveats:**\\n- `catalogue_status: refresh_required` \u2014 the registered table observation (`tbl_813bd54262b94c67b39210391306e7a7`, range A1:F2) is now stale relative to the new sheet revision. If you plan to run `calculate` or `financial_query` against that table, a checked table-authoring refresh should be done first.\\n- `accounting_validation: not_run` \u2014 this receipt confirms the cell write, not any accounting correctness.\\n\\nNote: A2 falls inside the registered table region (A1:F2). The write itself succeeded, but the table's catalogue metadata now lags the underlying sheet.\",\"attachments\":null},\"session_id\":98,\"processing_time_ms\":2185,\"tools_used\":[\"inspect_typed_workbook\",\"load_skill\",\"prepare_typed_edit\",\"execute_operation\"],\"metadata\":{\"user_name\":\"User\",\"date\":\"Tuesday, 30 June 2026\",\"time\":\"19:22\",\"timezone\":\"GMT+8\"},\"pending_approvals\":[],\"task_id\":\"task:8192ab1c737b453081c22df38df5762d\",\"runtime\":\"main\",\"run_status\":\"answered\",\"operation_references\":[\"typed:307d5e0fa26f4566808361de2629050b\"],\"operation_receipts\":[{\"status\":\"committed\",\"target\":{\"sheet_id\":4157,\"spreadsheet_id\":\"1e17f9782046427aa8cceb03b81d1ac8\"},\"changes\":{\"cell_ids\":[\"cell_2c3e9dd36b264584b70fadd69e4f772a\"],\"inputs_or_formulas_edited\":1},\"calculation\":{\"failed\":0,\"results\":[],\"invalidated\":0,\"recalculated\":0,\"engine_version\":\"native-decimal-v1\"},\"operation_id\":\"op_f3f4a094407746c9ab1ebc81bffde9da\",\"operation_ref\":\"typed:307d5e0fa26f4566808361de2629050b\",\"changed_sheets\":[{\"sheet_id\":4157,\"after_revision\":1}],\"operation_type\":\"edit_typed_cells\",\"before_revisions\":[{\"revision\":0,\"sheet_id\":4157},{\"revision\":0,\"sheet_id\":4158}],\"catalogue_status\":\"refresh_required\",\"calculation_status\":\"not_required\",\"accounting_validation\":\"not_run\"}]}"
+        }
+      ],
+      "snapshots": [
+        {
+          "workbook_id": "3876991d87094a03830d2c8934c573c7",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4155
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4156
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4155,
+              "resource_id": "tbl_b777ceb9c7de4202bd9ea301df24b702",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "76b266d1385af783822710fe3a671572072320707bd981f981200b7fdc756669"
+        }
+      ],
+      "final_state": {
+        "target": {
+          "workbook_id": "3876991d87094a03830d2c8934c573c7",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4155
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4156
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4155,
+              "resource_id": "tbl_b777ceb9c7de4202bd9ea301df24b702",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "76b266d1385af783822710fe3a671572072320707bd981f981200b7fdc756669"
+        },
+        "distractor": {
+          "workbook_id": "1e17f9782046427aa8cceb03b81d1ac8",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [0.1, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 1,
+              "sheet_id": 4157
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4158
+            }
+          ],
+          "cells": [
+            {
+              "kind": "decimal",
+              "unit": "USD",
+              "cell_id": "cell_2c3e9dd36b264584b70fadd69e4f772a",
+              "sheet_id": 4157,
+              "raw_value": "0.1",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 1,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            }
+          ],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4157,
+              "resource_id": "tbl_813bd54262b94c67b39210391306e7a7",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "a046ddca79b47a73fb639af7a7abcb8b02e158e78b6752dadbc7861f12f8a90d"
+        }
+      },
+      "error_type": "AssertionError",
+      "elapsed_seconds": 6.769564416958019
+    },
+    "approval_resume-1": {
+      "status": "failed",
+      "fixture": {
+        "user_id": 9,
+        "target": "e437e294201c439db304d95c7a8809e2",
+        "distractor": "c2f43fb79dd643d6b12e113f8022d9b7",
+        "sheets": [
+          4171,
+          4172
+        ]
+      },
+      "responses": [
+        {
+          "route": "/v1/chat",
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "In the workbook named \"Formula acceptance\", Set Inputs!A2 to decimal \"0.1\" with unit USD. Change only the requested cells. Leave all other workbooks unchanged."
+              }
+            ],
+            "spreadsheet_id": "c2f43fb79dd643d6b12e113f8022d9b7"
+          },
+          "status_code": 200,
+          "body": "{\"message\":{\"role\":\"assistant\",\"content\":\"The proposed operation is waiting for your approval. Earlier committed steps remain recorded; the pending operation has not run.\",\"attachments\":null},\"session_id\":102,\"processing_time_ms\":3706,\"tools_used\":[\"inspect_typed_workbook\",\"load_skill\",\"prepare_typed_edit\",\"execute_operation\"],\"metadata\":{\"user_name\":\"User\",\"date\":\"Tuesday, 30 June 2026\",\"time\":\"19:22\",\"timezone\":\"GMT+8\"},\"pending_approvals\":[{\"approval_id\":\"checked:8692d021cc5d4988b9b5afd3a36430a9\",\"action\":\"edit_typed_cells\",\"operation_ref\":\"typed:02ad69ae9c664cd9ae52c0d3ad04cb6c\",\"proposal\":{\"action\":\"edit_typed_cells\",\"edits\":[{\"action\":\"set_input\",\"column\":1,\"input\":{\"display_format\":null,\"kind\":\"decimal\",\"unit\":\"USD\",\"value\":\"0.1\"},\"row\":2,\"sheet_id\":4173}],\"snapshot\":\"1123723cc98b8e8fc6b88f691902e379fed2fcb9ef54debf58db74f947902039\",\"workbook_id\":\"c2f43fb79dd643d6b12e113f8022d9b7\"},\"summary\":\"edit typed cells\",\"rows_affected\":0,\"columns_affected\":0,\"expires_at\":\"2026-09-22T12:46:22.484212+00:00\"}],\"task_id\":\"task:bf752e68128b480dbae19e9d16c48702\",\"runtime\":\"main\",\"run_status\":\"awaiting_approval\",\"operation_references\":[\"typed:02ad69ae9c664cd9ae52c0d3ad04cb6c\"],\"operation_receipts\":[]}"
+        },
+        {
+          "route": "/v1/approvals/checked:8692d021cc5d4988b9b5afd3a36430a9",
+          "request": {
+            "decision": "approve"
+          },
+          "status_code": 200,
+          "body": "{\"approval_id\":\"checked:8692d021cc5d4988b9b5afd3a36430a9\",\"approved\":true,\"operation_ref\":\"typed:02ad69ae9c664cd9ae52c0d3ad04cb6c\",\"executed\":true,\"result\":{\"operation_id\":\"op_7e738b7e57114471ab776e5ffd0d4be3\",\"status\":\"committed\",\"operation_type\":\"edit_typed_cells\",\"target\":{\"spreadsheet_id\":\"c2f43fb79dd643d6b12e113f8022d9b7\",\"sheet_id\":4173},\"changed_sheets\":[{\"sheet_id\":4173,\"after_revision\":1}],\"before_revisions\":[{\"sheet_id\":4173,\"revision\":0},{\"sheet_id\":4174,\"revision\":0}],\"changes\":{\"inputs_or_formulas_edited\":1,\"cell_ids\":[\"cell_fba64eb990584bda96b6d18e44fb4cd9\"]},\"calculation_status\":\"not_required\",\"calculation\":{\"engine_version\":\"native-decimal-v1\",\"invalidated\":0,\"recalculated\":0,\"failed\":0,\"results\":[]},\"catalogue_status\":\"refresh_required\",\"accounting_validation\":\"not_run\",\"operation_ref\":\"typed:02ad69ae9c664cd9ae52c0d3ad04cb6c\"}}"
+        },
+        {
+          "route": "/v1/tasks/task:bf752e68128b480dbae19e9d16c48702/resume",
+          "request": null,
+          "status_code": 200,
+          "body": "{\"message\":{\"role\":\"assistant\",\"content\":\"The edit committed successfully.\\n\\n**Result: Inputs!A2 set to decimal `0.1` USD \u2014 committed.**\\n\\nDetails from the receipt:\\n- **Cell changed:** `cell_fba64eb990584bda96b6d18e44fb4cd9` on sheet \\\"Inputs\\\" (sheet_id 4173), row 2, column 1\\n- **Edits applied:** 1 input edited (no other cells touched)\\n- **Sheet revision:** Inputs advanced from revision 0 \u2192 1; Totals unchanged at revision 0\\n- **Calculation status:** `not_required` \u2014 the workbook had no formulas, so nothing needed recalculation; 0 failed\\n- **Operation ID:** `op_7e738b7e57114471ab776e5ffd0d4be3`\\n\\nNotes and limitations:\\n- Only the requested cell was changed; no other workbooks or cells were affected.\\n- The receipt shows `catalogue_status: refresh_required` \u2014 the registered table observation is now stale relative to the edited sheet. If you later want to run `calculate` or `financial_query` against this workbook's table, a checked table-authoring refresh would be needed first.\\n- `accounting_validation: not_run` \u2014 this receipt confirms the write, not accounting correctness.\\n\\nWould you like me to refresh the catalogue so the table can be queried, or is the input edit all you needed?\",\"attachments\":null},\"session_id\":102,\"processing_time_ms\":2473,\"tools_used\":[\"inspect_typed_workbook\",\"load_skill\",\"prepare_typed_edit\",\"execute_operation\"],\"metadata\":{\"user_name\":\"User\",\"date\":\"Tuesday, 30 June 2026\",\"time\":\"19:22\",\"timezone\":\"GMT+8\"},\"pending_approvals\":[],\"task_id\":\"task:bf752e68128b480dbae19e9d16c48702\",\"runtime\":\"main\",\"run_status\":\"answered\",\"operation_references\":[\"typed:02ad69ae9c664cd9ae52c0d3ad04cb6c\"],\"operation_receipts\":[{\"status\":\"committed\",\"target\":{\"sheet_id\":4173,\"spreadsheet_id\":\"c2f43fb79dd643d6b12e113f8022d9b7\"},\"changes\":{\"cell_ids\":[\"cell_fba64eb990584bda96b6d18e44fb4cd9\"],\"inputs_or_formulas_edited\":1},\"calculation\":{\"failed\":0,\"results\":[],\"invalidated\":0,\"recalculated\":0,\"engine_version\":\"native-decimal-v1\"},\"operation_id\":\"op_7e738b7e57114471ab776e5ffd0d4be3\",\"operation_ref\":\"typed:02ad69ae9c664cd9ae52c0d3ad04cb6c\",\"changed_sheets\":[{\"sheet_id\":4173,\"after_revision\":1}],\"operation_type\":\"edit_typed_cells\",\"before_revisions\":[{\"revision\":0,\"sheet_id\":4173},{\"revision\":0,\"sheet_id\":4174}],\"catalogue_status\":\"refresh_required\",\"calculation_status\":\"not_required\",\"accounting_validation\":\"not_run\"}]}"
+        }
+      ],
+      "snapshots": [
+        {
+          "workbook_id": "e437e294201c439db304d95c7a8809e2",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4171
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4172
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4171,
+              "resource_id": "tbl_8c77ae8f07444f42b7c2d0771e24f7a0",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "7c3fb35e774b3ec567f3f4e7c7f5a8e5327b162a70a0ab230f11b38a6c254517"
+        }
+      ],
+      "final_state": {
+        "target": {
+          "workbook_id": "e437e294201c439db304d95c7a8809e2",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4171
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4172
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4171,
+              "resource_id": "tbl_8c77ae8f07444f42b7c2d0771e24f7a0",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "7c3fb35e774b3ec567f3f4e7c7f5a8e5327b162a70a0ab230f11b38a6c254517"
+        },
+        "distractor": {
+          "workbook_id": "c2f43fb79dd643d6b12e113f8022d9b7",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [0.1, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 1,
+              "sheet_id": 4173
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4174
+            }
+          ],
+          "cells": [
+            {
+              "kind": "decimal",
+              "unit": "USD",
+              "cell_id": "cell_fba64eb990584bda96b6d18e44fb4cd9",
+              "sheet_id": 4173,
+              "raw_value": "0.1",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 1,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            }
+          ],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4173,
+              "resource_id": "tbl_70f5cd995a10456eb4d0a9dbf39f3834",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "7029d0991f9121661538069044ecc976c614d0c20521174fa2bd15ff235bff4a"
+        }
+      },
+      "error_type": "AssertionError",
+      "elapsed_seconds": 6.351191541994922
+    },
+    "approval_resume-2": {
+      "status": "failed",
+      "fixture": {
+        "user_id": 13,
+        "target": "e7710c0c34de43e3938a296b0248ba9c",
+        "distractor": "0f2773fd76a043fc8041783581156061",
+        "sheets": [
+          4187,
+          4188
+        ]
+      },
+      "responses": [
+        {
+          "route": "/v1/chat",
+          "request": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "In the workbook named \"Formula acceptance\", Set Inputs!A2 to decimal \"0.1\" with unit USD. Change only the requested cells. Leave all other workbooks unchanged."
+              }
+            ],
+            "spreadsheet_id": "0f2773fd76a043fc8041783581156061"
+          },
+          "status_code": 200,
+          "body": "{\"message\":{\"role\":\"assistant\",\"content\":\"The proposed operation is waiting for your approval. Earlier committed steps remain recorded; the pending operation has not run.\",\"attachments\":null},\"session_id\":106,\"processing_time_ms\":5162,\"tools_used\":[\"inspect_typed_workbook\",\"load_skill\",\"inspect_sheet_region\",\"prepare_typed_edit\",\"execute_operation\"],\"metadata\":{\"user_name\":\"User\",\"date\":\"Tuesday, 30 June 2026\",\"time\":\"19:22\",\"timezone\":\"GMT+8\"},\"pending_approvals\":[{\"approval_id\":\"checked:1b37799c4b6f48eebcbe43bfef630774\",\"action\":\"edit_typed_cells\",\"operation_ref\":\"typed:a22bba4071004f15911a683b9ffe77a6\",\"proposal\":{\"action\":\"edit_typed_cells\",\"edits\":[{\"action\":\"set_input\",\"column\":1,\"input\":{\"display_format\":null,\"kind\":\"decimal\",\"unit\":\"USD\",\"value\":\"0.1\"},\"row\":2,\"sheet_id\":4189}],\"snapshot\":\"13479a3646b6a61432158044f297744d2bb6174665cc09e3445460aac660fa21\",\"workbook_id\":\"0f2773fd76a043fc8041783581156061\"},\"summary\":\"edit typed cells\",\"rows_affected\":0,\"columns_affected\":0,\"expires_at\":\"2026-09-22T12:46:55.628421+00:00\"}],\"task_id\":\"task:95e3ffdd3b784217b2e6c48cfb2990d4\",\"runtime\":\"main\",\"run_status\":\"awaiting_approval\",\"operation_references\":[\"typed:a22bba4071004f15911a683b9ffe77a6\"],\"operation_receipts\":[]}"
+        },
+        {
+          "route": "/v1/approvals/checked:1b37799c4b6f48eebcbe43bfef630774",
+          "request": {
+            "decision": "approve"
+          },
+          "status_code": 200,
+          "body": "{\"approval_id\":\"checked:1b37799c4b6f48eebcbe43bfef630774\",\"approved\":true,\"operation_ref\":\"typed:a22bba4071004f15911a683b9ffe77a6\",\"executed\":true,\"result\":{\"operation_id\":\"op_c819e18c4870425f9ce629eff6066594\",\"status\":\"committed\",\"operation_type\":\"edit_typed_cells\",\"target\":{\"spreadsheet_id\":\"0f2773fd76a043fc8041783581156061\",\"sheet_id\":4189},\"changed_sheets\":[{\"sheet_id\":4189,\"after_revision\":1}],\"before_revisions\":[{\"sheet_id\":4189,\"revision\":0},{\"sheet_id\":4190,\"revision\":0}],\"changes\":{\"inputs_or_formulas_edited\":1,\"cell_ids\":[\"cell_b9ba0327b62f447a86aecadd789a9297\"]},\"calculation_status\":\"not_required\",\"calculation\":{\"engine_version\":\"native-decimal-v1\",\"invalidated\":0,\"recalculated\":0,\"failed\":0,\"results\":[]},\"catalogue_status\":\"refresh_required\",\"accounting_validation\":\"not_run\",\"operation_ref\":\"typed:a22bba4071004f15911a683b9ffe77a6\"}}"
+        },
+        {
+          "route": "/v1/tasks/task:95e3ffdd3b784217b2e6c48cfb2990d4/resume",
+          "request": null,
+          "status_code": 200,
+          "body": "{\"message\":{\"role\":\"assistant\",\"content\":\"The edit is committed. Here is the outcome:\\n\\n**Committed edit**\\n- **Workbook:** \\\"Formula acceptance\\\" (`0f2773fd76a043fc8041783581156061`)\\n- **Cell:** `Inputs!A2` (sheet_id 4189, row 2, column 1) \u2192 cell ID `cell_b9ba0327b62f447a86aecadd789a9297`\\n- **Value written:** decimal `0.1`, unit **USD**\\n- **Scope:** 1 cell edited; no other cells changed. Only this workbook was touched.\\n- **Operation:** `op_c819e18c4870425f9ce629eff6066594` (ref `typed:a22bba4071004f15911a683b9ffe77a6`)\\n- **Sheet revision:** Inputs 0 \u2192 1\\n\\n**Status notes**\\n- `calculation_status: not_required` \u2014 the workbook had no formulas, so nothing needed recalculation (0 invalidated, 0 recalculated, 0 failed).\\n- `catalogue_status: refresh_required` \u2014 the typed edit left the registered table observation stale. The Inputs sheet contains a registered table (\\\"Formula distractor\\\", A1:F2). If you plan to run `calculate` or `financial_query` against it, a checked table-authoring refresh is needed first. I have not performed that refresh, since it wasn't requested.\\n- `accounting_validation: not_run` \u2014 this receipt confirms the write, not accounting correctness.\\n\\nOne thing worth flagging: the registered table on this sheet is named **\\\"Formula distractor\\\"** and covers A1:F2, which includes the cell I just wrote. If that table's purpose is to test formula behavior, note that A2 now holds a managed decimal input of `0.1` USD. Let me know if you'd like me to refresh the catalogue or inspect anything further.\",\"attachments\":null},\"session_id\":106,\"processing_time_ms\":2652,\"tools_used\":[\"inspect_typed_workbook\",\"load_skill\",\"inspect_sheet_region\",\"prepare_typed_edit\",\"execute_operation\"],\"metadata\":{\"user_name\":\"User\",\"date\":\"Tuesday, 30 June 2026\",\"time\":\"19:22\",\"timezone\":\"GMT+8\"},\"pending_approvals\":[],\"task_id\":\"task:95e3ffdd3b784217b2e6c48cfb2990d4\",\"runtime\":\"main\",\"run_status\":\"answered\",\"operation_references\":[\"typed:a22bba4071004f15911a683b9ffe77a6\"],\"operation_receipts\":[{\"status\":\"committed\",\"target\":{\"sheet_id\":4189,\"spreadsheet_id\":\"0f2773fd76a043fc8041783581156061\"},\"changes\":{\"cell_ids\":[\"cell_b9ba0327b62f447a86aecadd789a9297\"],\"inputs_or_formulas_edited\":1},\"calculation\":{\"failed\":0,\"results\":[],\"invalidated\":0,\"recalculated\":0,\"engine_version\":\"native-decimal-v1\"},\"operation_id\":\"op_c819e18c4870425f9ce629eff6066594\",\"operation_ref\":\"typed:a22bba4071004f15911a683b9ffe77a6\",\"changed_sheets\":[{\"sheet_id\":4189,\"after_revision\":1}],\"operation_type\":\"edit_typed_cells\",\"before_revisions\":[{\"revision\":0,\"sheet_id\":4189},{\"revision\":0,\"sheet_id\":4190}],\"catalogue_status\":\"refresh_required\",\"calculation_status\":\"not_required\",\"accounting_validation\":\"not_run\"}]}"
+        }
+      ],
+      "snapshots": [
+        {
+          "workbook_id": "e7710c0c34de43e3938a296b0248ba9c",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4187
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4188
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4187,
+              "resource_id": "tbl_6b7d232ad03d420d9ec96e2ceadebaef",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "4b5b5ee3496f316e03dc46e9b83a58e1a7c6365726448e226103d0dfbd8253ba"
+        }
+      ],
+      "final_state": {
+        "target": {
+          "workbook_id": "e7710c0c34de43e3938a296b0248ba9c",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [null, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 0,
+              "sheet_id": 4187
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4188
+            }
+          ],
+          "cells": [],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4187,
+              "resource_id": "tbl_6b7d232ad03d420d9ec96e2ceadebaef",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "4b5b5ee3496f316e03dc46e9b83a58e1a7c6365726448e226103d0dfbd8253ba"
+        },
+        "distractor": {
+          "workbook_id": "0f2773fd76a043fc8041783581156061",
+          "sheets": [
+            {
+              "grid": "[[\"Amount\", \"Code\", \"Approved\", \"Date\", \"Large\", \"Fraction\"], [0.1, null, null, null, null, null]]",
+              "title": "Inputs",
+              "revision": 1,
+              "sheet_id": 4189
+            },
+            {
+              "grid": "[[\"Total\"], [null]]",
+              "title": "Totals",
+              "revision": 0,
+              "sheet_id": 4190
+            }
+          ],
+          "cells": [
+            {
+              "kind": "decimal",
+              "unit": "USD",
+              "cell_id": "cell_b9ba0327b62f447a86aecadd789a9297",
+              "sheet_id": 4189,
+              "raw_value": "0.1",
+              "expression": null,
+              "row_number": 2,
+              "dependencies": [],
+              "column_number": 1,
+              "display_format": null,
+              "engine_version": null,
+              "calculated_value": null,
+              "calculation_error": null,
+              "calculation_status": "input"
+            }
+          ],
+          "tables": [
+            {
+              "revision": 1,
+              "sheet_id": 4189,
+              "resource_id": "tbl_ccb018a5c2f24ea5a8d439c0935b5ba7",
+              "table_range": "A1:F2"
+            }
+          ],
+          "snapshot": "569cd2757e59cf7bd9d6c6539577ef22393dd1ab88893a2ff26b988de830d5f4"
+        }
+      },
+      "error_type": "AssertionError",
+      "elapsed_seconds": 7.989807125064544
+    }
+  }
+}
