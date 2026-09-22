@@ -131,6 +131,7 @@ class MainAgent:
         operations: OperationExecutor | None = None,
         archive_tools: tuple[StructuredTool, ...] = (),
         authoring: AuthoringReader | None = None,
+        memory_tool: StructuredTool | None = None,
     ) -> None:
         """Accept the same configured chat model used for runtime comparisons.
 
@@ -141,6 +142,7 @@ class MainAgent:
             operations: Explicit opt-in executor for durable checked appends.
             archive_tools: Server-bound document retrieval tools for chat.
             authoring: Optional owner-checked table placement reader.
+            memory_tool: Optional server-bound read-only context capability.
         """
         self._model = model
         self._catalogue = catalogue
@@ -148,6 +150,7 @@ class MainAgent:
         self._operations = operations
         self._archive_tools = archive_tools
         self._authoring = authoring
+        self._memory_tool = memory_tool
         self._registry = SkillRegistry()
         self._prompt = build_system_prompt(
             self._registry, APPEND_CONTRACT if operations is not None else READ_CONTRACT
@@ -256,6 +259,10 @@ class _RunSession:
             ):
                 raise ValueError("Invalid or duplicate archive capability")
             self.tools[tool.name] = tool
+        if agent._memory_tool is not None:
+            if agent._memory_tool.name != "read_memory_document":
+                raise ValueError("Invalid memory capability")
+            self.tools[agent._memory_tool.name] = agent._memory_tool
         self.model = agent._model.bind_tools(list(self.tools.values()))
 
     async def load_skill(self, **arguments: Any) -> dict[str, str]:

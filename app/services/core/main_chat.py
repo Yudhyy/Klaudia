@@ -13,6 +13,8 @@ from langchain_core.language_models.chat_models import BaseChatModel
 
 from app.models.chat import ChatMetadata
 from app.services.core.archive_tools import ArchiveTools
+from app.services.memory.store import MemoryDocumentStore
+from app.services.memory.tools import MemoryTools
 from app.services.core.observability import LangfuseService
 from app.services.extraction.infra.db_client import AppDBClient
 from klaudia.core.agent.agent import (
@@ -239,6 +241,7 @@ class MainChatService:
         langfuse: LangfuseService | None = None,
         tasks: TaskStore | None = None,
         authoring: AuthoringReader | None = None,
+        memory_documents: MemoryDocumentStore | None = None,
     ) -> None:
         """Share immutable dependencies while each turn creates local execution state.
 
@@ -249,6 +252,8 @@ class MainChatService:
             operations: Optional checked-append service.
             langfuse: Existing callback and trace configuration.
             tasks: Durable task storage used by production main chat.
+            authoring: Optional owner-checked table placement reader.
+            memory_documents: Optional human-authored context store for on-demand reads.
         """
         self._model = model
         self._catalogue = catalogue
@@ -257,6 +262,7 @@ class MainChatService:
         self._langfuse = langfuse
         self._tasks = tasks
         self._authoring = authoring
+        self._memory_documents = memory_documents
 
     async def run(self, turn: MainChatTurn) -> RunOutcome:
         """Load history, persist inputs and execute once without automatic retries.
@@ -389,6 +395,11 @@ class MainChatService:
             operations=executor,
             archive_tools=ArchiveTools(self._database, turn.user_id).tools,
             authoring=self._authoring,
+            memory_tool=(
+                MemoryTools(self._memory_documents, turn.user_id).read_tool
+                if self._memory_documents is not None
+                else None
+            ),
         )
         config = (
             self._langfuse.langchain_config(

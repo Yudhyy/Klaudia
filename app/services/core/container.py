@@ -292,6 +292,7 @@ class KlaudiaContainer:
                 operations=OperationService(container.ledger_store),
                 tasks=container.tasks,
                 authoring=container.authoring,
+                memory_documents=container.memory_documents,
                 langfuse=container.langfuse,
             )
         container.supervisor = SupervisorAgent(
