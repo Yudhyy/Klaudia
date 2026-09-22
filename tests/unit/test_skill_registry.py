@@ -38,9 +38,10 @@ def test_append_procedure_versions_literal_value_preservation():
 def test_formula_procedure_requires_named_workbook_evidence():
     """An active UI hint cannot stand in for a user's named destination."""
     procedure = SkillRegistry().load("decimal-formulas")
-    assert procedure["version"] == "3"
+    assert procedure["version"] == "4"
     assert "workbook_name" in procedure["content"]
     assert "search_resources" in procedure["content"]
     assert "Never assume the active workbook" in procedure["content"]
     assert "formula removal is not supported" in procedure["content"]
-    assert "dependent cells whose cached results changed" in procedure["content"]
+    assert "dependent formula result that changed" in procedure["content"]
+    assert "cached value belong to the same target cell" in procedure["content"]
