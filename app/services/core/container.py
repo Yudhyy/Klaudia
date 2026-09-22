@@ -8,6 +8,7 @@ from config.settings import Settings
 from app.services.core.llm_client import LLMClient
 from app.services.core.observability import LangfuseService
 from app.services.extraction.infra.db_client import AppDBClient
+from app.services.memory.store import MemoryDocumentStore
 from app.services.extraction.infra.dedup_cache import DedupCache
 from app.services.extraction.infra.kie_client import KIEClient
 from app.services.extraction.infra.object_store import MinIOClient
@@ -160,6 +161,7 @@ class KlaudiaContainer:
         self.llm_client: Optional[LLMClient] = None
         self.kie_client: Optional[KIEClient] = None
         self.db_client: Optional[AppDBClient] = None
+        self.memory_documents: Optional[MemoryDocumentStore] = None
         self.dedup_cache: Optional[DedupCache] = None
         self.object_store: Optional[MinIOClient] = None
         self.ingest_service: Optional[IngestService] = None
@@ -188,6 +190,8 @@ class KlaudiaContainer:
         container.kie_client = KIEClient(settings, langfuse=container.langfuse)
         container.db_client = AppDBClient(settings)
         await container.db_client.connect()
+        container.memory_documents = MemoryDocumentStore(container.db_client.pool)
+        await container.memory_documents.initialize()
         container.dedup_cache = DedupCache(settings)
         try:
             await container.dedup_cache.connect()

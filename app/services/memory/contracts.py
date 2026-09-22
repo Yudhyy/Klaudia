@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 MAX_DOCUMENT_BYTES = 8192
+MAX_EXPECTED_REVISION = 2**63 - 2
 
 
 class DocumentPath(StrEnum):
@@ -22,7 +23,7 @@ class DocumentEdit(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    expected_revision: int = Field(ge=0, strict=True)
+    expected_revision: int = Field(ge=0, le=MAX_EXPECTED_REVISION, strict=True)
     content: str
     source_note: str = Field(default="", max_length=512)
 
