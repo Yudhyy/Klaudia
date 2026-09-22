@@ -31,6 +31,7 @@ class FakeOrchestrator:
 
 @pytest.fixture
 async def client(monkeypatch, postgres_db) -> AsyncIterator[httpx.AsyncClient]:
+    monkeypatch.setenv("RATE_LIMIT_ENABLED", "true")
     monkeypatch.setenv("RATE_LIMIT_AUTH", "3/minute")
     monkeypatch.setenv("RATE_LIMIT_CHAT", "2/minute")
     settings_mod.get_settings.cache_clear()
