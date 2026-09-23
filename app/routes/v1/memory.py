@@ -105,6 +105,11 @@ async def write_document(
     Raises:
         HTTPException: The expected revision is stale.
     """
+    if body.policy is not None and path != DocumentPath.ACCOUNTING_POLICY:
+        raise HTTPException(
+            status_code=422,
+            detail="Structured policy belongs only to /accounting-policy.md",
+        )
     try:
         return await store.write(user_id, path, body)
     except DocumentConflict as exc:

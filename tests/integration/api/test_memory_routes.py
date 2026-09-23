@@ -121,3 +121,27 @@ async def test_reject_revision_outside_database_range(memory_client):
         url, headers=headers(), params={"expected_revision": oversized}
     )
     assert deleted.status_code == 422
+
+
+async def test_policy_http_scope_and_exact_roundtrip(memory_client):
+    """Keep typed policy owner-scoped and reject policy on preference paths."""
+    from tests.unit.test_accounting_policy import policy_fields
+
+    payload = {"expected_revision": 0, "content": "Policy", "policy": policy_fields()}
+    rejected = await memory_client.put(
+        "/v1/memory/preferences.md", headers=headers(), json=payload
+    )
+    assert rejected.status_code == 422
+    saved = await memory_client.put(
+        "/v1/memory/accounting-policy.md", headers=headers(), json=payload
+    )
+    assert saved.status_code == 200
+    assert saved.json()["policy"] == policy_fields()
+    other = await memory_client.get(
+        "/v1/memory/accounting-policy.md", headers=headers(2)
+    )
+    assert other.json()["policy"] is None
+    stale = await memory_client.put(
+        "/v1/memory/accounting-policy.md", headers=headers(), json=payload
+    )
+    assert stale.status_code == 409

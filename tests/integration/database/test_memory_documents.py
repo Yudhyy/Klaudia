@@ -159,3 +159,55 @@ def test_document_accepts_exact_utf8_budget():
     """Keep exact text at the maximum supported byte count."""
     content = "€" * 2730 + "ab"
     assert DocumentEdit(expected_revision=0, content=content).content == content
+
+
+async def test_policy_metadata_tracks_history_and_tombstones(documents, postgres_db):
+    """Commit exact policy with prose and clear both on replacement or deletion."""
+    import json
+    from tests.unit.test_accounting_policy import policy_fields
+
+    path = DocumentPath.ACCOUNTING_POLICY
+    created = await documents.write(
+        1,
+        path,
+        DocumentEdit(expected_revision=0, content="Policy", policy=policy_fields()),
+    )
+    assert created.policy.model_dump(mode="json") == policy_fields()
+    assert (await documents.read(1, path)).policy == created.policy
+    await documents.initialize()
+    assert (await documents.read(1, path)).policy == created.policy
+    replaced = await documents.write(
+        1, path, DocumentEdit(expected_revision=1, content="Prose only")
+    )
+    assert replaced.policy is None
+    restored = await documents.write(
+        1,
+        path,
+        DocumentEdit(expected_revision=2, content="Policy", policy=policy_fields()),
+    )
+    deleted = await documents.delete(1, path, restored.revision)
+    assert deleted.policy is None
+    rows = await postgres_db.fetchall(
+        "SELECT policy FROM memory_document_revision WHERE user_id = 1 AND path = $1 ORDER BY revision",
+        (path,),
+    )
+    assert [json.loads(row["policy"]) if row["policy"] else None for row in rows] == [
+        policy_fields(),
+        None,
+        policy_fields(),
+        None,
+    ]
+
+
+async def test_policy_metadata_cannot_attach_to_preferences(documents):
+    """Keep preferences from silently acting as executable accounting policy."""
+    from tests.unit.test_accounting_policy import policy_fields
+
+    with pytest.raises(ValueError, match="accounting-policy"):
+        await documents.write(
+            1,
+            DocumentPath.PREFERENCES,
+            DocumentEdit(
+                expected_revision=0, content="Preference", policy=policy_fields()
+            ),
+        )

@@ -4,6 +4,8 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Literal
 
+from app.services.memory.policy import ReconciliationPolicy
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 MAX_DOCUMENT_BYTES = 8192
@@ -25,6 +27,7 @@ class DocumentEdit(BaseModel):
 
     expected_revision: int = Field(ge=0, le=MAX_EXPECTED_REVISION, strict=True)
     content: str
+    policy: ReconciliationPolicy | None = None
     source_note: str = Field(default="", max_length=512)
 
     @field_validator("source_note")
@@ -75,6 +78,7 @@ class MemoryDocument(BaseModel):
     revision: int = 0
     status: Literal["missing", "active", "deleted"] = "missing"
     content: str | None = None
+    policy: ReconciliationPolicy | None = None
     actor_id: int | None = None
     updated_at: datetime | None = None
     source_note: str = ""
