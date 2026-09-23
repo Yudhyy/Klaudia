@@ -15,6 +15,7 @@ from app.models.chat import ChatMetadata
 from app.services.core.archive_tools import ArchiveTools
 from app.services.memory.store import MemoryDocumentStore
 from app.services.memory.tools import MemoryTools
+from app.services.memory.reconciliation import PolicyReconciliationTools
 from app.services.core.observability import LangfuseService
 from app.services.extraction.infra.db_client import AppDBClient
 from klaudia.core.agent.agent import (
@@ -395,6 +396,13 @@ class MainChatService:
             operations=executor,
             archive_tools=ArchiveTools(self._database, turn.user_id).tools,
             authoring=self._authoring,
+            reconciliation_tool=(
+                PolicyReconciliationTools(
+                    self._memory_documents, self._catalogue, turn.user_id
+                ).tool
+                if self._memory_documents is not None
+                else None
+            ),
             memory_tool=(
                 MemoryTools(self._memory_documents, turn.user_id).read_tool
                 if self._memory_documents is not None

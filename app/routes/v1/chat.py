@@ -10,6 +10,7 @@ from app.helpers.ratelimit import chat_limit, limiter
 from app.models.chat import KlaudiaRequest, KlaudiaResponse
 from ledger.store import SpreadsheetNotFoundError
 from ledger.resources import ResourceNotFoundError
+from ledger.errors import RevisionConflictError
 from app.services.workflow.store import TaskBusyError, TaskConflictError
 
 logger = logging.getLogger(__name__)
@@ -69,7 +70,7 @@ async def chat(
         )
     except (SpreadsheetNotFoundError, ResourceNotFoundError):
         raise HTTPException(status_code=404, detail="Spreadsheet not found")
-    except (TaskBusyError, TaskConflictError) as exc:
+    except (TaskBusyError, TaskConflictError, RevisionConflictError) as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 
 

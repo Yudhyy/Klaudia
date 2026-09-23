@@ -7,6 +7,7 @@ from app.helpers.ratelimit import chat_limit, limiter
 from app.models.chat import KlaudiaResponse
 from app.services.workflow.store import TaskBusyError, TaskStore
 from ledger.resources import ResourceNotFoundError
+from ledger.errors import RevisionConflictError
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -50,7 +51,7 @@ async def get_task(
     """
     try:
         return await _store(request).view(user_id, task_id)
-    except TaskBusyError as exc:
+    except (TaskBusyError, RevisionConflictError) as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     except ResourceNotFoundError:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -80,7 +81,7 @@ async def resume_task(
         return await request.app.state.orchestrator.resume_task(user_id, task_id)
     except ResourceNotFoundError:
         raise HTTPException(status_code=404, detail="Task not found")
-    except TaskBusyError as exc:
+    except (TaskBusyError, RevisionConflictError) as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 
 
@@ -109,5 +110,5 @@ async def list_tasks(
         return await _store(request).list_session(user_id, session_id, offset=offset)
     except ResourceNotFoundError:
         raise HTTPException(status_code=404, detail="Session not found")
-    except TaskBusyError as exc:
+    except (TaskBusyError, RevisionConflictError) as exc:
         raise HTTPException(status_code=409, detail=str(exc))

@@ -150,7 +150,7 @@ class DiscoveryTools:
             StructuredTool.from_function(
                 coroutine=self._financial_query,
                 name="financial_query",
-                description="Read bounded records, sort, look up unique records, join, reconcile, age balances or calculate variance over inspected registered tables. Load financial-execution for policies. Inspect every source first. Exact labelled evidence includes source revisions and stable column IDs. Read-only; no formulas or arbitrary expressions.",
+                description="Read bounded records, sort, look up unique records, join, age balances or calculate variance over inspected registered tables. Load financial-execution for policies. Inspect every source first. Exact labelled evidence includes source revisions and stable column IDs. Use reconcile_with_policy for reconciliation. Read-only; no formulas or arbitrary expressions.",
                 args_schema=FinancialRequest,
             ),
         )
@@ -349,6 +349,10 @@ class DiscoveryTools:
             ResourceNotFoundError: A table is absent or no longer owned.
         """
         request = FinancialRequest.model_validate(arguments)
+        if request.query.operation == "reconcile":
+            raise ValueError(
+                "Use reconcile_with_policy; saved accounting policy is required"
+            )
         identities = source_ids(request)
         async with self._lock:
             references = [self.reference(identity) for identity in identities]

@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from klaudia.core.agent.writes import ExecuteOperation
 
 from ledger.resources import ResourceNotFoundError
+from ledger.errors import RevisionConflictError
 from ledger.approvals import approval_payload
 from ledger.table_operations import (
     TableAppendProposal,
@@ -448,10 +449,20 @@ class TaskStore:
                 )
             elif name == "inspect_resource":
                 workbooks.add(evidence["spreadsheet_id"])
-            elif name == "financial_query":
+            elif name in {"financial_query", "reconcile_with_policy"}:
                 workbooks.update(
                     source["spreadsheet_id"] for source in evidence["sources"]
                 )
+                if name == "reconcile_with_policy":
+                    revision = await connection.fetchval(
+                        "SELECT revision FROM memory_document WHERE user_id = $1 "
+                        "AND path = '/accounting-policy.md' AND status = 'active'",
+                        record["user_id"],
+                    )
+                    if revision != evidence["policy_evidence"]["revision"]:
+                        raise RevisionConflictError(
+                            "Saved reconciliation policy changed; start a new task"
+                        )
             elif name == "execute_operation" and evidence.get("status") == "committed":
                 workbooks.add(evidence["target"]["spreadsheet_id"])
             elif name == "search_documents":

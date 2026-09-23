@@ -57,6 +57,14 @@ def prompt(operation: str) -> str:
         "aging": "Age the signed outstanding Amount in Actuals using Due as the due date and 2026-09-13 as the as-of date. Use inclusive overdue upper bounds [30, 60, 90], with separate not_due and due_today buckets. right_unit_column must be null.",
         "variance": "Calculate Actuals Amount minus Baselines Amount by exact ID. Reject null keys. Use direction left_minus_right, zero_baseline null, percentage_places 2 and ROUND_HALF_EVEN. The signed baseline is Baselines Amount. Include unmatched sides. Use offset 0 and limit 100.",
     }
+    if operation == "reconcile":
+        return (
+            "Load policy-reconciliation and read /accounting-policy.md. "
+            "Use saved policy for entity Financial fixture, jurisdiction fixture-only, "
+            "as_of 2026-09-13. "
+            + requests[operation]
+            + " Both unit columns are Currency. Use reconcile_with_policy and report its labelled evidence."
+        )
     policy = " For financial amounts, numeric_text=reject, null_amounts=reject, unit=USD, left_unit_column=Currency and right_unit_column=Currency, except aging where the right column is null."
     return (
         "Load financial-execution and inspect the registered tables in this workbook. "
@@ -133,6 +141,8 @@ def check_evidence(operation: str, evidence: dict) -> None:
             for row in evidence["records"]
         ] == ["100", "0", None, None]
     elif operation == "reconcile":
+        assert evidence["policy_evidence"]["revision"] == 1
+        assert evidence["accounting_validation"] == "policy_parameters_checked"
         assert evidence["status_counts"] == {
             "different": 2,
             "left_only": 2,
@@ -196,7 +206,7 @@ def financial_report():
         "provider": settings.model_provider,
         "temperature": settings.llm_temperature,
         "disable_thinking": settings.llm_disable_thinking,
-        "fixture_version": 1,
+        "fixture_version": 2,
         "git_revision": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], text=True
         ).strip(),
@@ -255,9 +265,32 @@ async def test_financial_live(operation, container, orchestrator, financial_repo
                             table_range=region,
                             name=title,
                             grain="one row per ID",
+                            entity="Financial fixture",
                         ),
                     )
                     table_ids[title] = registered["table_id"]
+                if operation == "reconcile":
+                    from app.services.memory.contracts import DocumentEdit, DocumentPath
+
+                    await container.memory_documents.write(
+                        user_id,
+                        DocumentPath.ACCOUNTING_POLICY,
+                        DocumentEdit(
+                            expected_revision=0,
+                            content="Synthetic fixture policy",
+                            policy={
+                                "entity": "Financial fixture",
+                                "jurisdiction": "fixture-only",
+                                "effective_from": "2026-01-01",
+                                "effective_until": "2026-12-31",
+                                "unit": "USD",
+                                "numeric_text": "reject",
+                                "null_amounts": "reject",
+                                "null_keys": "reject",
+                                "tolerance": "0",
+                            },
+                        ),
+                    )
                 started = time.monotonic()
                 response = await orchestrator.process(
                     [KlaudiaMessage(role="user", content=prompt(operation))],
@@ -277,7 +310,7 @@ async def test_financial_live(operation, container, orchestrator, financial_repo
                 evidence = [
                     json.loads(encoded)
                     for name, _, encoded in checkpoint["evidence"]
-                    if name == "financial_query"
+                    if name in {"financial_query", "reconcile_with_policy"}
                 ]
                 observed["financial_evidence"] = evidence
                 observed["actual_state"] = {

@@ -145,13 +145,13 @@ async def test_financial_tool_requires_both_inspections_and_invalidates_stale_re
     store, catalogue, _, tables = financial_setup
     discovery = DiscoveryTools(CatalogueService(catalogue), TaskContext(user_id=90211))
     tools = {tool.name: tool for tool in discovery.tools}
-    arguments = reconciliation(tables).model_dump(mode="json", exclude={"sources"})
+    arguments = variance_arguments(tables)
     await tools["inspect_resource"].ainvoke({"table_id": tables[0]["table_id"]})
     with pytest.raises(ValueError, match="Inspect"):
         await tools["financial_query"].ainvoke(arguments)
     await tools["inspect_resource"].ainvoke({"table_id": tables[1]["table_id"]})
     evidence = await tools["financial_query"].ainvoke(arguments)
-    assert evidence["records"][0]["status"] == "different"
+    assert evidence["records"][0]["status"] == "compared"
     await store.pool.execute(
         "UPDATE ledger_sheet SET grid = grid WHERE sheet_id = $1", tables[1]["sheet_id"]
     )
@@ -258,7 +258,7 @@ async def test_scripted_main_agent_retains_financial_evidence(financial_setup):
             call("inspect_resource", {"table_id": tables[1]["table_id"]}, "right"),
             call(
                 "financial_query",
-                reconciliation(tables).model_dump(mode="json", exclude={"sources"}),
+                variance_arguments(tables),
                 "query",
             ),
             AIMessage(content="The amount difference is 0.023456789012345678901 USD."),
@@ -272,3 +272,18 @@ async def test_scripted_main_agent_retains_financial_evidence(financial_setup):
     assert outcome.tool_evidence[-1][0] == "financial_query"
     assert len(outcome.working_set) == 2
     assert outcome.operation_receipts == ()
+
+
+def variance_arguments(tables):
+    """Exercise generic two-source reads without bypassing saved reconciliation policy."""
+    arguments = reconciliation(tables).model_dump(mode="json", exclude={"sources"})
+    query = arguments["query"]
+    query.pop("tolerance")
+    query.update(
+        operation="variance",
+        direction="left_minus_right",
+        zero_baseline="null",
+        percentage_places=2,
+        rounding="ROUND_HALF_EVEN",
+    )
+    return arguments

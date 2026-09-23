@@ -19,14 +19,19 @@ class SkillDescription:
 
 _SKILLS = (
     SkillDescription(
+        "policy-reconciliation",
+        "1",
+        "Reconcile owned tables under saved structured accounting policy, with checked entity, dates, unit columns and revision-bound evidence.",
+    ),
+    SkillDescription(
         "decimal-formulas",
         "4",
         "Declare typed inputs and native exact-decimal formulas, inspect same-workbook dependencies, choose explicit financial rounding and verify recalculation receipts.",
     ),
     SkillDescription(
         "financial-execution",
-        "1",
-        "Read bounded records, sort, look up, join, reconcile, age balances and calculate variance with explicit numeric policies and labelled evidence.",
+        "2",
+        "Read bounded records, sort, look up, join, age balances and calculate variance with explicit numeric policies and labelled evidence.",
     ),
     SkillDescription(
         "table-authoring",

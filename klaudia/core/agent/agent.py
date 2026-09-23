@@ -132,6 +132,7 @@ class MainAgent:
         archive_tools: tuple[StructuredTool, ...] = (),
         authoring: AuthoringReader | None = None,
         memory_tool: StructuredTool | None = None,
+        reconciliation_tool: StructuredTool | None = None,
     ) -> None:
         """Accept the same configured chat model used for runtime comparisons.
 
@@ -143,6 +144,7 @@ class MainAgent:
             archive_tools: Server-bound document retrieval tools for chat.
             authoring: Optional owner-checked table placement reader.
             memory_tool: Optional server-bound read-only context capability.
+            reconciliation_tool: Optional server-bound policy-checked reconciliation.
         """
         self._model = model
         self._catalogue = catalogue
@@ -151,6 +153,7 @@ class MainAgent:
         self._archive_tools = archive_tools
         self._authoring = authoring
         self._memory_tool = memory_tool
+        self._reconciliation_tool = reconciliation_tool
         self._registry = SkillRegistry()
         self._prompt = build_system_prompt(
             self._registry, APPEND_CONTRACT if operations is not None else READ_CONTRACT
@@ -263,6 +266,10 @@ class _RunSession:
             if agent._memory_tool.name != "read_memory_document":
                 raise ValueError("Invalid memory capability")
             self.tools[agent._memory_tool.name] = agent._memory_tool
+        if agent._reconciliation_tool is not None:
+            if agent._reconciliation_tool.name != "reconcile_with_policy":
+                raise ValueError("Invalid reconciliation capability")
+            self.tools[agent._reconciliation_tool.name] = agent._reconciliation_tool
         self.model = agent._model.bind_tools(list(self.tools.values()))
 
     async def load_skill(self, **arguments: Any) -> dict[str, str]:
@@ -478,6 +485,8 @@ class _RunSession:
             detail = "Table or operation not found"
         except RevisionConflictError:
             detail = "Source or catalogue changed; inspect again and refresh stale metadata before proposing new work. Retry existing operations only by their stored reference."
+            if call["name"] == "reconcile_with_policy":
+                detail = "Policy or source changed. Use read_memory_document to reread /accounting-policy.md, inspect sources and refresh stale catalogue metadata before retrying reconciliation."
         except ValueError as exc:
             detail = str(exc)[:512]
         return ToolMessage(
