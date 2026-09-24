@@ -1,0 +1,37 @@
+{
+  "report": "runtime-rollout-20260924T055644Z-38ef2d0f.json",
+  "sha256": "2341c147d311867856147917ba33566c08787de3543c413e9acd3803b014211e",
+  "reviewer": "Primary assistant; separate answer review after review-agent quota exhaustion",
+  "verdicts": {
+    "multi_intent-0": "passed",
+    "multi_intent-1": "passed",
+    "multi_intent-2": "passed",
+    "streaming-0": "passed",
+    "streaming-1": "passed",
+    "streaming-2": "passed",
+    "approval_resume-0": "passed",
+    "approval_resume-1": "passed",
+    "approval_resume-2": "passed",
+    "policy-0": "passed",
+    "policy-1": "passed",
+    "policy-2": "passed",
+    "archive_handoff-0": "passed",
+    "archive_handoff-1": "passed",
+    "archive_handoff-2": "passed",
+    "foreign_source-0": "passed",
+    "foreign_source-1": "passed",
+    "foreign_source-2": "failed"
+  },
+  "findings": {
+    "foreign_source-2": "Unsupported claim that no tables are registered in the inaccessible workbook. The fixture contains two registered tables there."
+  },
+  "qualification": {
+    "scheduled": 18,
+    "passed": 17,
+    "observed_turns": 57,
+    "p95_seconds": 9.635396917001344,
+    "replay_p95_seconds": 0.9731117500923574,
+    "cost_within_limit": true,
+    "accepted": false
+  }
+}

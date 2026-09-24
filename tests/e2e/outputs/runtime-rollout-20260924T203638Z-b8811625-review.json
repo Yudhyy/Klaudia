@@ -1,0 +1,38 @@
+{
+  "report": "runtime-rollout-20260924T203638Z-b8811625.json",
+  "sha256": "bf18adb7085a471ab7f7a1907ef35596979487b80d8a814207bd5f342c4fc3a7",
+  "reviewer": "Primary assistant; separate answer review, not an independent agent",
+  "verdicts": {
+    "multi_intent-0": "passed",
+    "multi_intent-1": "failed",
+    "multi_intent-2": "passed",
+    "streaming-0": "passed",
+    "streaming-1": "passed",
+    "streaming-2": "passed",
+    "approval_resume-0": "passed",
+    "approval_resume-1": "passed",
+    "approval_resume-2": "passed",
+    "policy-0": "passed",
+    "policy-1": "passed",
+    "policy-2": "passed",
+    "archive_handoff-0": "passed",
+    "archive_handoff-1": "passed",
+    "archive_handoff-2": "passed",
+    "foreign_source-0": "passed",
+    "foreign_source-1": "passed",
+    "foreign_source-2": "passed"
+  },
+  "findings": {
+    "multi_intent-1": "Correct Appended amount label appears twice. One committed append is recorded; replay checks did not run after the label assertion failed."
+  },
+  "qualification": {
+    "scheduled": 18,
+    "passed": 17,
+    "observed_turns": 55,
+    "p95_seconds": 9.080268417019397,
+    "replay_p95_seconds": 0.7700538750505075,
+    "cost_within_limit": true,
+    "accepted": false
+  },
+  "maintainer_exception": "2026-09-25: proceed to the next phase with one remaining answer issue and investigate thinking mode/model choice later; strict qualification remains failed."
+}

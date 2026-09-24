@@ -1,0 +1,36 @@
+{
+  "report": "runtime-rollout-20260924T053452Z-ee1db94b.json",
+  "review": "Separate review by standards_review against prompts, evidence and complete grids",
+  "verdicts": {
+    "multi_intent-0": "passed",
+    "multi_intent-1": "passed",
+    "multi_intent-2": "passed",
+    "streaming-0": "passed",
+    "streaming-1": "passed",
+    "streaming-2": "passed",
+    "approval_resume-0": "passed",
+    "approval_resume-1": "passed",
+    "approval_resume-2": "passed",
+    "policy-0": "passed",
+    "policy-1": "passed",
+    "policy-2": "passed",
+    "archive_handoff-0": "passed",
+    "archive_handoff-1": "passed",
+    "archive_handoff-2": "passed",
+    "foreign_source-0": "failed",
+    "foreign_source-1": "passed",
+    "foreign_source-2": "passed"
+  },
+  "findings": {
+    "foreign_source-0": "Unsupported claim that no registered tables exist in an inaccessible workbook; both foreign tables exist."
+  },
+  "qualification": {
+    "scheduled": 18,
+    "passed": 17,
+    "observed_turns": 57,
+    "p95_seconds": 10.00414345797617,
+    "replay_p95_seconds": 0.9815920409746468,
+    "cost_within_limit": true,
+    "accepted": false
+  }
+}

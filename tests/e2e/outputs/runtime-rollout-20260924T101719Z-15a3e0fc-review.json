@@ -1,0 +1,36 @@
+{
+  "report": "runtime-rollout-20260924T101719Z-15a3e0fc.json",
+  "sha256": "ebcb4cf0163edc1269d6f82807c9b3c1091920388b3ba479c66ca8209c7517c9",
+  "reviewer": "Separate spec_review agent; checked all prompts, answers, evidence, receipts and full states",
+  "verdicts": {
+    "multi_intent-0": "passed",
+    "multi_intent-1": "passed",
+    "multi_intent-2": "passed",
+    "streaming-0": "passed",
+    "streaming-1": "passed",
+    "streaming-2": "passed",
+    "approval_resume-0": "passed",
+    "approval_resume-1": "passed",
+    "approval_resume-2": "passed",
+    "policy-0": "passed",
+    "policy-1": "passed",
+    "policy-2": "passed",
+    "archive_handoff-0": "passed",
+    "archive_handoff-1": "passed",
+    "archive_handoff-2": "passed",
+    "foreign_source-0": "passed",
+    "foreign_source-1": "passed",
+    "foreign_source-2": "passed"
+  },
+  "findings": {},
+  "operating_limit_failure": "archive_handoff-2 includes one DeepSeek ConnectTimeout without usage; cost remains unknown even though the SDK retry succeeded.",
+  "qualification": {
+    "scheduled": 18,
+    "passed": 18,
+    "observed_turns": 57,
+    "p95_seconds": 19.14836574997753,
+    "replay_p95_seconds": 1.855346791096963,
+    "cost_within_limit": false,
+    "accepted": false
+  }
+}
