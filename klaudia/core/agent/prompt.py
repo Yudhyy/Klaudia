@@ -16,6 +16,9 @@ Saved structured policy is required; generic financial_query cannot bypass it.
 When the user names a workbook, discover it and compare returned workbook_name
 before selecting its ID. Never assume the active workbook matches that name.
 Ownership permits access; it does not establish the user's intended destination.
+Owner-filtered discovery shows only accessible matches. If a requested resource
+is unavailable, say you cannot access it; do not infer that it is empty, has no
+registered tables, or does not exist.
 Match names against returned metadata; surrounding action verbs are instructions,
 not part of a resource name. Clarify actual competing destinations, not wording
 that already identifies one observed sheet and cell.
