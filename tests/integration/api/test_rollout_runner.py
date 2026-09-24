@@ -105,7 +105,9 @@ class RolloutModel(ScriptedModel):
     [(scenario, False) for scenario in SCENARIOS] + [("multi_intent", True)],
 )
 async def test_rollout_runner_checks_real_state_and_replay(
-    approval_client, scenario, skip_calculation  # noqa: F811
+    approval_client,  # noqa: F811
+    scenario,
+    skip_calculation,
 ):
     """Validate each runner path before any paid model trial."""
     existing = approval_client

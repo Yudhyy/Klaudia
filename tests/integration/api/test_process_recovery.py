@@ -61,9 +61,9 @@ async def kill_at_boundary(fixture, boundary):
 @pytest.mark.parametrize("boundary", ["before_commit", "after_commit"])
 @pytest.mark.parametrize("repeat", range(3))
 async def test_actual_process_kill_recovers_original_operation(
-    durable_client,
+    durable_client,  # noqa: F811
     boundary,
-    repeat,  # noqa: F811
+    repeat,
 ):
     """Recover the saved reference once after SIGKILL, then replay without another write."""
     fixture = durable_client
@@ -96,8 +96,8 @@ async def test_actual_process_kill_recovers_original_operation(
 
 @pytest.mark.parametrize("boundary", ["before_commit", "after_commit"])
 async def test_killed_task_cannot_resume_after_source_revocation(
-    durable_client,
-    boundary,  # noqa: F811
+    durable_client,  # noqa: F811
+    boundary,
 ):
     """Recheck current source access even when a committed receipt survived the crash."""
     fixture = durable_client
