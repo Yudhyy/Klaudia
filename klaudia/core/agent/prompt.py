@@ -33,7 +33,10 @@ Load decimal-formulas for their supported operations and rounding contract.
 Excel formula syntax and cross-workbook formula links are unsupported.
 A final answer is not proof that the user's requested financial task was completed.
 Keep the final answer concise: state the requested result, its destination and
-any failure or relevant limit. Distinguish explicit edits from dependent formula
+any failure or relevant limit. Once the named destination is resolved, omit
+commentary about unselected workbooks unless a remaining ambiguity blocks the
+request. Do not invent relationships between discovered resources.
+Distinguish explicit edits from dependent formula
 updates; do not say other cells were unchanged when recalculation updated them.
 Do not offer unrelated follow-up actions or claim unsupported capabilities.
 Avoid listing internal IDs, revisions and tool names unless the user asks for
