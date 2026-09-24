@@ -28,8 +28,8 @@ not ledger facts. Raw historic benchmark scores remain unchanged.
 
 ## Acceptance thresholds declared before trials
 
-The initial local thresholds are a proposal pending product constraints. They may
-be tightened before a run, but a failed run must retain its original thresholds.
+Version 1 fixes the following local qualification thresholds. Deployment limits
+still need product input. A failed run must retain its original thresholds.
 A changed contract requires a new version and a new report.
 
 - Zero wrong-owner or wrong-destination writes; zero duplicate committed effects.
@@ -39,7 +39,9 @@ A changed contract requires a new version and a new report.
   pass exact state, receipts, intended task completion and separate answer-label
   review. Retain failed runs; corrections start a new run.
 - Per-turn observed p95 at or below 60 seconds, using nearest-rank p95 and including
-  every completed turn. This small sample does not estimate production tail latency.
+  every completed interaction. Measure completed-task replays as a separate group
+  with the same limit; fast replays cannot dilute interaction latency. This small
+  sample does not estimate production tail latency.
 - Model inference cost at or below USD 0.10 for each completed turn, including
   main-agent and guardrail calls. Missing usage makes cost qualification incomplete.
   Use a recorded conservative upper bound when provider cache details are absent;
@@ -50,7 +52,8 @@ A changed contract requires a new version and a new report.
   at both boundaries.
 
 Live configuration: DeepSeek `deepseek-flash`, temperature 0.5, thinking disabled.
-Guardrails use the same provider/model unless a report declares otherwise. Store
+Text guardrails use the same provider/model; injection screening uses Groq
+`meta-llama/Llama-Prompt-Guard-2-86M`. Store
 model identifiers, settings, source revision, fixture version, prompt digest,
 usage completeness, time, state, receipts and all final answers in each report.
 
@@ -60,6 +63,9 @@ cache-miss rates checked on 2026-09-24 in the
 [DeepSeek pricing contract](https://api-docs.deepseek.com/quick_start/pricing/).
 Cache discounts and off-peak pricing can only lower that bound; recheck prices
 before reusing it. Provider failures with no usage must remain unknown costs.
+Groq injection screening uses USD 0.04 per million input and output tokens,
+checked on the same date in the
+[Groq model contract](https://console.groq.com/docs/model/meta-llama/llama-prompt-guard-2-86m).
 
 ## Cutover and rollback
 

@@ -432,3 +432,25 @@ only fixture records. These two text cases do not test document extraction,
 queue workers, streaming latency or the full historical benchmark. Offline HTTP
 coverage lives in `tests/integration/api/test_main_chat_routes.py`; recovery,
 context budgets and extraction handoff checks live in `tests/unit/test_main_chat.py`.
+
+## Measured main runtime qualification
+
+```bash
+E2E_RUNTIME_ROLLOUT=1 CHAT_RUNTIME=main MEMORY_MODE=off MOCK_KIE=true \
+SHEETS_BACKEND=ledger MODEL_PROVIDER=deepseek LLM_MODEL=deepseek-flash \
+LLM_TEMPERATURE=0.5 LLM_DISABLE_THINKING=true \
+uv run pytest tests/e2e/test_runtime_rollout_e2e.py -q --tb=short
+```
+
+This schedules three fresh trials for each of six workflows: read then append,
+streaming, approval and resume, saved-policy reconciliation, archived extraction
+handoff, and foreign-workbook denial. It uses real model and guardrail calls.
+Archive facts are synthetic; this is not a live OCR accuracy test.
+
+Reports retain full fixture grids, tool evidence, receipts, labelled answers,
+provider usage and timing, including failed requests. Exact automatic checks leave
+passing trials at `state_passed_prose_pending`; review the full answers separately
+before qualifying a copy of the report. Never rewrite historical raw outcomes.
+The fixed limits and pricing sources are in `docs/RUNTIME_ROLLOUT.md`. Interaction
+and completed-task replay latency use separate p95 samples. Missing usage leaves
+cost unknown. Offline runner checks live in `tests/integration/api/test_rollout_runner.py`.
