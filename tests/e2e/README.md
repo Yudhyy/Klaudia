@@ -439,6 +439,7 @@ context budgets and extraction handoff checks live in `tests/unit/test_main_chat
 E2E_RUNTIME_ROLLOUT=1 CHAT_RUNTIME=main MEMORY_MODE=off MOCK_KIE=true \
 SHEETS_BACKEND=ledger MODEL_PROVIDER=deepseek LLM_MODEL=deepseek-flash \
 LLM_TEMPERATURE=0.5 LLM_DISABLE_THINKING=true \
+GUARDRAILS_ENABLED=true GUARDRAILS_PROVIDER=deepseek LLM_GUARDRAILS_MODEL=deepseek-flash \
 uv run pytest tests/e2e/test_runtime_rollout_e2e.py -q --tb=short
 ```
 

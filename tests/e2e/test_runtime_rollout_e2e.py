@@ -19,7 +19,11 @@ from app.services.auth.tokens import create_access_token
 from tests.e2e.comparison_owner import comparison_owner
 from tests.e2e.conftest import requires_live
 from tests.e2e.rollout_cases import SCENARIOS, rollout_fixture, run_rollout_trial
-from tests.e2e.rollout_measurement import PRICE_CHECKED_ON, qualify
+from tests.e2e.rollout_measurement import (
+    PRICE_CHECKED_ON,
+    qualify,
+    rollout_configuration,
+)
 from tests.e2e.sandbox import sandbox_enabled
 
 pytestmark = [
@@ -61,7 +65,7 @@ def rollout_report():
         )
     report = {
         "suite": "main_runtime_rollout",
-        "contract_version": 1,
+        "contract_version": 2,
         "fixture_version": 1,
         "repeats": REPEATS,
         "revision": subprocess.check_output(
@@ -70,15 +74,7 @@ def rollout_report():
         "dirty": bool(
             subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()
         ),
-        "settings": {
-            "provider": settings.model_provider,
-            "model": settings.llm_model,
-            "temperature": settings.llm_temperature,
-            "disable_thinking": settings.llm_disable_thinking,
-            "guardrails_provider": settings.guardrails_provider,
-            "guardrails_model": settings.guardrails_model,
-            "injection_model": "meta-llama/Llama-Prompt-Guard-2-86M",
-        },
+        "settings": rollout_configuration(settings),
         "thresholds": {
             "all_scheduled_pass": True,
             "wrong_scope_writes": 0,

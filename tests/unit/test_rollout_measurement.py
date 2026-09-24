@@ -3,7 +3,8 @@
 import httpx
 import pytest
 
-from tests.e2e.rollout_measurement import UsageMeter, qualify
+from tests.e2e.rollout_measurement import UsageMeter, qualify, rollout_configuration
+from config.settings import Settings
 from tests.e2e.rollout_cases import measured_post
 
 
@@ -197,3 +198,22 @@ def test_fast_replays_cannot_dilute_slow_interaction_latency():
     assert summary["p95_seconds"] == 61
     assert summary["replay_p95_seconds"] == 1
     assert summary["accepted"] is False
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_live_configuration_records_real_settings_and_requires_guards(enabled):
+    """An environment override cannot silently remove measured guardrail calls."""
+    settings = Settings(
+        _env_file=None,
+        GUARDRAILS_ENABLED=enabled,
+        GUARDRAILS_PROVIDER="deepseek",
+        LLM_GUARDRAILS_MODEL="deepseek-flash",
+        LLM_GUARDRAILS_PROMPT_INJ="meta-llama/Llama-Prompt-Guard-2-86M",
+    )
+    if enabled:
+        recorded = rollout_configuration(settings)
+        assert recorded["guardrails_enabled"] is True
+        assert recorded["guardrails_model"] == "deepseek-flash"
+    else:
+        with pytest.raises(ValueError, match="enabled"):
+            rollout_configuration(settings)

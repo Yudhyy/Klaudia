@@ -17,6 +17,39 @@ PRICES = {
 }
 
 
+def rollout_configuration(settings) -> dict:
+    """Freeze provider settings and reject disabled qualification guards.
+
+    Args:
+        settings: Validated application settings.
+
+    Returns:
+        Public model and guardrail configuration without credentials.
+
+    Raises:
+        ValueError: Guardrails differ from the declared live configuration.
+    """
+    if not settings.guardrails_enabled or (
+        settings.guardrails_provider,
+        settings.llm_guardrails_model,
+        settings.llm_guardrails_prompt_inj.lower(),
+    ) != ("deepseek", "deepseek-flash", "meta-llama/llama-prompt-guard-2-86m"):
+        raise ValueError(
+            "Qualification requires enabled DeepSeek text guards and Groq injection screening"
+        )
+    return {
+        "provider": settings.model_provider,
+        "model": settings.llm_model,
+        "temperature": settings.llm_temperature,
+        "disable_thinking": settings.llm_disable_thinking,
+        "guardrails_enabled": settings.guardrails_enabled,
+        "guardrails_provider": settings.guardrails_provider,
+        "guardrails_model": settings.llm_guardrails_model,
+        "injection_model": settings.llm_guardrails_prompt_inj,
+        "numeric_verify_mode": settings.numeric_verify_mode,
+    }
+
+
 class UsageMeter:
     """Observe provider responses without retaining prompts, secrets or response text."""
 

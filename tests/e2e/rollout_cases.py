@@ -200,7 +200,8 @@ def check_labels(content: str, expected: dict[str, str]) -> None:
             for line in lines
             if (
                 match := re.fullmatch(
-                    re.escape(label) + r":\s*([+-]?\d+(?:\.\d+)?)\s+USD\.?",
+                    re.escape(label)
+                    + r":\s*([+-]?\d+(?:\.\d+)?)\s+USD(?:\.?|\s+[-\u2013\u2014]\s+.*|\s+\(.*\)\.?)",
                     line,
                     re.IGNORECASE,
                 )

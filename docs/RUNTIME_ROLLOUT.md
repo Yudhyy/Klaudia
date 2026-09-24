@@ -28,7 +28,7 @@ not ledger facts. Raw historic benchmark scores remain unchanged.
 
 ## Acceptance thresholds declared before trials
 
-Version 1 fixes the following local qualification thresholds. Deployment limits
+Version 2 fixes the following local qualification thresholds. Deployment limits
 still need product input. A failed run must retain its original thresholds.
 A changed contract requires a new version and a new report.
 
@@ -56,6 +56,11 @@ Text guardrails use the same provider/model; injection screening uses Groq
 `meta-llama/Llama-Prompt-Guard-2-86M`. Store
 model identifiers, settings, source revision, fixture version, prompt digest,
 usage completeness, time, state, receipts and all final answers in each report.
+The runner requires guards to be enabled and records that setting. Version 1
+allowed local disabled guards and rejected some valid explanatory label suffixes;
+its diagnostic outcomes cannot qualify this contract. Version 2 accepts a dash
+clause or parenthetical explanation after an exact labelled amount. Full-answer
+semantic review must still reject contradictions or unsupported claims.
 
 For the initial cost upper bound, count all input tokens at USD 0.30 per million
 and all output tokens at USD 1.20 per million. These are the documented peak

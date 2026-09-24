@@ -14,6 +14,17 @@ def test_markdown_labels_preserve_exact_decimal_values():
 
 
 @pytest.mark.parametrize(
+    "suffix", [" \u2014 exact sum of both rows.", " (sum over both rows)"]
+)
+def test_label_with_explanation_preserves_exact_amount(suffix):
+    """Accept a labelled amount followed by an explanatory dash clause."""
+    check_labels(
+        "**Before total: 200 USD**" + suffix,
+        {"Before total": "200"},
+    )
+
+
+@pytest.mark.parametrize(
     "answer",
     [
         "Before total: 25 USD\nAppended amount: 200 USD",
