@@ -39,7 +39,7 @@ def test_ledger_backend_selected():
 
 def test_gsheets_backend_is_legacy_opt_in():
     _archive_registry, sheets_registry = _build_mcp_registries(
-        Settings(_env_file=None, SHEETS_BACKEND="gsheets")
+        Settings(_env_file=None, CHAT_RUNTIME="legacy", SHEETS_BACKEND="gsheets")
     )
     assert sheets_registry._name == "mcp-gsheets"
 

@@ -234,11 +234,13 @@ remain Decimal operands through calculation; sums reject results beyond the
 64-digit exact precision budget. Fractional group labels that cannot round-trip
 through the current JSON numeric format also fail instead of rounding.
 
-The legacy runtime remains the default. Set `CHAT_RUNTIME=main` to use the main
-agent through the existing chat endpoints. A bounded
+The main runtime is the default and requires `SHEETS_BACKEND=ledger`. Set
+`CHAT_RUNTIME=legacy` to select the legacy route explicitly. Local cutover retains
+one answer-format issue under a maintainer-approved exception; see the
+[qualification record](docs/RUNTIME_ROLLOUT.md). A bounded
 [native decimal formula contract](docs/TYPED_FORMULAS.md) defines the typed inputs,
 per-cell rounding, dependency edits and calculation receipts available in the
-opt-in main runtime. It does not claim Excel compatibility or release readiness.
+main runtime. It does not claim Excel compatibility or release readiness.
 The [IronCalc capability check](docs/IRONCALC_CAPABILITIES.md) distinguishes raw
 Model from UserModel in 0.8.3 and records numeric precision limits. IronCalc remains
 a separate compatibility candidate, not a production dependency.

@@ -175,8 +175,9 @@ def test_runtime_defaults_and_backend_validation(monkeypatch):
     from config.settings import Settings
 
     monkeypatch.delenv("CHAT_RUNTIME", raising=False)
-    assert Settings(_env_file=None).chat_runtime == "legacy"
+    assert Settings(_env_file=None).chat_runtime == "main"
     assert Settings(_env_file=None, CHAT_RUNTIME="main").chat_runtime == "main"
+    assert Settings(_env_file=None, CHAT_RUNTIME="legacy").chat_runtime == "legacy"
     with pytest.raises(ValidationError, match="requires SHEETS_BACKEND=ledger"):
         Settings(_env_file=None, CHAT_RUNTIME="main", SHEETS_BACKEND="gsheets")
     with pytest.raises(ValidationError):

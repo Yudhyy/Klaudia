@@ -2,8 +2,31 @@
 
 This contract defines the local pre-release checks before changing the default
 runtime. It does not certify an existing deployment or migrate external user data.
-`CHAT_RUNTIME=main` selects the candidate; `legacy` remains the default until the
-checks pass. Runtime and storage changes must remain separate.
+`main` is the local default; `CHAT_RUNTIME=legacy` selects the fallback explicitly.
+The maintainer accepted the remaining answer-format issue described below for
+local cutover. The strict qualification contract has not passed.
+Runtime and storage changes must remain separate.
+
+## Local cutover exception and next investigation
+
+On 2026-09-25 the maintainer authorised proceeding if one answer task remained.
+Run `b8811625` passed 17 of 18 automated cases. `multi_intent-1` repeated the
+correct `Appended amount: 25 USD` label, violating the exactly-once label check.
+Its recorded receipt shows one committed append; this is not a duplicate write.
+The failing case stopped before replay checks. The other cases completed their
+checks. Primary-assistant answer review found no further factual failures.
+Observed interaction p95 was 9.08 seconds, replay p95 0.77 seconds, and recorded
+inference costs met the fixed contract. The raw report remains failed.
+
+This exception permits the local default change, not a production qualification
+claim. Existing explicit environment settings still override the default.
+
+The next investigation will compare thinking disabled, thinking enabled and an
+alternative model against the same frozen fixtures. First check model support
+and current prices. Separate label-format failures from unsupported claims and
+incorrect task effects; retain every trial and compare cost, latency, ownership
+and replay evidence. A model bottleneck remains an untested hypothesis. Keep the
+current model settings until that comparison supports a change.
 
 ## Declared capability matrix
 

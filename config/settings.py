@@ -167,7 +167,7 @@ class Settings(BaseSettings):
         default=False, alias="MAIN_CHAT_REQUIRE_APPROVAL"
     )
     chat_runtime: Literal["legacy", "main"] = Field(
-        default="legacy", alias="CHAT_RUNTIME"
+        default="main", alias="CHAT_RUNTIME"
     )
 
     @model_validator(mode="after")
