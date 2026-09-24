@@ -102,10 +102,15 @@ class AuthoringTools:
             arguments: Optional workbook filter and page offset.
 
         Returns:
-            Owned sheet identities and a continuation offset.
+            Owned sheet identities, a continuation offset and access limits.
         """
         query = SheetSearch.model_validate(arguments)
-        return await self._reader.sheets(self._user_id, **query.model_dump())
+        sheets = await self._reader.sheets(self._user_id, **query.model_dump())
+        return {
+            **sheets,
+            "access_scope": "authenticated_owner_only",
+            "inaccessible_resources": "existence_and_contents_unknown",
+        }
 
     async def inspect(self, **arguments: Any) -> dict[str, Any]:
         """Inspect placement evidence without accepting caller-owned scope.

@@ -8,6 +8,8 @@ from pydantic import ValidationError
 
 from klaudia.core.agent.context import TaskContext
 from klaudia.core.agent.tools import DiscoveryTools
+from klaudia.core.agent.authoring import AuthoringTools
+from klaudia.core.agent.writes import WriteTools
 from ledger.resources import ResourceNotFoundError
 
 
@@ -63,6 +65,21 @@ async def test_search_evidence_states_owner_scope_without_claiming_absence(candi
     assert observed["inaccessible_resources"] == "existence_and_contents_unknown"
     assert observed["candidates"] == candidates
     assert "access_scope" not in service.search.return_value
+
+
+@pytest.mark.parametrize("sheets", [[], [{"sheet_id": 8, "title": "Actuals"}]])
+async def test_authoring_sheet_evidence_has_the_same_access_limits(sheets):
+    """An empty owned-sheet listing cannot establish absent foreign contents."""
+    reader = AsyncMock()
+    reader.sheets.return_value = {"sheets": sheets, "next_offset": None}
+    discovery = DiscoveryTools(AsyncMock(), TaskContext(user_id=42))
+    session = AuthoringTools(reader, WriteTools(discovery, AsyncMock()), 42)
+    observed = await session.tools[0].ainvoke({"workbook_id": "requested"})
+    reader.sheets.assert_awaited_once_with(42, workbook_id="requested", offset=0)
+    assert observed["access_scope"] == "authenticated_owner_only"
+    assert observed["inaccessible_resources"] == "existence_and_contents_unknown"
+    assert observed["sheets"] == sheets
+    assert "access_scope" not in reader.sheets.return_value
 
 
 async def test_working_sets_and_identity_are_isolated_between_tasks():
