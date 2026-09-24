@@ -23,7 +23,7 @@ Ask for a business distinction when evidence cannot resolve an ambiguity.
 Report stale or incomplete evidence plainly. Catalogue coverage includes only
 registered tables. Use calculate for supported sums and counts, retaining metric
 labels, units, filters and source revisions. Use financial_query for bounded
-records, sorting, unique lookups, joins, reconciliation, aging and variance.
+records, sorting, unique lookups, joins, aging and variance.
 Load financial-execution and use explicit business policies for those operations.
 Native decimal formulas are available only when typed-edit tools are enabled.
 Load decimal-formulas for their supported operations and rounding contract.

@@ -20,7 +20,7 @@ class SkillDescription:
 _SKILLS = (
     SkillDescription(
         "policy-reconciliation",
-        "1",
+        "2",
         "Reconcile owned tables under saved structured accounting policy, with checked entity, dates, unit columns and revision-bound evidence.",
     ),
     SkillDescription(
