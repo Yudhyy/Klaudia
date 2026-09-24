@@ -206,7 +206,7 @@ async def test_scripted_chat_uses_policy_skill_and_preserves_evidence(
     outcome = await MainChatService(
         model, catalogue, postgres_db, memory_documents=documents
     ).run(replace(chat_turn(), user_id=1, session_id=session))
-    assert outcome.loaded_skills["policy-reconciliation"] == "2"
+    assert outcome.loaded_skills["policy-reconciliation"] == "3"
     assert outcome.operation_receipts == ()
     evidence = json.loads(outcome.tool_evidence[-1][2])
     assert evidence["policy_evidence"]["revision"] == 1
