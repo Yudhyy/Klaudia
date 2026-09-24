@@ -455,3 +455,16 @@ before qualifying a copy of the report. Never rewrite historical raw outcomes.
 The fixed limits and pricing sources are in `docs/RUNTIME_ROLLOUT.md`. Interaction
 and completed-task replay latency use separate p95 samples. Missing usage leaves
 cost unknown. Offline runner checks live in `tests/integration/api/test_rollout_runner.py`.
+
+Run rollback and bounded storage checks separately from live trials to avoid
+distorting measurements:
+
+```bash
+LEDGER_STORAGE_PROFILE=1 uv run pytest tests/integration/api/test_runtime_rollback.py \
+  tests/integration/mcp-ledger/test_storage_profile.py -q --tb=short
+```
+
+Storage profiling measures full-grid snapshots, in-memory formula graphs and
+controlled lock/pool contention. It uses fresh workbooks and retains a unique
+`outputs/storage-profile-*.json` report. It does not reset existing records or
+measure full typed-edit persistence, live traffic, or production capacity.

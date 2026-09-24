@@ -90,3 +90,29 @@ Before storage changes, measure whole-grid reads, workbook lock contention,
 full-graph recalculation and connection occupancy at declared fixture sizes. Keep
 the existing storage unless those results justify a separately reviewed migration.
 No folder layout or agent-count comparison alone establishes a storage need.
+
+## Local storage observations
+
+The 2026-09-24 profile used one sheet per workbook, ten reads at each size, and
+independent chain graphs with 31, 127 and 255 formulas. Median whole-grid snapshot
+reads were 1.24, 2.38 and 8.75 ms for 3,597, 58,181 and 472,949 source bytes.
+Median full-graph evaluation took 0.27, 1.16 and 2.48 ms. Graph timing excludes
+database persistence and grid projection; these numbers do not measure a full
+typed-edit transaction or production concurrency.
+
+A held workbook lock blocked a second writer to that workbook until its deliberate
+50 ms lock timeout; another workbook remained available. Lock acquisition worked
+after release. Holding all five ledger connections exhausted that pool; all five
+returned to idle after release. Task execution has a separate four-connection
+pool and two metadata-read connections. The task saturation integration test checks
+that progress remains readable while execution capacity is full.
+
+These bounded observations do not justify a storage migration. Retain the current
+storage and its size limits. Repeat profiling with deployment workload sizes before
+raising limits or choosing a row/cell storage model. The raw profile is
+`tests/e2e/outputs/storage-profile-20260924T054832Z-39f6faf8.json`.
+
+The rollback integration checks disable main services, reopen their task store and
+recover pending or committed work without changing persisted approval/task records
+or duplicating writes. They simulate the service transition; they do not test a
+deployment restart or real application bootstrap under changed configuration.
