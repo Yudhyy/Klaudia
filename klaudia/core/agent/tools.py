@@ -239,7 +239,11 @@ class DiscoveryTools:
         """
         query = ResourceSearch.model_validate(arguments)
         return bounded_evidence(
-            await self._catalogue.search(self._context.user_id, query)
+            {
+                **await self._catalogue.search(self._context.user_id, query),
+                "access_scope": "authenticated_owner_only",
+                "inaccessible_resources": "existence_and_contents_unknown",
+            }
         )
 
     async def _inspect(self, **arguments: Any) -> dict[str, Any]:

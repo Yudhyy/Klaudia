@@ -49,6 +49,22 @@ async def test_tools_hide_identity_and_keep_search_out_of_working_set():
     assert session.context.active_workbook_id == "wb_active"
 
 
+@pytest.mark.parametrize("candidates", [[], [descriptor()]])
+async def test_search_evidence_states_owner_scope_without_claiming_absence(candidates):
+    """Discovery cannot establish the existence or contents of foreign resources."""
+    service = AsyncMock()
+    service.search.return_value = {
+        "candidates": candidates,
+        "coverage": "registered_tables_only",
+    }
+    session = DiscoveryTools(service, TaskContext(user_id=42))
+    observed = await session.tools[0].ainvoke({"intent": "Requested workbook"})
+    assert observed["access_scope"] == "authenticated_owner_only"
+    assert observed["inaccessible_resources"] == "existence_and_contents_unknown"
+    assert observed["candidates"] == candidates
+    assert "access_scope" not in service.search.return_value
+
+
 async def test_working_sets_and_identity_are_isolated_between_tasks():
     """Concurrent tasks never inherit another user's selected resource references."""
     service = AsyncMock()
