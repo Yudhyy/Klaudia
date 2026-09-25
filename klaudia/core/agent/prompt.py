@@ -1,4 +1,4 @@
-"""Stable prompt prefix for the alternative discovery runtime."""
+"""Stable prompt prefix for the main agent."""
 
 from klaudia.core.skills.registry import SkillRegistry
 

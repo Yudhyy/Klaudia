@@ -1,6 +1,6 @@
 """Run a dataset case through an explicit sandbox runtime adapter.
 
-Legacy turns use orchestrator.process(). Turns in a legacy case share a session
+Application turns use orchestrator.process(). Turns in a case share a session
 (created on the first turn, reused after). The MCP spy captures granular tool
 calls per turn so `mcp_tools_*` assertions can be evaluated — something the HTTP
 layer cannot see. Cleanup prompts run best-effort in a finally block.
@@ -22,7 +22,7 @@ from tests.e2e.checks import ResponseView, evaluate
 from tests.e2e.loader import attachment_bytes
 from tests.e2e.report import TurnRecord
 from tests.e2e.schema import Case, Turn
-from tests.e2e.sut import LegacySUT, SystemUnderTest, TurnRequest
+from tests.e2e.sut import ApplicationSUT, SystemUnderTest, TurnRequest
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ async def _prepurge_cache_miss(container, case: Case) -> None:
 async def _ensure_users(container, case: Case) -> None:
     """Create synthetic `as_user` rows so the session->user FK inserts succeed.
 
-    Cross-user memory cases run turns as arbitrary user ids that were never
+    Cross-user cases run turns as arbitrary user ids that were never
     registered. The app DB enforces a session->user foreign key, so those users
     must exist first.
     """
@@ -127,14 +127,16 @@ async def run_case_inprocess(
     read/routing cases.
     spreadsheet_ids: logical name -> real spreadsheet id, for cases whose turns
     set `spreadsheet`. An unmapped name is a dataset error and raises.
-    sut: Explicit adapter; omitted selects the existing legacy orchestrator.
+    sut: Explicit adapter; omitted selects the application orchestrator.
     observe_state: Optional fixture database probe, never passed to the model.
     Unsupported contracts return failed records without executing the case.
     Behavioral mismatches do NOT raise — they are recorded in the TurnRecord.
     Runtime and state-observation failures retain a failed report record.
     """
     records: list[TurnRecord] = []
-    runtime = sut if sut is not None else LegacySUT(orchestrator, (spy, extraction_spy))
+    runtime = (
+        sut if sut is not None else ApplicationSUT(orchestrator, (spy, extraction_spy))
+    )
     unsupported = runtime.unsupported(case)
     if unsupported:
         for index, turn in enumerate(case.turns):
@@ -166,14 +168,7 @@ async def run_case_inprocess(
     try:
         for idx, turn in enumerate(case.turns):
             turn_user = turn.as_user if turn.as_user is not None else TEST_USER_ID
-            # A fresh session (or a user switch) starts memory-cold: flush any
-            # in-flight background memory writes so a cross-session recall sees
-            # the prior turn's write, then drop the session id so the orchestrator
-            # mints a new one.
             if turn.new_session or turn_user != current_user:
-                drain = getattr(orchestrator, "drain_background", None)
-                if drain is not None:
-                    await drain()
                 session_id = None
             current_user = turn_user
             messages = _build_message(turn)

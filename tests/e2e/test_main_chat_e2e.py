@@ -37,8 +37,6 @@ def chat_report():
     settings = get_settings()
     if os.environ.get("E2E_SANDBOX_ACTIVE") != "1" or not sandbox_enabled():
         raise RuntimeError("Main chat smoke checks require the isolated sandbox")
-    if settings.chat_runtime != "main" or settings.memory_mode != "off":
-        raise RuntimeError("Use CHAT_RUNTIME=main and MEMORY_MODE=off")
     report = {
         "suite": "main_chat_smoke",
         "model": settings.llm_model,

@@ -55,8 +55,7 @@ not add write authority. A database failure is not treated as a missing document
 
 Preferences and policy prose cannot replace live ledger facts. Reading
 `/accounting-policy.md` alone does not validate applicability. The separate
-`reconcile_with_policy` tool performs the bounded checks below. Existing mem0
-records are never fetched or imported automatically.
+`reconcile_with_policy` tool performs the bounded checks below. Context edits require an explicit authenticated request.
 
 
 ## Structured reconciliation policy
@@ -125,53 +124,6 @@ policy bypass. Other generic financial operations still use their existing expli
 query rules; this release does not claim saved-policy enforcement for them. The
 raw ledger financial API remains a deterministic calculation interface.
 
-## Reviewed mem0 preference migration
-
-Migration is an explicit human review step. No endpoint connects to mem0, selects
-records, infers preferences or deletes external data. Export the owner's records
-through the existing deployment's authorised process, retain the export, and
-select only lasting display or interaction preferences. Do not import remembered
-amounts, balances, resource identities or accounting policy as preference truth.
-
-Read the current `/preferences.md` and retain its complete response for rollback.
-Resolve contradictions manually and prepare the full replacement text, including
-existing preferences you intend to keep. Submit it with the observed revision:
-
-```http
-POST /v1/memory/imports/preferences
-Authorization: Bearer <token>
-Content-Type: application/json
-```
-
-```json
-{
-  "expected_revision": 0,
-  "content": "Show dates as YYYY-MM-DD.",
-  "source_ids": ["source-record-001"],
-  "reviewed_preferences_only": true
-}
-```
-
-The import writes only the authenticated owner's `/preferences.md`. It records
-the declared mem0 IDs in `source_note`, plus the authenticated actor, timestamp
-and revision in the normal history. Source IDs are caller declarations, not proof
-that the server verified an export. Text remains untrusted context and never
-becomes ledger data or executable accounting policy.
-
-The complete text has the normal 8192-byte limit. Supply one to five unique source
-IDs, each at most 64 ASCII letters, digits, underscores, periods, colons or hyphens.
-The review flag must be the boolean `true`. Unreviewed or invalid input returns
-422; a stale destination revision returns 409. There is no automatic merge or
-retry with a newer revision. To import more records, review another complete
-replacement against the latest document revision.
-
-After import, GET the document and compare its exact text and source note. Verify
-that `read_memory_document` returns the same text under the intended identity.
-To roll back, PUT the previously retained content and source note using the latest
-revision. This creates another audit revision rather than erasing history. Keep
-mem0 and the export available until deployment-specific migration and replacement
-checks pass; source retirement is a separate change.
-
 ## Verification
 
 Run these checks against the isolated PostgreSQL test database, never a user store:
@@ -181,6 +133,5 @@ uv run pytest tests/unit/test_accounting_policy.py tests/unit/test_policy_reconc
 ```
 
 These checks cover policy bounds, exact storage, applicability rejection, source
-races, units, owner isolation, task replay, import conflicts and explicit rollback.
-They do not establish live-model reliability, legal correctness or completion of
-an external deployment's mem0 migration.
+races, units, owner isolation, task replay and revision conflicts.
+They do not establish live-model reliability or legal correctness.

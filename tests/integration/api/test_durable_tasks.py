@@ -139,14 +139,11 @@ async def test_running_task_cannot_be_resumed_concurrently(durable_client):
 async def approval_client(durable_client):
     """Enable explicit checked-append approval through the existing decision API."""
     from app.routes.v1.approvals import router as approvals_router
-    from app.services.core.approvals import ApprovalService
     from app.services.workflow.approvals import CheckedApprovals
 
     fixture = durable_client
     fixture.container.tasks._require_approval = True
-    approvals = ApprovalService(fixture.container.db_client, AsyncMock())
-    await approvals.ensure_schema()
-    approvals.checked = CheckedApprovals(fixture.fixture.store.pool)
+    approvals = CheckedApprovals(fixture.fixture.store.pool)
     fixture.container.approvals = approvals
     fixture.client._transport.app.include_router(approvals_router, prefix="/v1")
     return fixture

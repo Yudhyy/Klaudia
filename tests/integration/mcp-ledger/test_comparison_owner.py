@@ -4,7 +4,6 @@ from uuid import uuid4
 
 import pytest
 
-from app.services.core.approvals import _SCHEMA as APPROVAL_SCHEMA
 from app.services.extraction.infra.db_client import AppDBClient
 from config.settings import Settings
 from tests.e2e.comparison_owner import comparison_owner
@@ -18,7 +17,6 @@ async def test_comparison_owner_cleans_sessions_after_failure_without_touching_o
     database = AppDBClient(settings)
     await database.connect()
     try:
-        await database.pool.execute(APPROVAL_SCHEMA)
         async with comparison_owner(database.pool) as other_id:
             with pytest.raises(RuntimeError, match="trial failed"):
                 async with comparison_owner(database.pool) as user_id:

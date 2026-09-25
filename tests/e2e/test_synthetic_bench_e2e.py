@@ -87,14 +87,14 @@ async def synthetic_ledgers(container):
     additionally carries the logical-name -> spreadsheet-id map its turns bind by.
     """
     if container.spreadsheets is None:
-        pytest.skip("synthetic bench needs the ledger backend (SHEETS_BACKEND=ledger)")
+        pytest.skip("synthetic bench needs the ledger service")
 
     seeded: dict[str, tuple[str | None, object]] = {}
     for category, (uid, builder) in SYNTHETIC_SEEDS.items():
         await _ensure_user(container, uid)
         scope = await container.spreadsheets.resolve_scope(uid)
         ledger = builder(seed=SEED)
-        seeder = LedgerSeeder(container.mcp_gsheets, spreadsheet_id=scope)
+        seeder = LedgerSeeder(container.mcp_ledger, spreadsheet_id=scope)
         await seeder.seed_grids(ledger.grids)
         seeded[category] = (scope, ledger)
 
@@ -104,13 +104,13 @@ async def synthetic_ledgers(container):
     for branch_name, ledger in branches.per_branch.items():
         scope = await _branch_spreadsheet_id(container, BRANCH_USER, branch_name)
         branch_ids[branch_name] = scope
-        await LedgerSeeder(container.mcp_gsheets, spreadsheet_id=scope).seed_grids(
+        await LedgerSeeder(container.mcp_ledger, spreadsheet_id=scope).seed_grids(
             ledger.grids
         )
 
     yield {"per_category": seeded, "branch_ids": branch_ids, "branches": branches}
 
-    delete = tool(container.mcp_gsheets, "tool_delete_sheet")
+    delete = tool(container.mcp_ledger, "tool_delete_sheet")
     if delete is None:
         return
     teardown = [(scope, ledger.grids) for scope, ledger in seeded.values()]
@@ -156,12 +156,12 @@ async def test_synthetic_case(
             return
         if case.category in per_category:
             scope, ledger = per_category[case.category]
-            seeder = LedgerSeeder(container.mcp_gsheets, spreadsheet_id=scope)
+            seeder = LedgerSeeder(container.mcp_ledger, spreadsheet_id=scope)
             await seeder.restore_to_baseline(ledger.grids)
         elif case.category == BRANCH_CATEGORY:
             for name, ledger in branches.per_branch.items():
                 seeder = LedgerSeeder(
-                    container.mcp_gsheets, spreadsheet_id=branch_ids[name]
+                    container.mcp_ledger, spreadsheet_id=branch_ids[name]
                 )
                 await seeder.restore_to_baseline(ledger.grids)
 

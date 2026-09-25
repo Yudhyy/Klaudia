@@ -57,7 +57,7 @@ owners and workbooks: typed literal discovery, formula recalculation,
 calculation failure and repair, and approval with repeated task resume.
 
 ```bash
-E2E_FORMULA_CHAT=1 CHAT_RUNTIME=main MEMORY_MODE=off MOCK_KIE=true SHEETS_BACKEND=ledger uv run pytest tests/e2e/test_formula_chat_e2e.py -q
+E2E_FORMULA_CHAT=1 MOCK_KIE=true uv run pytest tests/e2e/test_formula_chat_e2e.py -q
 ```
 
 Set the intended provider/model and spending limit before running paid trials.
@@ -82,7 +82,7 @@ uv run pytest tests/unit/test_live_formula_cases.py tests/integration/api/test_f
 
 ```bash
 docker compose --profile sandbox up -d postgres-sandbox redis minio
-MOCK_KIE=true SHEETS_BACKEND=ledger uv run pytest tests/e2e -q
+MOCK_KIE=true uv run pytest tests/e2e -q
 ```
 
 Every run prints which stores it used, as its first line:
@@ -171,7 +171,6 @@ The dataset is one pile of YAML; which runner picks up a case is decided by its
 |---|---|---|---|
 | `test_e2e_dataset.py` | behavior suite | `docs/TABLE.md` baseline on the test user | `outputs/table-<model>.md` |
 | `test_synthetic_bench_e2e.py` | hard bench | generated ledgers under scratch users 90100+ | `outputs/table-hard-bench.md` |
-| `test_memory_e2e.py` | cross-session memory | isolated mem0 collection | asserts inline |
 
 `synthetic_cases.py` holds the category registry that splits them. The behavior
 suite skips exactly the categories that registry claims, so adding a hard-bench
@@ -208,10 +207,10 @@ a destructive failure cannot score later cases against a damaged fixture.
 
 ```bash
 # Everything
-MOCK_KIE=true SHEETS_BACKEND=ledger uv run pytest tests/e2e -q
+MOCK_KIE=true uv run pytest tests/e2e -q
 
 # Hard bench only, as a gate (~20 min for 51 turns)
-MOCK_KIE=true SHEETS_BACKEND=ledger E2E_STRICT=1 \
+MOCK_KIE=true E2E_STRICT=1 \
   uv run pytest tests/e2e/test_synthetic_bench_e2e.py -q
 
 # Behavior suite, skipping cases that write
@@ -227,8 +226,7 @@ python -m tests.e2e.runner_http --filter guardrails
 python -m tests.e2e.gen_postman
 ```
 
-Memory cases need `MEMORY_MODE=write` and the embedding service up; they skip
-otherwise.
+
 
 ## Adding a case
 
@@ -279,7 +277,7 @@ a silent fallback would score a leak case against the wrong workspace).
 - **The MCP spy is best-effort.** If a langgraph version invokes tools through a
   path it does not wrap, `mcp_tools_*` degrades to skipped rather than
   false-failing.
-- `tools_used` is sub-agent level by design; granular tool assertions come from
+- `tools_used` lists main-agent tools; transport-level assertions come from
   the spy.
 - **Borderline arithmetic cases are not deterministic.** Several flip between
   runs. A single run is a measurement, not a release gate.
@@ -289,9 +287,8 @@ a silent fallback would score a leak case against the wrong workspace).
 
 ## Candidate runtime evaluation
 
-`sut.py` defines `LegacySUT` and `MainAgentSUT`. The shared in-process runner
-defaults to the legacy adapter, preserving its sessions, extraction and bound
-workbook. An explicit main-agent adapter runs supported single-turn text cases
+`sut.py` defines `ApplicationSUT` and `MainAgentSUT`. The shared in-process runner
+defaults to the application adapter, with sessions and extraction. An explicit main-agent adapter runs supported single-turn text cases
 with `resource_scope: owned_workbooks`. It rejects legacy routing/MCP assertions,
 bound-workbook isolation, attachments, cache expectations and multi-turn sessions
 as unsupported. These cases remain non-passing report rows, not successful skips.
@@ -310,7 +307,7 @@ attempts, not proof of preparation, commitment or intent fidelity. Diagnostics
 keep at most 24 attempts and 65,536 UTF-8 bytes of JSON arguments per run, plus
 bounded references and report metadata. Missing, oversized or non-JSON inputs
 increment `append_attempts_omitted`. `append_attempts_observable` is false for
-legacy views and outer cancellations where these diagnostics are unavailable;
+application views and outer cancellations where these diagnostics are unavailable;
 an empty list then does not prove no attempt occurred. Normal main-agent outcomes
 include loaded skill versions. These fields do not change the grading checks.
 
@@ -329,7 +326,7 @@ exercises the same runner with a scripted model and real Postgres. To measure th
 configured live model explicitly:
 
 ```bash
-E2E_MAIN_AGENT_BENCH=1 MOCK_KIE=true SHEETS_BACKEND=ledger \
+E2E_MAIN_AGENT_BENCH=1 MOCK_KIE=true \
   uv run pytest tests/e2e/test_capability_e2e.py -q
 ```
 
@@ -343,53 +340,6 @@ candidate tests skip before service fixtures start.
 This is a candidate capability suite, not a same-toolset architecture comparison.
 Further case migration and production chat integration remain pending. Keep the historical isolation cases;
 do not rename their bound workbook into an active-resource hint.
-
-### Repeated runtime comparison
-
-The [first live comparison](outputs/comparison-2026-09-12.md), at revision
-`152bc5e`, measured main at 3/3 sums and 2/3 appends; legacy passed neither strict
-case. One main append changed an explicit merchant value. Redis and MinIO were
-unavailable during this text-only run. This is not a production cutover gate pass.
-
-The [append-v2 rerun](outputs/comparison-2026-09-12-append-v2.md), at `204c51f`,
-recorded main at 3/3 sums and 3/3 appends. All main append trials loaded v2 and
-preserved the exact proposed values. Legacy remained at 0/3 for both strict cases.
-Three trials do not establish reliability; Redis and MinIO remained unavailable.
-
-The shared sum and append cases grade the same prompt, initial records, exact
-labelled answer lines and final workbook state across both runtimes. Each trial
-gets a new owner and workbook. Fixture fingerprints must match before execution;
-scope checks require that owner to have exactly one workbook before and after it.
-
-```bash
-E2E_RUNTIME_COMPARISON=1 E2E_COMPARISON_REPEATS=3 MEMORY_MODE=off \
-  MOCK_KIE=true SHEETS_BACKEND=ledger \
-  uv run pytest tests/e2e/test_runtime_comparison_e2e.py -q
-```
-
-This explicitly calls the configured live model. It requires sandbox services and
-allows one to ten repeats per runtime. Three repeats mean twelve trials across
-both scenarios. Add `-m 'not mutating'` to select only the sum scenario. Even this
-read scenario creates and deletes its own fixture records. Legacy tools, prompts,
-guardrails and sessions differ from the main agent's path, so the result is not
-an orchestration-only comparison. Reports include both thinking settings and
-runtime limits; the main agent's default deadline is shorter than the outer turn
-deadline. Provider caching and nondeterminism remain uncontrolled.
-
-Unique `outputs/comparison-<scenario>-<UTC time>-<suffix>.json` files record the
-selected schedule before service setup, then update around each trial. Runtime
-order alternates between repeats. Setup failures count as errors; interruption
-preserves interrupted/unrun entries. Failed service setup leaves the schedule
-incomplete. `scheduled_summary` retains the full per-runtime denominator;
-`observed_summary` reports pass counts and p50/nearest-rank p95 only for returned
-turns, with latency sample counts. Do not treat an incomplete run as a final score.
-At three repeats, p95 is the maximum, not a stable tail estimate.
-
-Cleanup removes only the fixture workbook, operation rows and newly created
-account/session records. Unexpected dependent records make cleanup fail instead
-of cascading deletion. Reports retain observations if cleanup fails. A forced
-process kill may leave a `running` entry and fixture records; their exact IDs
-appear in the report once recorded. Historical reports remain untouched.
 
 ## What this suite does not yet do
 
@@ -408,8 +358,8 @@ The financial execution smoke suite covers record sorting and pagination,
 unique lookup, left join, reconciliation, aging and variance through main chat:
 
 ```bash
-E2E_FINANCIAL_EXECUTION=1 CHAT_RUNTIME=main MEMORY_MODE=off MOCK_KIE=true \
-SHEETS_BACKEND=ledger uv run pytest tests/e2e/test_financial_execution_e2e.py -q
+E2E_FINANCIAL_EXECUTION=1 MOCK_KIE=true \
+uv run pytest tests/e2e/test_financial_execution_e2e.py -q
 ```
 
 It uses fresh synthetic identities and workbooks in the isolated sandbox. Each
@@ -419,8 +369,8 @@ revision and latency. One trial per capability is smoke evidence, not a reliabil
 estimate. The suite does not grade final prose for correct metric labels.
 
 ```bash
-E2E_MAIN_CHAT=1 CHAT_RUNTIME=main MEMORY_MODE=off MOCK_KIE=true \
-  SHEETS_BACKEND=ledger uv run pytest tests/e2e/test_main_chat_e2e.py -q
+E2E_MAIN_CHAT=1 MOCK_KIE=true \
+  uv run pytest tests/e2e/test_main_chat_e2e.py -q
 ```
 
 This opt-in calls the configured live model through the real chat orchestrator,
@@ -436,8 +386,8 @@ context budgets and extraction handoff checks live in `tests/unit/test_main_chat
 ## Measured main runtime qualification
 
 ```bash
-E2E_RUNTIME_ROLLOUT=1 CHAT_RUNTIME=main MEMORY_MODE=off MOCK_KIE=true \
-SHEETS_BACKEND=ledger MODEL_PROVIDER=deepseek LLM_MODEL=deepseek-flash \
+E2E_RUNTIME_ROLLOUT=1 MOCK_KIE=true \
+MODEL_PROVIDER=deepseek LLM_MODEL=deepseek-flash \
 LLM_TEMPERATURE=0.5 LLM_DISABLE_THINKING=true \
 GUARDRAILS_ENABLED=true GUARDRAILS_PROVIDER=deepseek LLM_GUARDRAILS_MODEL=deepseek-flash \
 uv run pytest tests/e2e/test_runtime_rollout_e2e.py -q --tb=short
@@ -460,7 +410,7 @@ Run rollback and bounded storage checks separately from live trials to avoid
 distorting measurements:
 
 ```bash
-LEDGER_STORAGE_PROFILE=1 uv run pytest tests/integration/api/test_runtime_rollback.py \
+LEDGER_STORAGE_PROFILE=1 uv run pytest tests/integration/api/test_service_restart.py \
   tests/integration/mcp-ledger/test_storage_profile.py -q --tb=short
 ```
 

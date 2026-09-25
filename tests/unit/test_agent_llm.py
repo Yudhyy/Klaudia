@@ -1,7 +1,7 @@
 import pytest
 from langchain_core.tools import tool
 
-from klaudia.core.supervisor.llm import build_chat_llm
+from klaudia.core.agent.llm import build_chat_llm
 
 
 @tool

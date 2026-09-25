@@ -1,4 +1,4 @@
-"""Bounded alternative single-agent loop with optional checked appends."""
+"""Bounded single-agent loop with optional checked appends."""
 
 import asyncio
 import json

@@ -3,10 +3,7 @@
 
 services:
   postgres:
-    # pgvector image (not plain postgres) so mem0's long-term memory can store
-    # embeddings via the `vector` extension on this same instance. Drop-in for
-    # postgres:16-alpine; same PG 16 data format, same volume.
-    image: pgvector/pgvector:pg16
+    image: postgres:16-alpine
     environment:
       POSTGRES_USER: klaudia
       POSTGRES_PASSWORD: klaudia
@@ -53,11 +50,9 @@ services:
   # the whole store can be dropped and rebuilt:
   #   docker compose --profile sandbox up -d
   #   docker compose --profile sandbox down -v   # wipe it
-  # The app and ledger schemas create themselves on first connect; the init
-  # script only adds the `vector` extension, which mem0 needs and which cannot
-  # be created from inside the app's connection pool.
+  # Application and ledger schemas initialise on first connection.
   postgres-sandbox:
-    image: pgvector/pgvector:pg16
+    image: postgres:16-alpine
     profiles: ["sandbox"]
     environment:
       POSTGRES_USER: klaudia
@@ -67,7 +62,6 @@ services:
       - "5433:5432"
     volumes:
       - pg-sandbox-data:/var/lib/postgresql/data
-      - ./scripts/sandbox_init.sql:/docker-entrypoint-initdb.d/10-sandbox.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U klaudia -d klaudia_sandbox"]
       interval: 5s

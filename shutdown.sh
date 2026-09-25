@@ -14,7 +14,7 @@ MINIO_API_PORT=${MINIO_API_PORT:-9000}
 echo -e "${YELLOW}Stopping Klaudia services...${NC}"
 
 # Kill by PID file
-for service in fastapi mcp-archive mcp-ledger mcp-gsheets minio; do
+for service in fastapi mcp-ledger minio; do
     pidfile="logs/$service.pid"
     if [ -f "$pidfile" ]; then
         pid=$(cat "$pidfile")

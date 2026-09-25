@@ -90,7 +90,6 @@ jobs:
             tests/integration/extraction/test_ingest_pipeline.py
             tests/integration/extraction/test_async_pipeline.py
             tests/integration/database
-            tests/integration/mcp-archive
             tests/integration/mcp-ledger
             -q --junitxml=test-results/integration.xml
       - store_test_results:

@@ -51,8 +51,6 @@ def formula_report():
     settings = get_settings()
     if not sandbox_enabled() or os.environ.get("E2E_SANDBOX_ACTIVE") != "1":
         raise RuntimeError("Live formula trials require isolated sandbox stores")
-    if settings.chat_runtime != "main" or settings.memory_mode != "off":
-        raise RuntimeError("Use CHAT_RUNTIME=main and MEMORY_MODE=off")
     prompts = {
         stage: formula_prompt(stage)
         for stage in ("inputs", "created", "edited", "failed", "repaired", "literals")
@@ -63,7 +61,7 @@ def formula_report():
         "provider": settings.model_provider,
         "temperature": settings.llm_temperature,
         "disable_thinking": settings.llm_disable_thinking,
-        "thinking_level": settings.llm_thinking_level_worker,
+        "thinking_level": settings.llm_thinking_level,
         "revision": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], text=True
         ).strip(),

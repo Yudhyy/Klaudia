@@ -32,7 +32,7 @@ def _service(request: Request) -> AuthoringService:
     """
     service = request.app.state.container.authoring
     if service is None:
-        raise HTTPException(503, "Catalogue authoring requires SHEETS_BACKEND=ledger")
+        raise HTTPException(503, "Catalogue authoring is unavailable")
     return service
 
 

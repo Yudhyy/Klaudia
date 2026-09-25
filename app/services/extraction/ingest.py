@@ -7,7 +7,7 @@ Flow per attachment:
          pdf   → hash original PDF → MinIO put → render N pages → each page:
                  normalize → hash page → check caches → OCR if miss → persist
     3. Result: ExtractionResult with per-page extraction JSON, ready to feed
-       the supervisor through the existing context builder.
+       the main agent through the existing context builder.
 
 Hash + MinIO key never leave this module. ExtractionResult only carries
 metadata_file_id, page numbers, and validated extraction JSON.

@@ -1,3 +1,1 @@
-from klaudia.core.supervisor.agent import SupervisorAgent
-
-__all__ = ["SupervisorAgent"]
+"""Single-agent accounting with bounded tools and packaged skills."""

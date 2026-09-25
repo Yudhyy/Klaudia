@@ -131,7 +131,7 @@ class MCPToolRegistry:
             if self._url:
                 if self._url.rstrip("/").endswith("/sse"):
                     transport = SSETransport(self._url, auth=self._auth_token)
-                    transport_label = f"legacy sse {self._url}"
+                    transport_label = f"sse {self._url}"
                 else:
                     transport = StreamableHttpTransport(
                         self._url,

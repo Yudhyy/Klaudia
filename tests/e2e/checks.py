@@ -102,7 +102,7 @@ class ResponseView:
     # Irreversible operations the destructive guard parked for user approval.
     pending_approvals: list[dict] = field(default_factory=list)
     error: str | None = None
-    runtime: str = "legacy"
+    runtime: str = "main"
     unsupported: str | None = None
     capabilities_attempted: list[str] = field(default_factory=list)
     calculations: list[dict] = field(default_factory=list)

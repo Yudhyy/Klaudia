@@ -2,8 +2,7 @@
 
 The Expo client lists/creates/renames/deletes spreadsheets here and passes
 the chosen spreadsheet_id to /v1/chat. Foreign or absent ids 404 (non-
-enumerating, same stance as sessions). With SHEETS_BACKEND=gsheets the
-feature is off and every endpoint returns 503.
+enumerating, same stance as sessions). Unavailable services return 503.
 """
 
 import logging
@@ -34,7 +33,7 @@ def _service(request: Request) -> SpreadsheetService:
     if service is None:
         raise HTTPException(
             status_code=503,
-            detail="Spreadsheet management requires SHEETS_BACKEND=ledger",
+            detail="Spreadsheet management is unavailable",
         )
     return service
 
@@ -89,8 +88,3 @@ async def delete_spreadsheet(
         await _service(request).delete(user_id, spreadsheet_id)
     except SpreadsheetNotFoundError:
         raise HTTPException(status_code=404, detail="Spreadsheet not found")
-    # Cascade: a deleted spreadsheet's long-term memories go with it. Fail-soft
-    # (purge never raises); memory is None when the feature is off.
-    memory = request.app.state.container.memory
-    if memory is not None:
-        await memory.purge_spreadsheet(user_id, spreadsheet_id)

@@ -21,7 +21,6 @@ def chat_turn():
         text="Add the expense",
         extraction_contexts=("Extracted receipt facts",),
         metadata=ChatMetadata(),
-        memory_context="Default currency: IDR",
     )
 
 
@@ -49,7 +48,6 @@ async def test_chat_loads_history_once_without_resource_inventory():
     assert "Previous request" in context[-1].content
     assert "Extracted receipt facts" in context[-1].content
     assert context[-1].content.count("Add the expense") == 1
-    assert "Default currency: IDR" in context[-1].content
     assert "active" in context[1].content
     assert [args.args[3] for args in database.save_message.await_args_list][:2] == [
         "Extracted receipt facts",
@@ -168,24 +166,17 @@ async def test_post_commit_failure_keeps_receipt_and_never_reexecutes():
     )
 
 
-def test_runtime_defaults_and_backend_validation(monkeypatch):
-    """The runtime switch is server-owned and rejects unsupported storage."""
-    from pydantic import ValidationError
-
+def test_single_agent_has_no_runtime_or_legacy_memory_settings():
+    """The application cannot select a retired runtime or memory service."""
     from config.settings import Settings
 
-    monkeypatch.delenv("CHAT_RUNTIME", raising=False)
-    assert Settings(_env_file=None).chat_runtime == "main"
-    assert Settings(_env_file=None, CHAT_RUNTIME="main").chat_runtime == "main"
-    assert Settings(_env_file=None, CHAT_RUNTIME="legacy").chat_runtime == "legacy"
-    with pytest.raises(ValidationError, match="requires SHEETS_BACKEND=ledger"):
-        Settings(_env_file=None, CHAT_RUNTIME="main", SHEETS_BACKEND="gsheets")
-    with pytest.raises(ValidationError):
-        Settings(_env_file=None, CHAT_RUNTIME="unknown")
+    assert "chat_runtime" not in Settings.model_fields
+    assert "memory_mode" not in Settings.model_fields
+    assert "mcp_archive_url" not in Settings.model_fields
 
 
 def orchestrator_container():
-    """Build a main-chat container with strict legacy-call sentinels."""
+    """Build a container exposing only the main chat service."""
     from config.settings import Settings
     from klaudia.core.agent.agent import RunOutcome
 
@@ -209,14 +200,10 @@ def orchestrator_container():
     spreadsheets = AsyncMock()
     spreadsheets.resolve_scope.return_value = "active"
     return SimpleNamespace(
-        settings=Settings(
-            _env_file=None, CHAT_RUNTIME="main", NUMERIC_VERIFY_MODE="off"
-        ),
+        settings=Settings(_env_file=None, NUMERIC_VERIFY_MODE="off"),
         db_client=database,
         guardrails=guardrails,
         main_chat=main_chat,
-        supervisor=None,
-        memory=None,
         extraction_agent=AsyncMock(),
         langfuse=None,
         spreadsheets=spreadsheets,
@@ -225,7 +212,7 @@ def orchestrator_container():
 
 @pytest.mark.parametrize("streaming", [False, True])
 async def test_both_chat_paths_preserve_identity_and_check_output_first(streaming):
-    """Neither path calls legacy tools or emits unchecked main-agent prose."""
+    """Both transports retain checked main-agent output."""
     from app.models.chat import KlaudiaMessage
     from app.services.core.orchestrator import KlaudiaOrchestrator
 
@@ -297,56 +284,6 @@ async def test_large_history_does_not_block_small_followup():
     assert {"search_documents", "read_document_page"} <= {
         tool.name for tool in model.tools
     }
-
-
-@pytest.mark.parametrize("streaming", [False, True])
-async def test_legacy_runtime_still_uses_existing_supervisor(streaming):
-    """The default route keeps its existing tools and sheet context."""
-    from app.models.chat import KlaudiaMessage
-    from app.services.core.orchestrator import KlaudiaOrchestrator
-
-    container = orchestrator_container()
-    container.settings.chat_runtime = "legacy"
-    container.approvals = None
-    container.supervisor = AsyncMock()
-    container.supervisor.get_available_sheets.return_value = "Legacy sheet inventory"
-    container.supervisor.process_conversation.return_value = SimpleNamespace(
-        content="Ready", tools_called=[]
-    )
-    container.spreadsheets.recent_activity.return_value = []
-    container.db_client.get_session_files.return_value = []
-
-    async def legacy_events(**kwargs):
-        """Return the legacy final event without changing its transport contract."""
-        yield {"type": "final", "data": {"content": "Ready", "tools_called": []}}
-
-    container.supervisor.stream_conversation = legacy_events
-    orchestrator = KlaudiaOrchestrator(container)
-    arguments = dict(
-        messages=[KlaudiaMessage(role="user", content="Hello")],
-        session_id=7,
-        user_id=42,
-        spreadsheet_id="active",
-    )
-    if streaming:
-        events = [event async for event in orchestrator.stream(**arguments)]
-        assert (
-            next(
-                event["data"]["content"] for event in events if event["type"] == "done"
-            )
-            == "Ready"
-        )
-    else:
-        response = await orchestrator.process(**arguments)
-        assert response.runtime == "legacy"
-        assert response.message.content == "Ready"
-        assert (
-            container.supervisor.process_conversation.await_args.kwargs[
-                "sheets_context"
-            ]
-            == "Legacy sheet inventory"
-        )
-    container.main_chat.run.assert_not_awaited()
 
 
 @pytest.mark.parametrize("streaming", [False, True])

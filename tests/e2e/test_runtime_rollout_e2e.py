@@ -48,12 +48,6 @@ def rollout_report():
     settings = get_settings()
     if not sandbox_enabled() or os.environ.get("E2E_SANDBOX_ACTIVE") != "1":
         raise RuntimeError("Rollout trials require isolated sandbox stores")
-    if (settings.chat_runtime, settings.memory_mode, settings.sheets_backend) != (
-        "main",
-        "off",
-        "ledger",
-    ):
-        raise RuntimeError("Use main runtime, memory off and ledger backend")
     if (
         settings.model_provider,
         settings.llm_model,

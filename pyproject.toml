@@ -20,11 +20,8 @@ dependencies = [
     "google-genai>=1.0.0",
     "python-multipart>=0.0.9",
     "klaudia",
-    "mcp-archive",
-    "mcp-gsheets",
     "mcp-ledger",
     "langfuse>=4.5.0",
-    "langchain-google-vertexai>=3.2.3",
     "blake3>=1.0.0",
     "pillow-heif>=0.18.0",
     "json-repair>=0.30.0",
@@ -36,23 +33,15 @@ dependencies = [
     "bcrypt>=5.0.0",
     "slowapi>=0.1.10",
     "asyncpg>=0.31.0",
-    "mem0ai==2.0.13",
-    "psycopg[binary]>=3.3.4",
-    "pgvector>=0.5.0",
-    "psycopg-pool>=3.3.1",
 ]
 
 [tool.uv.sources]
 klaudia = { workspace = true }
-mcp-archive = { workspace = true }
-mcp-gsheets = { workspace = true }
 mcp-ledger = { workspace = true }
 
 [tool.uv.workspace]
 members = [
-    "mcp-gsheets",
     "klaudia",
-    "mcp-archive",
     "mcp-ledger",
 ]
 

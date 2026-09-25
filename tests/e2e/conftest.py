@@ -13,10 +13,7 @@ import pytest
 import pytest_asyncio
 from dotenv import load_dotenv
 
-# Load the main app .env into the environment so the skip guard and the container
-# see the same credentials the app uses. SHEET_ID is intentionally NOT required
-# here: it lives in mcp-gsheets/.env and is loaded by the MCP server in its own
-# cwd, so the parent process never needs it.
+# Load model credentials before resolving the isolated sandbox settings.
 load_dotenv()
 
 # Repoint every datastore at the sandbox BEFORE anything reads settings: the
@@ -34,11 +31,6 @@ bind_sandbox()
 # production (the app never sets this). setdefault lets a developer override.
 os.environ.setdefault("E2E_FREEZE_NOW", "2026-06-30T19:22:00")
 
-# Isolate long-term memory to a throwaway collection so the memory eval's reset()
-# can never touch real memories. Only has an effect when MEMORY_MODE is enabled
-# for the run (memory cases skip otherwise). setdefault lets a developer override.
-os.environ.setdefault("MEMORY_COLLECTION", "klaudia_memory_e2e")
-
 
 def pytest_configure(config):
     # Name the stores in the run header so a results table can never be read as
@@ -46,7 +38,7 @@ def pytest_configure(config):
     print(f"\n{describe()}")
     config.addinivalue_line(
         "markers",
-        "mutating: case mutates the real Google Sheet (deselect with -m 'not mutating')",
+        "mutating: case mutates the sandbox ledger (deselect with -m 'not mutating')",
     )
     config.addinivalue_line("markers", "e2e: Klaudia whitebox end-to-end case")
 
@@ -71,7 +63,7 @@ requires_live = pytest.mark.skipif(
 # loop_scope="module" is REQUIRED: the container's MCP stdio sessions and their
 # background tasks are bound to the loop that creates the fixture. The tests must
 # run on that SAME loop or every MCP call (e.g. tool_list_sheets in
-# get_available_sheets, fired each non-rejected turn) awaits across event loops
+# the sheet-read API) awaits across event loops
 # and deadlocks. Tests therefore use @pytest.mark.asyncio(loop_scope="module").
 @pytest_asyncio.fixture(scope="module", loop_scope="module")
 async def container():
@@ -95,7 +87,7 @@ async def orchestrator(container):
 def spy(container):
     from tests.e2e.spy import MCPSpy
 
-    return MCPSpy([container.mcp_archive, container.mcp_gsheets])
+    return MCPSpy([container.mcp_ledger])
 
 
 @pytest.fixture(scope="module")
@@ -126,7 +118,7 @@ async def sheet_guard(container):
     if container.spreadsheets is not None:
         scope = await container.spreadsheets.resolve_scope(TEST_USER_ID)
 
-    guard = SheetGuard(container.mcp_gsheets, spreadsheet_id=scope)
+    guard = SheetGuard(container.mcp_ledger, spreadsheet_id=scope)
     await guard.snapshot()
     if scope is not None:
         await guard.seed()

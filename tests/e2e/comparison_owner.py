@@ -33,9 +33,6 @@ async def comparison_owner(pool: asyncpg.Pool) -> AsyncIterator[int]:
         async with pool.acquire() as connection:
             async with connection.transaction():
                 await connection.execute(
-                    "DELETE FROM pending_approval WHERE user_id = $1", user_id
-                )
-                await connection.execute(
                     "DELETE FROM conversation WHERE user_id = $1", user_id
                 )
                 await connection.execute(

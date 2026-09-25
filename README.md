@@ -22,7 +22,6 @@
   <img src="https://img.shields.io/badge/PostgreSQL-Ledger%20%2B%20pgvector-336791" />
   <img src="https://img.shields.io/badge/NocoDB-Grid%20View-3c4be7" />
   <img src="https://img.shields.io/badge/MCP-Tool%20Boundary-black" />
-  <img src="https://img.shields.io/badge/mem0-Long%20Term%20Memory-ff6f00" />
   <img src="https://img.shields.io/badge/Deepseekv4-pro-4e6bfe" />
   <img src="https://img.shields.io/badge/Qwen3.5-4B%20Fine%20Tuned-623ae7" />
   <img src="https://img.shields.io/badge/vLLM-Model%20Serving-1f4b99" />
@@ -39,108 +38,67 @@
 
 ## 🏵 What this is
 
-Klaudia is an **agentic accountant** for finance teams. You talk to it the way you
-would talk to a junior on your team, and it works directly in your ledgers:
-reads them, reconciles them, posts entries, closes the month, and tells you what
-it found.
+Klaudia uses one accounting agent with on-demand skills to read owned ledger
+tables, run checked calculations and prepare exact operations. PostgreSQL stores
+ledger, document, context and task records; MinIO stores document uploads.
+Hosted model providers receive the text or images included in their requests.
 
-Storage runs on your own infrastructure. Ledger data, memory, and documents stay
-in your Postgres and object store. Hosted model options receive only the prompt
-and image or text payload sent to them.
+**Supported work**
 
-**What it does today**
-
-| | |
+| Capability | Current boundary |
 |---|---|
-| **Read and analyse** | totals, roll-ups by category or period, cross-sheet aggregation, filtered sums, ranking |
-| **Financial models** | profit and loss across statement sheets, gross and net margin, budget against actual by department |
-| **Tax** | PPN 11% and PPh 23 withholding, computed from the tax base when no tax column exists |
-| **Receivables** | aging schedules bucketed by days past due, overdue balances per customer |
-| **Reconciliation** | detail against summary, finding the entry that breaks a double-entry journal |
-| **Data entry** | append, correct, restructure tabs, multi-step month close across many turns |
-| **Document capture** | receipts and invoices to structured rows, including multi-page PDFs |
+| Discovery | Owned registered tables, paged schemas and observed revisions |
+| Calculation | Exact sums/counts, bounded queries, aging and variance |
+| Reconciliation | Saved structured policy, matching entities and explicit units |
+| Writes | Checked appends, table authoring and typed decimal/formula edits |
+| Documents | Receipt/invoice extraction and owner-scoped archived page reads |
+| Context | Explicitly edited preferences, conventions and accounting policy |
+| Recovery | Durable tasks, original operation references and committed receipts |
 
-Document capture is **one input path, not the product**. Most of the work happens
-after the data is in the ledger.
+General spreadsheet deletion, automatic month close, statutory accounting
+certification and unrestricted Excel formulas are not supported.
 
----
+## Checks before effects
 
-## 🔐 Why it is safe to point at real books
+**Ownership and revisions.** The server supplies authenticated identity. Tools
+check current source ownership and revisions; a model-selected resource ID does
+not grant access. Named destinations must resolve to owned resources.
 
-Four properties, each enforced in code rather than by asking the model nicely.
+**Exact operations.** Preparation stores a proposal without changing cells.
+Execution uses the original reference and returns a receipt. Optional approval
+gates appends and edits; unregistering a table always requires approval and
+preserves its cells. Retrying the same reference must not repeat its effects.
 
-**Numbers are checked, not trusted.** Every monetary figure in a reply is
-compared against a grounded set computed from that turn's actual tool results:
-cell values, column and row sums, group-by sums, cross-grid totals. An amount the
-evidence cannot produce is flagged. `NUMERIC_VERIFY_MODE` selects whether that
-logs or blocks.
+**Answer checks.** Numeric verification compares prose figures with observed
+evidence. `NUMERIC_VERIFY_MODE` selects logging or blocking. This does not prove
+that a correct number carries the correct label. The retained local qualification
+has one accepted answer-format failure; see [the record](docs/RUNTIME_ROLLOUT.md).
 
-**Irreversible operations stop for a human.** Impact is measured in code before
-anything runs. Deleting more than a handful of rows, clearing a whole column, or
-dropping a non-empty sheet parks the operation for approval and returns
-approve/reject to the client. Approval replays the stored call verbatim, so the
-model never re-plans a destructive action. This exists because prompting alone
-was not enough: an early evaluation run wiped seven sheets.
-
-**Tenants are separated at the tool layer.** Spreadsheet parameters are stripped
-from every tool schema the model can see, and forced from a request-scoped value
-the model cannot reach. An agent cannot name another tenant's workspace even
-under prompt injection, because the parameter is not in its vocabulary.
-
-**Data locality is configurable.** Long-term memory, embeddings, and storage run
-locally. Self-hosted inference keeps model input local; hosted DeepSeek or Gemini
-backends receive the requests routed to them.
-
----
+**Data location.** Stored records remain in the configured database and object
+store. Self-hosted inference keeps model requests local; hosted providers receive
+the requests sent to them.
 
 ## 🪆 Architecture
 
-<div align="center">
-  <img src="https://github.com/Laoode/agentic-data-entry/blob/development/docs/LLMOps.png" alt="LLM Ops Pipeline">
-</div>
+Chat uses one main agent with versioned, on-demand skills. The server supplies
+identity and checks ownership, revisions and approvals before ledger effects.
 
 ```text
-Mobile / API client ── JWT ──> FastAPI /v1 (per-user rate limits)
-                                   │
-                                   ▼
-                            Orchestrator ──> Langfuse traces
-                                   │
-   ┌───────────────────────────────┼───────────────────────────────┐
-   │                               │                               │
-Guardrails IN              Extraction Agent                Long-term memory
-prompt-injection           dedup by content hash           continuity state +
-+ scope checks             KIE model, sync or queued       semantic recall
-   │                               │                               │
-   └───────────────────────────────┼───────────────────────────────┘
-                                   ▼
-                          Supervisor (LangGraph)
-                                   │
-                 ┌─────────────────┴─────────────────┐
-                 ▼                                   ▼
-            SQL Agent                          Data Entry Team
-        document archive                  read / structure / write
-                 │                                   │
-                 ▼                                   ▼
-           MCP archive                          MCP ledger
-                                   │
-                                   ▼
-                    Numeric verifier + destructive-op guard
-                                   ▼
-                             Guardrails OUT
+API client -> JWT and rate limits -> input guardrails
+                                  -> document extraction when requested
+                                  -> main agent + skills
+                                     -> owned catalogue and document reads
+                                     -> checked calculations and ledger operations
+                                     -> scoped PostgreSQL context documents
+                                  -> numeric verification and output guardrails
+                                  -> response and durable task receipts
 ```
 
-Storage is one Postgres (ledger grids, document registry, tenancy, and the
-memory vectors), Redis for dedup and queues, MinIO for document blobs. Tools are
-reached over MCP, so the tool boundary stays explicit and auditable.
+PostgreSQL stores ledger grids, documents, context and task state. Redis handles
+queues and deduplication; MinIO stores uploaded document blobs. The sheet-read API
+uses the ledger MCP transport. The agent calls the checked application tools.
 
-The ledger now also exposes bounded snapshot reads, revision-checked appends
-with stored operation receipts, and deterministic labelled sums/counts over
-selected table regions. These are backend capabilities; the current chat workers
-retain their existing tools until the agent migration. They do not yet add formula
-evaluation or change the published live-agent benchmark scores.
-
-**Tenancy model:** user → spreadsheets → sheets. Chat and its existing MCP tools
-remain bound to one spreadsheet per request. Authenticated catalogue reads can
+**Tenancy model:** user → spreadsheets → sheets. Chat receives an active-workbook hint and resolves the user's named destination from owned resources. Authenticated catalogue reads can
 search all workbooks currently owned by the user:
 
 - `POST /v1/resources/search`: search registered table metadata with intent and
@@ -155,7 +113,7 @@ output budget and require the ledger backend. Discovery covers registered tables
 only; stale metadata remains marked. Shared-workspace roles, agent-selected
 workbooks and multi-workbook writes are not enabled by this change.
 
-The alternative agent components in `klaudia/core/agent/` expose task-bound
+The main agent components in `klaudia/core/agent/` expose task-bound
 `search_resources`, `inspect_resource`, `release_resource`, `calculate` and
 `financial_query` tools. The server
 supplies immutable user identity and an optional active-workbook hint. Inspection
@@ -163,7 +121,6 @@ records up to 20 resource references with observed revisions; search alone does
 not select a target. Each inspection rechecks ownership, and failed reinspection
 discards the previous reference. These observations grant no write permission.
 The working set can be restored from a bounded durable checkpoint in main chat.
-The legacy chat runtime is still the default.
 
 Table authoring operates on existing owned sheets, through main chat or these
 JWT-authenticated ledger endpoints:
@@ -205,7 +162,7 @@ checked calculation tools. Automatic region inference, formula relationships and
 physical grid schema edits remain separate work.
 
 
-`MainAgent` adds a programmatic alternative loop, read-only by default. It accepts a
+`MainAgent` provides the tool loop, read-only unless checked write services are supplied. It accepts a
 tool-capable chat model from the existing provider factory and an ownership-checked
 `CatalogueService`. Each `run(message, TaskContext(...))` creates fresh tools and
 state. The stable system prefix lists skill summaries; `load_skill` retrieves
@@ -234,9 +191,9 @@ remain Decimal operands through calculation; sums reject results beyond the
 64-digit exact precision budget. Fractional group labels that cannot round-trip
 through the current JSON numeric format also fail instead of rounding.
 
-The main runtime is the default and requires `SHEETS_BACKEND=ledger`. Set
-`CHAT_RUNTIME=legacy` to select the legacy route explicitly. Local cutover retains
-one answer-format issue under a maintainer-approved exception; see the
+Chat always uses the single main agent and PostgreSQL ledger. There is no runtime
+selector or worker-agent fallback. Local cutover retains one answer-format issue
+under a maintainer-approved exception; see the
 [qualification record](docs/RUNTIME_ROLLOUT.md). A bounded
 [native decimal formula contract](docs/TYPED_FORMULAS.md) defines the typed inputs,
 per-cell rounding, dependency edits and calculation receipts available in the
@@ -313,12 +270,12 @@ and original cause. External cancellation carries the same evidence through
 timeout outcome, including observed references. Callers must retain these references
 and retry them rather than start a new append when the outcome is unknown.
 Main chat persists checkpoints and exposes explicit task resume; it does not retry automatically.
-Standalone checked-append preparation over HTTP/MCP and default runtime cutover remain pending.
+Standalone checked-append preparation over HTTP/MCP remains separate from the chat tool API.
 
-With `CHAT_RUNTIME=main` and `SHEETS_BACKEND=ledger`, both `POST /v1/chat` and
+Both `POST /v1/chat` and
 `POST /v1/chat/stream` use the main agent. JWT identity controls access across
 currently owned workbooks; `spreadsheet_id` supplies an ownership-checked active
-hint. The main path does not load the legacy prompt or fetch a sheet inventory.
+hint. The agent discovers resources on demand.
 It retains input/output guardrails, extraction handoff, session history and
 Langfuse callbacks. Streaming buffers the reply until output checks finish.
 
@@ -326,7 +283,7 @@ Main chat exposes checked append, table authoring, discovery and financial queri
 `search_documents` and `read_document_page` tools over the existing archive.
 Document reads check both file and session ownership. Search returns at most 20
 records; page reads return at most 8,192 characters with continuation offsets.
-Memory, extraction context and recent history have separate 8 KiB context budgets;
+Extraction context and recent history have separate 8 KiB context budgets;
 omissions are explicit and archived pages remain retrievable. The full agent
 message budget still applies, including to an oversized current request.
 
@@ -369,12 +326,11 @@ waits or fails. Each operation is atomic; the full task is not one transaction.
 Main tools can inspect typed workbooks and prepare native formula/input edits,
 then execute the stored operation reference. They do not delete financial cells,
 accept Excel expressions or execute arbitrary SQL.
-Existing grid-deletion approvals remain on the legacy path. The revision-bound
+The revision-bound
 approval flow covers checked appends, table authoring and typed edits. `NUMERIC_VERIFY_MODE=enforce` blocks ungrounded
-main-agent prose without a supervisor rewrite and keeps operation evidence in the
+main-agent prose without a model rewrite and keeps operation evidence in the
 response. This check still does not prove metric-label or financial correctness.
-Switch `CHAT_RUNTIME` back to `legacy` to restore the existing route; stored
-operation references and receipts remain in the database.
+Stored operation references and receipts remain in the database across restarts.
 
 A [live chat smoke run](tests/e2e/outputs/main-chat-2026-09-12.md) at clean
 commit `0118cfc` passed the 1,000-row sum and exact append cases once each,
@@ -470,19 +426,11 @@ evaluation.
 
 ## 🔋 Memory
 
-Two tiers, because they fail differently.
-
-**Continuity** is deterministic. It reads the ledger's own modification times to
-answer "where did we leave off", uses no model and no embeddings, and therefore
-cannot invent a past that did not happen.
-
-**Semantic memory** is self-hosted mem0 over pgvector, holding preferences and
-facts worth carrying between sessions, with conflict-aware updates so a newer
-statement supersedes an older one. Hard-partitioned by user, and cross-user
-recall is graded as a security bug with a required leak rate of zero.
-
-Both fail soft: if memory is unavailable, the agent answers without it rather
-than erroring.
+The main agent reads owner-scoped PostgreSQL documents on demand: preferences,
+conventions and accounting policy. Authenticated edits use expected revisions;
+policy-backed reconciliation checks structured metadata against owned sources.
+Financial facts remain ledger data. There is no embedding service or automatic
+conversation-to-memory extraction.
 
 ---
 
@@ -491,10 +439,10 @@ than erroring.
 | Layer | Technology |
 |---|---|
 | API | FastAPI, JWT auth, per-user rate limits |
-| Agents | LangGraph supervisor with worker sub-agents |
-| Tool boundary | MCP (ledger server, document archive server) |
+| Agents | Single main agent with versioned skills |
+| Tool boundary | Checked application tools and ledger MCP reads |
 | Ledger | PostgreSQL, sheet-semantics grids, 23-tool API |
-| Memory | mem0 + PostgreSQL history + pgvector + local embeddings |
+| Memory | Owner-scoped PostgreSQL documents and revision history |
 | Reasoning model | DeepSeek v4 pro today, swappable by configuration |
 | Extraction model | DeepSeek V4 Flash Vision; Qwen 3.5 4B fine-tune and Gemini selectable |
 | Queue and cache | Redis, Taskiq workers |
@@ -522,7 +470,7 @@ docker compose --profile sandbox up -d   # isolated store for the evaluation sui
 
 ```bash
 uv run pytest tests/unit -q                                    # fast, hermetic
-MOCK_KIE=true SHEETS_BACKEND=ledger uv run pytest tests/e2e -q # full evaluation
+MOCK_KIE=true uv run pytest tests/e2e -q # full evaluation
 ```
 
 ---
@@ -532,11 +480,8 @@ MOCK_KIE=true SHEETS_BACKEND=ledger uv run pytest tests/e2e -q # full evaluation
 ```text
 app/            FastAPI routes, orchestrator, guardrails, extraction,
                 memory, verifier, approvals
-klaudia/        agent graph: supervisor, sql_agent, data_entry_team, prompts
+klaudia/        single main agent, checked tools, packaged skills
 mcp-ledger/     Postgres ledger MCP server (the default sheets backend)
-mcp-archive/    document registry MCP server
-mcp-gsheets/    Google Sheets adapter (export mirror, optional backend)
-services/embed/ local embedding service for memory
 tests/e2e/      the sandbox: dataset, generators, runners, reports
 scripts/        migration, mirroring, tenancy and sandbox utilities
 ```

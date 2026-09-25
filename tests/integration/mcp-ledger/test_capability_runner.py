@@ -11,7 +11,6 @@ from klaudia.core.agent.agent import MainAgent
 from ledger.catalogue import CatalogueStore
 from ledger.store import LedgerStore
 from tests.e2e.capability_cases import seeded_capability_case
-from tests.e2e.comparison import fixture_digest, seeded_comparison_case
 from tests.e2e.engine_inprocess import run_case_inprocess
 from tests.e2e.sut import MainAgentSUT
 from tests.integration.postgres import POSTGRES_TEST_URL
@@ -117,27 +116,6 @@ async def test_shared_runner_grades_real_financial_evidence(scenario):
             assert records[0].result.passed, records[0].result.reasons
             assert records[0].result.detail["ledger_state"]
             assert records[0].view.runtime == "main"
-    finally:
-        await store.close()
-
-
-@pytest.mark.parametrize("scenario", ["sum_1000", "append"])
-async def test_comparison_fixtures_match_across_distinct_owners(scenario):
-    """Random resource identities do not change shared inputs or expected outcomes."""
-    store = LedgerStore(POSTGRES_TEST_URL)
-    await store.connect()
-    try:
-        async with seeded_comparison_case(store, scenario, 90502) as first:
-            async with seeded_comparison_case(store, scenario, 90503) as second:
-                assert first.workbook_id != second.workbook_id
-                assert await fixture_digest(first) == await fixture_digest(second)
-                expected = first.case.turns[0].expect
-                assert expected.answer_lines
-                assert not expected.metric_evidence
-                assert not expected.capabilities_all
-                assert expected.committed_operations_min is None
-                second.case.turns[0].user += " Changed request."
-                assert await fixture_digest(first) != await fixture_digest(second)
     finally:
         await store.close()
 

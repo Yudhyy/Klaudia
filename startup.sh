@@ -7,15 +7,12 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 FASTAPI_PORT=${PORT:-8000}
-MCP_ARCHIVE_PORT=8001
-MCP_GSHEETS_PORT=8002
 MCP_LEDGER_PORT=8003
 MINIO_API_PORT=${MINIO_API_PORT:-9000}
 MINIO_CONSOLE_PORT=${MINIO_CONSOLE_PORT:-9001}
 MINIO_DATA_DIR=${MINIO_DATA_DIR:-"$HOME/codex/minio/data"}
 
 MCP_TRANSPORT=${MCP_TRANSPORT:-stdio}
-SHEETS_BACKEND=${SHEETS_BACKEND:-ledger}
 DATABASE_URL=${DATABASE_URL:-postgresql://klaudia:klaudia@localhost:5432/klaudia}
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -37,29 +34,11 @@ echo -e "${YELLOW}Waiting for MinIO to start...${NC}"
 sleep 2
 
 if [ "$MCP_TRANSPORT" = "http" ] || [ "$MCP_TRANSPORT" = "sse" ]; then
-  # Start MCP-Archive
-  echo -e "${YELLOW}Starting MCP-Archive on port $MCP_ARCHIVE_PORT...${NC}"
-  cd "$PROJECT_DIR/mcp-archive"
-  FASTMCP_PORT=$MCP_ARCHIVE_PORT DATABASE_URL="$DATABASE_URL" \
-    "$PYTHON" main.py --transport "$MCP_TRANSPORT" > "$PROJECT_DIR/logs/mcp-archive.log" 2>&1 &
-  echo $! > "$PROJECT_DIR/logs/mcp-archive.pid"
-  echo -e "${GREEN}MCP-Archive started (PID: $(cat "$PROJECT_DIR/logs/mcp-archive.pid"))${NC}"
-
-  if [ "$SHEETS_BACKEND" = "ledger" ]; then
-    echo -e "${YELLOW}Starting MCP-Ledger on port $MCP_LEDGER_PORT...${NC}"
-    cd "$PROJECT_DIR/mcp-ledger"
-    FASTMCP_PORT=$MCP_LEDGER_PORT \
-      "$PYTHON" main.py --transport "$MCP_TRANSPORT" > "$PROJECT_DIR/logs/mcp-ledger.log" 2>&1 &
-    echo $! > "$PROJECT_DIR/logs/mcp-ledger.pid"
-    echo -e "${GREEN}MCP-Ledger started (PID: $(cat "$PROJECT_DIR/logs/mcp-ledger.pid"))${NC}"
-  else
-    echo -e "${YELLOW}Starting MCP-GSheets on port $MCP_GSHEETS_PORT...${NC}"
-    cd "$PROJECT_DIR/mcp-gsheets"
-    FASTMCP_PORT=$MCP_GSHEETS_PORT \
-      "$PYTHON" main.py --transport "$MCP_TRANSPORT" > "$PROJECT_DIR/logs/mcp-gsheets.log" 2>&1 &
-    echo $! > "$PROJECT_DIR/logs/mcp-gsheets.pid"
-    echo -e "${GREEN}MCP-GSheets started (PID: $(cat "$PROJECT_DIR/logs/mcp-gsheets.pid"))${NC}"
-  fi
+  echo -e "${YELLOW}Starting MCP-Ledger on port $MCP_LEDGER_PORT...${NC}"
+  cd "$PROJECT_DIR/mcp-ledger"
+  FASTMCP_PORT=$MCP_LEDGER_PORT DATABASE_URL="$DATABASE_URL" \
+    "$PYTHON" main.py --transport "$MCP_TRANSPORT" > "$PROJECT_DIR/logs/mcp-ledger.log" 2>&1 &
+  echo $! > "$PROJECT_DIR/logs/mcp-ledger.pid"
 
   echo -e "${YELLOW}Waiting for MCP servers to start...${NC}"
   sleep 3
@@ -82,10 +61,5 @@ echo -e "  FastAPI:     http://localhost:$FASTAPI_PORT"
 echo -e "  MinIO API:   http://localhost:$MINIO_API_PORT"
 echo -e "  MinIO UI:    http://localhost:$MINIO_CONSOLE_PORT"
 if [ "$MCP_TRANSPORT" = "http" ] || [ "$MCP_TRANSPORT" = "sse" ]; then
-  echo -e "  MCP-Archive: http://localhost:$MCP_ARCHIVE_PORT"
-  if [ "$SHEETS_BACKEND" = "ledger" ]; then
-    echo -e "  MCP-Ledger:  http://localhost:$MCP_LEDGER_PORT"
-  else
-    echo -e "  MCP-GSheets: http://localhost:$MCP_GSHEETS_PORT"
-  fi
+  echo -e "  MCP-Ledger:  http://localhost:$MCP_LEDGER_PORT"
 fi

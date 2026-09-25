@@ -88,7 +88,6 @@ async def main_chat_client():
     settings = Settings(
         _env_file=None,
         DATABASE_URL=POSTGRES_TEST_URL,
-        CHAT_RUNTIME="main",
         NUMERIC_VERIFY_MODE="off",
     )
     database = AppDBClient(settings)

@@ -198,8 +198,6 @@ def financial_report():
     settings = get_settings()
     if not sandbox_enabled() or os.environ.get("E2E_SANDBOX_ACTIVE") != "1":
         raise RuntimeError("Financial smoke checks require the isolated sandbox")
-    if settings.chat_runtime != "main" or settings.memory_mode != "off":
-        raise RuntimeError("Use CHAT_RUNTIME=main and MEMORY_MODE=off")
     report = {
         "suite": "financial_execution",
         "model": settings.llm_model,

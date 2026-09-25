@@ -17,7 +17,7 @@ router = APIRouter(prefix="/sheets", tags=["sheets"])
 async def _resolve_scope(
     request: Request, user_id: int, spreadsheet_id: Optional[str]
 ) -> Optional[str]:
-    """Resolve the user's spreadsheet scope (None when backend is gsheets)."""
+    """Resolve the authenticated user's spreadsheet scope."""
     service = request.app.state.container.spreadsheets
     if service is None:
         return None
@@ -56,7 +56,7 @@ async def get_spreadsheet_info(
     Return spreadsheet title and all sheet tab names for the user's
     spreadsheet (default one when spreadsheet_id is omitted).
     """
-    registry: MCPToolRegistry = request.app.state.container.mcp_gsheets
+    registry: MCPToolRegistry = request.app.state.container.mcp_ledger
     tool = _get_tool(registry, "tool_get_spreadsheet_info")
     scope = await _resolve_scope(request, user_id, spreadsheet_id)
     try:
@@ -81,7 +81,7 @@ async def get_sheet_data(
     Return cell values from a sheet tab in the user's spreadsheet
     (default one when spreadsheet_id is omitted).
     """
-    registry: MCPToolRegistry = request.app.state.container.mcp_gsheets
+    registry: MCPToolRegistry = request.app.state.container.mcp_ledger
     tool = _get_tool(registry, "tool_get_sheet_data")
     scope = await _resolve_scope(request, user_id, spreadsheet_id)
     try:

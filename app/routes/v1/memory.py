@@ -12,7 +12,6 @@ from app.services.memory.contracts import (
     DocumentPath,
     MemoryDocument,
 )
-from app.services.memory.imports import PreferenceImport
 from app.services.memory.store import DocumentConflict, MemoryDocumentStore
 
 router = APIRouter(prefix="/memory", tags=["memory"])
@@ -145,35 +144,5 @@ async def delete_document(
     """
     try:
         return await store.delete(user_id, path, expected_revision)
-    except DocumentConflict as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from None
-
-
-@router.post("/imports/preferences")
-@limiter.limit(chat_limit)
-async def import_preferences(
-    body: PreferenceImport,
-    request: Request,
-    response: Response,
-    user_id: int = Depends(get_current_user),
-    store: MemoryDocumentStore = Depends(document_store),
-) -> MemoryDocument:
-    """Save reviewed preference text without reading or changing external mem0 records.
-
-    Args:
-        body: Reviewed replacement text, source IDs and expected revision.
-        request: Request used for rate limits.
-        response: Response used for rate-limit headers.
-        user_id: Verified token identity.
-        store: Application-owned context store.
-
-    Returns:
-        Committed preference revision with declared import provenance.
-
-    Raises:
-        HTTPException: Another edit changed the destination revision.
-    """
-    try:
-        return await store.write(user_id, DocumentPath.PREFERENCES, body.as_edit())
     except DocumentConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None

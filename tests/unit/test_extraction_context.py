@@ -7,7 +7,7 @@ import pytest
 from toon_format import decode
 
 from app.services.core.verifier import grounded_values
-from klaudia.core.supervisor.tools import context
+from app.services.core import context
 
 
 LABEL_DIRECTORY = (

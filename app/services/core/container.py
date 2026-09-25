@@ -14,11 +14,8 @@ from app.services.extraction.infra.kie_client import KIEClient
 from app.services.extraction.infra.object_store import MinIOClient
 from app.services.extraction.ingest import IngestService
 from app.services.extraction.agents.base import ExtractionAgent
-from app.services.core.approvals import ApprovalService
-from app.services.core.memory import MemoryService
 from app.services.core.spreadsheets import SpreadsheetService
 from app.services.guardrails import GuardrailsAgent, GuardrailsConfig
-from klaudia.core.supervisor.agent import SupervisorAgent
 from klaudia.interfaces.tool_registry import MCPToolRegistry
 from ledger.store import LedgerStore
 from ledger.catalogue import CatalogueStore
@@ -28,7 +25,7 @@ from app.services.core.main_chat import MainChatService
 from app.services.workflow.store import TaskStore
 from app.services.workflow.approvals import CheckedApprovals
 from app.services.core.operations import OperationService
-from klaudia.core.supervisor.llm import build_chat_llm
+from klaudia.core.agent.llm import build_chat_llm
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +37,9 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 def _ensure_gcp_credentials(settings: Settings) -> None:
     """Resolve GOOGLE_APPLICATION_CREDENTIALS to an absolute path and export it.
 
-    The Google SDKs (google-genai, google-auth used by langchain-google-vertexai)
+    The Google SDKs (google-genai, langchain-google-genai)
     read this env var directly. A relative path breaks for MCP subprocesses that
-    chdir into mcp-archive/ or mcp-gsheets/. Resolving once at startup keeps the
+    use a different working directory. Resolving once at startup keeps the
     file discoverable regardless of CWD and lets subprocesses inherit it.
     """
     raw = settings.google_application_credentials
@@ -62,81 +59,39 @@ def _ensure_gcp_credentials(settings: Settings) -> None:
     logger.info("GOOGLE_APPLICATION_CREDENTIALS resolved to %s", candidate)
 
 
-def _build_mcp_registries(
-    settings: Settings,
-) -> tuple[MCPToolRegistry, MCPToolRegistry]:
-    """Construct archive and spreadsheet registries for the configured transport.
+def _build_ledger_registry(settings: Settings) -> MCPToolRegistry:
+    """Build the ledger read transport used by the sheet API.
 
-    stdio: spawn the server as a subprocess of FastAPI. No port, no SSE keep-alive
-           required — the connection is a pipe owned by this process.
-    http:  connect to stateless remote services with automatic protocol negotiation.
-    sse:   legacy rollback mode; derive /sse endpoints from configured HTTP URLs.
+    Args:
+        settings: Server-owned transport and database configuration.
+
+    Returns:
+        Ledger tool registry for the configured transport.
+
+    Raises:
+        ValueError: The requested transport is unsupported.
     """
-    transport = (settings.mcp_transport or "stdio").lower()
-
+    transport = settings.mcp_transport.lower()
     if transport == "stdio":
-        python_bin = sys.executable
-        server_env = {**os.environ, "DATABASE_URL": settings.database_url}
-
-        archive_registry = MCPToolRegistry.from_stdio(
-            "mcp-archive",
-            command=python_bin,
+        return MCPToolRegistry.from_stdio(
+            "mcp-ledger",
+            command=sys.executable,
             args=["main.py", "--transport", "stdio"],
-            cwd=str(_PROJECT_ROOT / "mcp-archive"),
-            env=server_env,
+            cwd=str(_PROJECT_ROOT / "mcp-ledger"),
+            env={**os.environ, "DATABASE_URL": settings.database_url},
         )
-        if settings.sheets_backend == "ledger":
-            sheets_reg = MCPToolRegistry.from_stdio(
-                "mcp-ledger",
-                command=python_bin,
-                args=["main.py", "--transport", "stdio"],
-                cwd=str(_PROJECT_ROOT / "mcp-ledger"),
-                env=server_env,
-            )
-        else:
-            sheets_reg = MCPToolRegistry.from_stdio(
-                "mcp-gsheets",
-                command=python_bin,
-                args=["main.py", "--transport", "stdio"],
-                cwd=str(_PROJECT_ROOT / "mcp-gsheets"),
-                env=server_env,
-            )
-        return archive_registry, sheets_reg
-
     if transport in {"http", "sse"}:
-        archive_url = settings.mcp_archive_url
-        sheets_url = (
-            settings.mcp_ledger_url
-            if settings.sheets_backend == "ledger"
-            else settings.mcp_gsheets_url
-        )
+        url = settings.mcp_ledger_url
         if transport == "sse":
-            archive_url = _legacy_sse_url(archive_url)
-            sheets_url = _legacy_sse_url(sheets_url)
-        sheets_name = (
-            "mcp-ledger" if settings.sheets_backend == "ledger" else "mcp-gsheets"
+            url = _sse_url(url)
+        return MCPToolRegistry(
+            "mcp-ledger", url, auth_token=settings.mcp_auth_token or None
         )
-        return (
-            MCPToolRegistry(
-                "mcp-archive",
-                archive_url,
-                auth_token=settings.mcp_auth_token or None,
-            ),
-            MCPToolRegistry(
-                sheets_name,
-                sheets_url,
-                auth_token=settings.mcp_auth_token or None,
-            ),
-        )
-
-    raise ValueError(
-        f"Unknown MCP_TRANSPORT={settings.mcp_transport!r}; "
-        "expected 'stdio', 'http', or 'sse'"
-    )
+    raise ValueError("MCP_TRANSPORT must be stdio, http or sse")
 
 
-def _legacy_sse_url(url: str) -> str:
-    """Convert a configured MCP HTTP endpoint to its legacy SSE endpoint.
+def _sse_url(url: str) -> str:
+    """Convert a configured MCP HTTP endpoint to its SSE endpoint.
 
     Args:
         url: Configured remote MCP URL.
@@ -165,18 +120,15 @@ class KlaudiaContainer:
         self.dedup_cache: Optional[DedupCache] = None
         self.object_store: Optional[MinIOClient] = None
         self.ingest_service: Optional[IngestService] = None
-        self.mcp_archive: Optional[MCPToolRegistry] = None
-        self.mcp_gsheets: Optional[MCPToolRegistry] = None
+        self.mcp_ledger: Optional[MCPToolRegistry] = None
         self.guardrails: Optional[GuardrailsAgent] = None
-        self.supervisor: Optional[SupervisorAgent] = None
         self.ledger_store: Optional[LedgerStore] = None
         self.spreadsheets: Optional[SpreadsheetService] = None
         self.catalogue: Optional[CatalogueService] = None
         self.authoring: Optional[AuthoringService] = None
         self.main_chat: Optional[MainChatService] = None
         self.tasks: Optional[TaskStore] = None
-        self.memory: Optional[MemoryService] = None
-        self.approvals: Optional[ApprovalService] = None
+        self.approvals: Optional[CheckedApprovals] = None
         self.extraction_agent: Optional[ExtractionAgent] = None
         self.langfuse: Optional[LangfuseService] = None
 
@@ -206,26 +158,15 @@ class KlaudiaContainer:
             await container.object_store.ensure_bucket()
         except Exception as e:
             logger.error("MinIO unavailable (%s). Image/PDF uploads will fail.", e)
-        if settings.sheets_backend == "ledger":
-            container.ledger_store = LedgerStore(settings.database_url)
-            await container.ledger_store.connect()
-            container.spreadsheets = SpreadsheetService(container.ledger_store)
-            container.catalogue = CatalogueService(
-                CatalogueStore(container.ledger_store.pool)
-            )
-
-        if settings.memory_mode != "off":
-            container.memory = MemoryService.from_settings(settings)
-
-        container.mcp_archive, container.mcp_gsheets = _build_mcp_registries(settings)
-        logger.info("MCP transport: %s", settings.mcp_transport)
-        await container.mcp_archive.connect()
-        await container.mcp_gsheets.connect()
-
-        container.approvals = ApprovalService(
-            container.db_client, container.mcp_gsheets
+        container.ledger_store = LedgerStore(settings.database_url)
+        await container.ledger_store.connect()
+        container.spreadsheets = SpreadsheetService(container.ledger_store)
+        container.catalogue = CatalogueService(
+            CatalogueStore(container.ledger_store.pool)
         )
-        await container.approvals.ensure_schema()
+        container.mcp_ledger = _build_ledger_registry(settings)
+        await container.mcp_ledger.connect()
+        container.approvals = CheckedApprovals(container.ledger_store.pool)
 
         if container.dedup_cache is None:
             container.dedup_cache = _NullDedupCache()  # type: ignore[assignment]
@@ -258,59 +199,38 @@ class KlaudiaContainer:
             container.llm_client, guardrails_config, langfuse=container.langfuse
         )
 
-        if container.ledger_store is not None:
-            container.authoring = AuthoringService(
-                container.ledger_store.pool,
-                require_approval=settings.main_chat_require_approval,
-            )
-            container.approvals.checked = CheckedApprovals(container.ledger_store.pool)
+        container.authoring = AuthoringService(
+            container.ledger_store.pool,
+            require_approval=settings.main_chat_require_approval,
+        )
         openai_base_url, openai_api_key = settings.active_openai_endpoint()
-        if settings.chat_runtime == "main":
-            container.tasks = TaskStore(
-                settings.database_url,
-                require_approval=settings.main_chat_require_approval,
-            )
-            await container.tasks.connect()
-            container.approvals.checked = CheckedApprovals(container.ledger_store.pool)
-            model = build_chat_llm(
-                model=settings.llm_model,
-                provider=settings.model_provider,
-                temperature=settings.llm_temperature,
-                use_vertexai=settings.google_genai_use_vertexai,
-                llm_api_key=settings.llm_api_key,
-                google_cloud_project=settings.google_cloud_project,
-                google_cloud_location=settings.google_cloud_location,
-                openai_base_url=openai_base_url,
-                openai_api_key=openai_api_key,
-                thinking_level=settings.llm_thinking_level_worker,
-                disable_thinking=settings.llm_disable_thinking,
-            )
-            container.main_chat = MainChatService(
-                model,
-                container.catalogue,
-                container.db_client,
-                operations=OperationService(container.ledger_store),
-                tasks=container.tasks,
-                authoring=container.authoring,
-                memory_documents=container.memory_documents,
-                langfuse=container.langfuse,
-            )
-        container.supervisor = SupervisorAgent(
-            llm_api_key=settings.llm_api_key,
-            llm_model=settings.llm_model,
-            mcp_archive=container.mcp_archive,
-            mcp_gsheets=container.mcp_gsheets,
-            langfuse=container.langfuse,
+        container.tasks = TaskStore(
+            settings.database_url,
+            require_approval=settings.main_chat_require_approval,
+        )
+        await container.tasks.connect()
+        model = build_chat_llm(
+            model=settings.llm_model,
             provider=settings.model_provider,
+            temperature=settings.llm_temperature,
             use_vertexai=settings.google_genai_use_vertexai,
+            llm_api_key=settings.llm_api_key,
             google_cloud_project=settings.google_cloud_project,
             google_cloud_location=settings.google_cloud_location,
             openai_base_url=openai_base_url,
             openai_api_key=openai_api_key,
+            thinking_level=settings.llm_thinking_level,
             disable_thinking=settings.llm_disable_thinking,
-            temperature=settings.llm_temperature,
-            thinking_level_routing=settings.llm_thinking_level_routing,
-            thinking_level_worker=settings.llm_thinking_level_worker,
+        )
+        container.main_chat = MainChatService(
+            model,
+            container.catalogue,
+            container.db_client,
+            operations=OperationService(container.ledger_store),
+            tasks=container.tasks,
+            authoring=container.authoring,
+            memory_documents=container.memory_documents,
+            langfuse=container.langfuse,
         )
 
         logger.info("KlaudiaContainer initialized")
@@ -324,12 +244,8 @@ class KlaudiaContainer:
             await self.llm_client.shutdown()
         if self.kie_client:
             await self.kie_client.shutdown()
-        if self.mcp_archive:
-            await self.mcp_archive.disconnect()
-        if self.mcp_gsheets:
-            await self.mcp_gsheets.disconnect()
-        if self.memory:
-            self.memory.close()
+        if self.mcp_ledger:
+            await self.mcp_ledger.disconnect()
         if self.tasks:
             await self.tasks.close()
         if self.ledger_store:

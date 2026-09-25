@@ -162,16 +162,12 @@ async def test_main_agent_authors_table_and_keyed_replay_retains_receipt(
 
 async def test_main_unregister_approval_executes_then_resumes(authoring_client):
     """Human approval removes only catalogue identity and resume returns its receipt."""
-    from unittest.mock import AsyncMock
 
     from app.routes.v1.approvals import router as approvals_router
-    from app.services.core.approvals import ApprovalService
     from app.services.workflow.approvals import CheckedApprovals
 
     fixture = authoring_client
-    approvals = ApprovalService(fixture.container.db_client, AsyncMock())
-    await approvals.ensure_schema()
-    approvals.checked = CheckedApprovals(fixture.fixture.store.pool)
+    approvals = CheckedApprovals(fixture.fixture.store.pool)
     fixture.container.approvals = approvals
     fixture.client._transport.app.include_router(approvals_router, prefix="/v1")
     table = await fixture.fixture.store.pool.fetchrow(

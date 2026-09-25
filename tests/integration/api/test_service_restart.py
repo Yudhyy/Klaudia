@@ -1,4 +1,4 @@
-"""Runtime rollback preserves pending approvals and committed ledger effects."""
+"""Service restart preserves pending approvals and committed ledger effects."""
 
 import pytest
 
@@ -11,9 +11,11 @@ from tests.integration.postgres import POSTGRES_TEST_URL
 
 
 @pytest.mark.parametrize("committed", [False, True])
-async def test_runtime_switch_retains_tasks_and_resumes_original_operation(
+@pytest.mark.parametrize("stored_context", [False, True])
+async def test_service_restart_retains_tasks_and_resumes_original_operation(
     approval_client,  # noqa: F811
     committed,
+    stored_context,
 ):
     """Disable main services, retain storage, then reopen and recover exactly once."""
     fixture = approval_client
@@ -34,6 +36,14 @@ async def test_runtime_switch_retains_tasks_and_resumes_original_operation(
         assert completion.status_code == 200, completion.text
         assert completion.json()["run_status"] == "answered"
 
+    if stored_context:
+        await container.db_client.execute(
+            "UPDATE workflow_task SET input_payload = "
+            "jsonb_set(input_payload::jsonb, '{turn,memory_context}', "
+            "'\"Previously saved context\"'::jsonb)::text WHERE task_id = $1",
+            (task_id,),
+        )
+
     before_grid = await fixture.fixture.observe_state()
     before_task = await container.tasks.get(fixture.user_id, task_id)
     before_approval = await container.db_client.fetchone(
@@ -41,7 +51,6 @@ async def test_runtime_switch_retains_tasks_and_resumes_original_operation(
     )
     old_service, old_tasks = container.main_chat, container.tasks
     await old_tasks.close()
-    container.settings.chat_runtime = "legacy"
     container.main_chat, container.tasks = None, None
     for method, route in (
         ("GET", f"/v1/tasks/{task_id}"),
@@ -61,7 +70,6 @@ async def test_runtime_switch_retains_tasks_and_resumes_original_operation(
     await reopened.connect()
     try:
         assert await reopened.get(fixture.user_id, task_id) == before_task
-        container.settings.chat_runtime = "main"
         container.tasks = reopened
         container.main_chat = MainChatService(
             fixture.model,

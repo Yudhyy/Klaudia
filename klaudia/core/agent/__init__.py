@@ -1,1 +1,1 @@
-"""Components for the alternative main-agent runtime."""
+"""Components for the single main-agent runtime."""

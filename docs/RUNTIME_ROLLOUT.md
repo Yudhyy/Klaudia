@@ -2,7 +2,7 @@
 
 This contract defines the local pre-release checks before changing the default
 runtime. It does not certify an existing deployment or migrate external user data.
-`main` is the local default; `CHAT_RUNTIME=legacy` selects the fallback explicitly.
+Chat uses the single main agent with skills. No runtime selector or legacy agent remains.
 The maintainer accepted the remaining answer-format issue described below for
 local cutover. The strict qualification contract has not passed.
 Runtime and storage changes must remain separate.
@@ -19,7 +19,7 @@ Observed interaction p95 was 9.08 seconds, replay p95 0.77 seconds, and recorded
 inference costs met the fixed contract. The raw report remains failed.
 
 This exception permits the local default change, not a production qualification
-claim. Existing explicit environment settings still override the default.
+claim. Retired runtime and memory settings have been removed.
 
 The next investigation will compare thinking disabled, thinking enabled and an
 alternative model against the same frozen fixtures. First check model support
@@ -40,8 +40,8 @@ current model settings until that comparison supports a change.
 | Streaming | Same final state and receipts as normal HTTP | Complete streamed response with correct labels |
 | Restart | SIGKILL before execution and after commit; recover original reference | No model call is needed to prove database replay |
 | Scope revocation | Deny resumed access before and after committed writes | Foreign resources remain unavailable |
-| Human context and reconciliation | Scope, revision, policy applicability, import and rollback | Use saved policy and explain its bounded checks |
-| Configuration rollback | Explicit runtime selection and retained ledger/task state | No live traffic cutover in local qualification |
+| Human context and reconciliation | Scope, revision, policy applicability and explicit edits | Use saved policy and explain its bounded checks |
+| Service restart | Retained approvals, task state and original operation identity | No live traffic cutover in local qualification |
 
 Existing unregistered sheets require registration or supported table authoring.
 Cross-workbook formulas, automatic formula extension on append, shared workspace
@@ -95,19 +95,13 @@ Groq injection screening uses USD 0.04 per million input and output tokens,
 checked on the same date in the
 [Groq model contract](https://console.groq.com/docs/model/meta-llama/llama-prompt-guard-2-86m).
 
-## Cutover and rollback
+## Restart and revision rollback
 
-The local check changes runtime configuration only. It does not publish a release
-or deploy to users. Before changing an existing deployment, inventory actual users,
-registered tables, active tasks and mem0 records. Complete reviewed preference
-migration and resolve unsupported workflows; an empty local fixture is not proof
-that production migration is unnecessary.
-
-Record the prior revision and configuration. Finish or pause active workflows
-before switching; legacy cannot resume main-agent tasks. Keep the original main
-revision available to resume them with current ownership checks. Rollback changes
-configuration/revision, never restores an old database snapshot over new writes.
-Do not delete external memory, ledger data, checkpoints or approvals during rollback.
+The main agent is the only chat runtime. Restart checks preserve pending approvals,
+committed operations and task identity. A software rollback must use a revision
+that understands the persisted task and ledger contracts. Do not restore an old
+database snapshot over newer writes or delete task/approval records during rollback.
+No deployment or external data migration occurred during local qualification.
 
 Before storage changes, measure whole-grid reads, workbook lock contention,
 full-graph recalculation and connection occupancy at declared fixture sizes. Keep

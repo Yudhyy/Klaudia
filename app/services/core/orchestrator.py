@@ -14,26 +14,15 @@ from app.models.chat import (
 from app.services.core.container import KlaudiaContainer
 from app.services.core.main_chat import MainChatTurn
 from klaudia.core.agent.agent import RunOutcome
-from app.services.core.prompts import KLAUDIA_SYSTEM_PROMPT
 from app.services.core.verifier import verify_reply
 from app.services.extraction.infra.normalizer import is_pdf, is_supported_image
-from klaudia.core.supervisor.tools.context import (
+from app.services.core.context import (
     ExtractionContextFormat,
-    build_continuity_context,
     build_extraction_context,
-    build_session_context,
     get_active_spreadsheet,
     reset_active_spreadsheet,
-    reset_approval_gate,
-    reset_tool_trace,
     set_active_spreadsheet,
-    set_approval_gate,
-    start_tool_trace,
 )
-
-# Bounds for the evidence block fed to the numeric-correction rewrite.
-_EVIDENCE_RECORD_CHARS = 2000
-_EVIDENCE_TOTAL_CHARS = 8000
 
 logger = logging.getLogger(__name__)
 
@@ -88,19 +77,6 @@ def _check_attachment_shape(
     return None
 
 
-def _format_evidence(tool_trace: list[tuple[str, dict, str]]) -> str:
-    """Bounded raw tool outputs for the numeric-correction rewrite."""
-    parts: list[str] = []
-    total = 0
-    for name, _args, output in tool_trace:
-        snippet = (output or "")[:_EVIDENCE_RECORD_CHARS]
-        total += len(snippet)
-        if total > _EVIDENCE_TOTAL_CHARS:
-            break
-        parts.append(f"[{name}]\n{snippet}")
-    return "\n\n".join(parts)
-
-
 def _build_extraction_contexts(
     extraction_results: list[dict[str, Any]],
     output_format: ExtractionContextFormat,
@@ -115,16 +91,13 @@ def _build_extraction_contexts(
 class KlaudiaOrchestrator:
     """Main conversation orchestrator.
 
-    Pipeline: context -> guardrails -> route (extraction/supervisor) -> response
+    Pipeline: context -> guardrails -> route (extraction/main agent) -> response
     """
 
     def __init__(self, container: KlaudiaContainer) -> None:
         self._c = container
         self._extraction_agent = container.extraction_agent
         self._langfuse = container.langfuse
-        # Strong refs to in-flight background memory writes so they are not
-        # garbage-collected before completing.
-        self._bg_tasks: set[Any] = set()
 
     async def process(
         self,
@@ -224,7 +197,7 @@ class KlaudiaOrchestrator:
 
         # 4. Check for attachments. Accumulate per-attachment results so multi-
         # image uploads (1..N images, where N <= MAX_IMAGES_PER_UPLOAD) are
-        # surfaced to the supervisor in upload order.
+        # surfaced to the main agent in upload order.
         extraction_results: list[dict[str, Any]] = []
         has_attachment = user_msg.attachments and len(user_msg.attachments) > 0
         if has_attachment:
@@ -255,144 +228,18 @@ class KlaudiaOrchestrator:
                     }
                 )
 
-        if self._c.settings.chat_runtime == "main":
-            return await self._process_main_chat(
-                MainChatTurn(
-                    user_id=user_id,
-                    session_id=session_id,
-                    active_workbook_id=get_active_spreadsheet(),
-                    text=user_text,
-                    request_key=request_key,
-                    extraction_contexts=(),
-                    metadata=ChatMetadata(user_name=user_name),
-                ),
-                start,
-                extractions=extraction_results,
-            )
-
-        # 5. Build context
-        # NOTE: history is fetched BEFORE saving the current user msg so the
-        # current msg is appended exactly once at the tail of llm_messages.
-        # Saving first would double the user turn (history + explicit append),
-        # which confuses the LLM (two identical consecutive user messages).
-        import asyncio
-
-        (
-            history,
-            session_files_raw,
-            available_sheets,
-            recent_activity,
-            memory_ctx,
-        ) = await asyncio.gather(
-            self._c.db_client.get_conversation_history(session_id, limit=10),
-            self._c.db_client.get_session_files(session_id),
-            self._c.supervisor.get_available_sheets(),
-            self._recent_activity_context(),
-            self._recall_memory(user_id, user_text),
-        )
-
-        meta = ChatMetadata(user_name=user_name)
-        session_files_ctx = build_session_context(session_files_raw)
-        system_prompt = KLAUDIA_SYSTEM_PROMPT.format(
-            session_files=session_files_ctx,
-            available_sheets=available_sheets or "No sheets available.",
-            recent_activity=recent_activity or "No recent sheet activity on record.",
-            memory_context=memory_ctx or "Nothing remembered about this user yet.",
-            session_id=session_id,
-            date=meta.date,
-            time=meta.time,
-            timezone=meta.timezone,
-        )
-        extraction_contexts = _build_extraction_contexts(
-            extraction_results,
-            self._c.settings.extraction_context_format,
-        )
-
-        # Build messages for supervisor
-        llm_messages: list[dict[str, Any]] = [
-            {"role": "system", "content": system_prompt}
-        ]
-
-        # Add history (reversed to chronological)
-        for row in reversed(history):
-            llm_messages.append(
-                {
-                    "role": row["sender"],
-                    "content": row["message_text"],
-                }
-            )
-
-        # Add extraction context if present (one block per attachment, in order)
-        for extraction_ctx in extraction_contexts:
-            llm_messages.append({"role": "user", "content": extraction_ctx})
-
-        # Add current user message
-        llm_messages.append({"role": "user", "content": user_text})
-
-        # 6. Persist extraction contexts (if any) then the user message to DB.
-        # Extraction contexts MUST be saved so future turns can access the full
-        # item-level data when the user follows up (e.g., "masukkan ke sheet"
-        # after "ini total berapa?"). Without this, write_agent has no data.
-        for extraction_ctx in extraction_contexts:
-            if extraction_ctx:
-                await self._c.db_client.save_message(
-                    session_id, user_id, "user", extraction_ctx
-                )
-        await self._c.db_client.save_message(session_id, user_id, "user", user_text)
-
-        # 7. Invoke supervisor. Pass last extraction so legacy callers that
-        # expect a single extraction_data still see something; the full list
-        # is already encoded in llm_messages above.
-        last_extraction = extraction_results[-1] if extraction_results else None
-        tool_trace, trace_token = start_tool_trace()
-        gate_cm = self._approval_gate(user_id, session_id, get_active_spreadsheet())
-        try:
-            with gate_cm as parked_approvals:
-                agent_response = await self._c.supervisor.process_conversation(
-                    messages=llm_messages,
-                    extraction_data=last_extraction,
-                    session_id=session_id,
-                    user_id=user_id,
-                    sheets_context=available_sheets or "",
-                    files_context=session_files_ctx or "",
-                    date_context=(
-                        f"CURRENT DATE/TIME: {meta.date} {meta.time} ({meta.timezone})"
-                    ),
-                )
-        finally:
-            reset_tool_trace(trace_token)
-
-        # 8. Post-process: remove thinking tokens
-        content = re.sub(
-            r"<think>.*?</think>", "", agent_response.content, flags=re.DOTALL
-        ).strip()
-
-        # 8b. Deterministic numeric verification (never trust LLM arithmetic).
-        extra_texts = (
-            [user_text] + extraction_contexts + [row["message_text"] for row in history]
-        )
-        content = await self._verify_numeric(content, tool_trace, extra_texts)
-
-        # 9. Output guardrails
-        output_guard = await self._c.guardrails.validate_output(content)
-        if not output_guard.passed:
-            content = output_guard.rejection_message
-
-        # 10. Save assistant message
-        await self._c.db_client.save_message(session_id, user_id, "assistant", content)
-        await self._c.db_client.update_session_timestamp(session_id)
-
-        # 11. Persist long-term memory in the background (reply already built).
-        self._remember(user_id, get_active_spreadsheet(), user_text, content)
-
-        elapsed = int((time.time() - start) * 1000)
-        return KlaudiaResponse(
-            message=KlaudiaMessage(role="assistant", content=content),
-            session_id=session_id,
-            processing_time_ms=elapsed,
-            tools_used=agent_response.tools_called,
-            metadata=meta,
-            pending_approvals=[a.as_payload() for a in parked_approvals],
+        return await self._process_main_chat(
+            MainChatTurn(
+                user_id=user_id,
+                session_id=session_id,
+                active_workbook_id=get_active_spreadsheet(),
+                text=user_text,
+                request_key=request_key,
+                extraction_contexts=(),
+                metadata=ChatMetadata(user_name=user_name),
+            ),
+            start,
+            extractions=extraction_results,
         )
 
     async def stream(
@@ -542,205 +389,39 @@ class KlaudiaOrchestrator:
                         continue
                     yield event
 
-            if self._c.settings.chat_runtime == "main":
-                response = await self._process_main_chat(
-                    MainChatTurn(
-                        user_id=user_id,
-                        session_id=session_id,
-                        active_workbook_id=get_active_spreadsheet(),
-                        text=user_text,
-                        request_key=request_key,
-                        extraction_contexts=(),
-                        metadata=ChatMetadata(user_name=user_name),
-                    ),
-                    start,
-                    extractions=extraction_results,
-                )
-                if turn_obs is not None:
-                    try:
-                        turn_obs.update(output=response.model_dump())
-                    except Exception:
-                        logger.warning(
-                            "Could not record main chat output trace", exc_info=True
-                        )
-                span_cm.__exit__(None, None, None)
-                trace_cm.__exit__(None, None, None)
-                yield {"type": "token", "data": {"text": response.message.content}}
-                for approval in response.pending_approvals:
-                    yield {"type": "approval_required", "data": approval}
-                yield {
-                    "type": "done",
-                    "data": {
-                        **response.model_dump(exclude={"message"}),
-                        "content": response.message.content,
-                    },
-                }
-                return
-
-            import asyncio
-
-            (
-                history,
-                session_files_raw,
-                available_sheets,
-                recent_activity,
-                memory_ctx,
-            ) = await asyncio.gather(
-                self._c.db_client.get_conversation_history(session_id, limit=10),
-                self._c.db_client.get_session_files(session_id),
-                self._c.supervisor.get_available_sheets(),
-                self._recent_activity_context(),
-                self._recall_memory(user_id, user_text),
+            response = await self._process_main_chat(
+                MainChatTurn(
+                    user_id=user_id,
+                    session_id=session_id,
+                    active_workbook_id=get_active_spreadsheet(),
+                    text=user_text,
+                    request_key=request_key,
+                    extraction_contexts=(),
+                    metadata=ChatMetadata(user_name=user_name),
+                ),
+                start,
+                extractions=extraction_results,
             )
-
-            meta = ChatMetadata(user_name=user_name)
-            session_files_ctx = build_session_context(session_files_raw)
-            system_prompt = KLAUDIA_SYSTEM_PROMPT.format(
-                session_files=session_files_ctx,
-                available_sheets=available_sheets or "No sheets available.",
-                recent_activity=recent_activity
-                or "No recent sheet activity on record.",
-                memory_context=memory_ctx or "Nothing remembered about this user yet.",
-                session_id=session_id,
-                date=meta.date,
-                time=meta.time,
-                timezone=meta.timezone,
-            )
-            extraction_contexts = _build_extraction_contexts(
-                extraction_results,
-                self._c.settings.extraction_context_format,
-            )
-
-            llm_messages: list[dict[str, Any]] = [
-                {"role": "system", "content": system_prompt}
-            ]
-            for row in reversed(history):
-                llm_messages.append(
-                    {"role": row["sender"], "content": row["message_text"]}
-                )
-            for extraction_ctx in extraction_contexts:
-                llm_messages.append({"role": "user", "content": extraction_ctx})
-            llm_messages.append({"role": "user", "content": user_text})
-
-            # Persist extraction contexts then user message (mirrors _process_inner).
-            for extraction_ctx in extraction_contexts:
-                if extraction_ctx:
-                    await self._c.db_client.save_message(
-                        session_id, user_id, "user", extraction_ctx
-                    )
-            await self._c.db_client.save_message(session_id, user_id, "user", user_text)
-
-            last_extraction = extraction_results[-1] if extraction_results else None
-            final_content = ""
-            tools_used: list[str] = []
-            any_token_emitted = False  # track whether supervisor emitted token events
-            tool_trace, trace_token = start_tool_trace()
-            gate_cm = self._approval_gate(user_id, session_id, get_active_spreadsheet())
-            parked_approvals: list[Any] = []
-            try:
-                with gate_cm as parked_approvals:
-                    async for event in self._c.supervisor.stream_conversation(
-                        messages=llm_messages,
-                        extraction_data=last_extraction,
-                        session_id=session_id,
-                        user_id=user_id,
-                        sheets_context=available_sheets or "",
-                        files_context=session_files_ctx or "",
-                        date_context=(
-                            f"CURRENT DATE/TIME: {meta.date} {meta.time} "
-                            f"({meta.timezone})"
-                        ),
-                    ):
-                        if event["type"] == "final":
-                            final_content = event["data"]["content"]
-                            tools_used = event["data"]["tools_called"]
-                            continue
-                        if event["type"] == "token":
-                            any_token_emitted = True
-                        yield event
-            finally:
-                reset_tool_trace(trace_token)
-
-            content = re.sub(
-                r"<think>.*?</think>", "", final_content, flags=re.DOTALL
-            ).strip()
-
-            # Numeric verification. Enforcement (rewrite) is only possible on
-            # the buffered inline-FINISH path; once tokens have streamed to
-            # the client the reply cannot be recalled — log-only there.
-            extra_texts = (
-                [user_text]
-                + extraction_contexts
-                + [row["message_text"] for row in history]
-            )
-            content = await self._verify_numeric(
-                content, tool_trace, extra_texts, allow_enforce=not any_token_emitted
-            )
-
-            if not any_token_emitted and content:
-                # RouterWithResponse inline FINISH path: supervisor assembled the
-                # complete answer in one LLM call and emitted no token events.
-                # Stream the content word-by-word now, running output_guard
-                # concurrently so the guard adds zero latency to token delivery.
-                output_guard_task = asyncio.create_task(
-                    self._c.guardrails.validate_output(content)
-                )
-                words = content.split(" ")
-                for i, word in enumerate(words):
-                    token_text = word if i == len(words) - 1 else word + " "
-                    yield {"type": "token", "data": {"text": token_text}}
-                output_guard = await output_guard_task
-            else:
-                # final_llm path: tokens already streamed by supervisor.
-                # Run output_guard sequentially (guard delay is post-stream, acceptable).
-                output_guard = await self._c.guardrails.validate_output(content)
-
-            if not output_guard.passed:
-                content = output_guard.rejection_message
-                yield {
-                    "type": "guardrail",
-                    "data": {
-                        "stage": "output",
-                        "status": "rejected",
-                        "message": content,
-                    },
-                }
-
-            await self._c.db_client.save_message(
-                session_id, user_id, "assistant", content
-            )
-            await self._c.db_client.update_session_timestamp(session_id)
-
-            # Persist long-term memory in the background (reply already streamed).
-            self._remember(user_id, get_active_spreadsheet(), user_text, content)
-
-            elapsed = int((time.time() - start) * 1000)
             if turn_obs is not None:
                 try:
-                    turn_obs.update(
-                        output={
-                            "content": content,
-                            "tools_used": tools_used,
-                            "processing_time_ms": elapsed,
-                        }
-                    )
+                    turn_obs.update(output=response.model_dump())
                 except Exception:
-                    pass
-            approvals = [a.as_payload() for a in parked_approvals]
-            for approval in approvals:
+                    logger.warning(
+                        "Could not record main chat output trace", exc_info=True
+                    )
+            span_cm.__exit__(None, None, None)
+            trace_cm.__exit__(None, None, None)
+            yield {"type": "token", "data": {"text": response.message.content}}
+            for approval in response.pending_approvals:
                 yield {"type": "approval_required", "data": approval}
             yield {
                 "type": "done",
                 "data": {
-                    "session_id": session_id,
-                    "processing_time_ms": elapsed,
-                    "tools_used": tools_used,
-                    "content": content,
-                    "pending_approvals": approvals,
+                    **response.model_dump(exclude={"message"}),
+                    "content": response.message.content,
                 },
             }
-            span_cm.__exit__(None, None, None)
-            trace_cm.__exit__(None, None, None)
+            return
 
         except Exception as exc:
             logger.exception("Stream pipeline error")
@@ -757,7 +438,7 @@ class KlaudiaOrchestrator:
     async def _process_main_chat(
         self, turn: MainChatTurn, start: float, *, extractions: list[dict[str, Any]]
     ) -> KlaudiaResponse:
-        """Run opt-in chat and retain evidence even when prose checks reject it.
+        """Run chat and retain evidence even when prose checks reject it.
 
         Args:
             turn: Server-authenticated intent and extracted facts.
@@ -768,7 +449,7 @@ class KlaudiaOrchestrator:
             Buffered, checked reply with explicit runtime and operation evidence.
 
         Raises:
-            RuntimeError: Main runtime was selected without its service.
+            RuntimeError: The main chat service is unavailable.
             Exception: Execution or persistence failed before a recoverable outcome.
         """
         if self._c.main_chat is None:
@@ -781,7 +462,6 @@ class KlaudiaOrchestrator:
                 )
             ),
             document_ids=tuple(item["file_id"] for item in extractions),
-            memory_context=await self._recall_memory(turn.user_id, turn.text),
         )
         outcome = await self._c.main_chat.run(turn)
         return await self._finish_main_chat(turn, outcome, start)
@@ -843,7 +523,6 @@ class KlaudiaOrchestrator:
             turn.session_id, turn.user_id, "assistant", content
         )
         await self._c.db_client.update_session_timestamp(turn.session_id)
-        self._remember(turn.user_id, turn.active_workbook_id, turn.text, content)
         return KlaudiaResponse(
             message=KlaudiaMessage(role="assistant", content=content),
             session_id=turn.session_id,
@@ -858,195 +537,12 @@ class KlaudiaOrchestrator:
             operation_receipts=list(outcome.operation_receipts),
         )
 
-    @contextmanager
-    def _approval_gate(self, user_id: int, session_id: int | None, scope: str | None):
-        """Install the destructive-op gate and collect what it parks.
-
-        Yields the list that receives one PendingApproval per refused
-        operation, so the caller can hand the client its approve/reject
-        buttons regardless of what the model says in prose.
-        """
-        parked: list[Any] = []
-        service = self._c.approvals
-        if service is None:
-            yield parked
-            return
-
-        async def gate(tool_name: str, args: dict[str, Any], impact: Any) -> str:
-            approval = await service.create(
-                user_id=user_id,
-                session_id=session_id,
-                spreadsheet_id=scope,
-                tool_name=tool_name,
-                args=args,
-                summary=impact.summary,
-                rows_affected=impact.rows,
-                columns_affected=impact.full_columns,
-            )
-            parked.append(approval)
-            return approval.approval_id
-
-        token = set_approval_gate(gate)
-        try:
-            yield parked
-        finally:
-            reset_approval_gate(token)
-
-    async def _verify_numeric(
-        self,
-        content: str,
-        tool_trace: list[tuple[str, dict, str]],
-        extra_texts: list[str],
-        allow_enforce: bool = True,
-    ) -> str:
-        """Gate monetary claims in the reply against tool-grounded values.
-
-        Modes (NUMERIC_VERIFY_MODE): "off" skips; "log" flags ungrounded
-        amounts and ships anyway; "enforce" additionally attempts ONE
-        grounded rewrite and ships it only if it re-verifies. Fails open:
-        verification errors never block the reply.
-        """
-        mode = self._c.settings.numeric_verify_mode
-        if mode == "off" or not content:
-            return content
-        try:
-            result = verify_reply(content, tool_trace, extra_texts)
-        except Exception as exc:
-            logger.error("Numeric verification crashed (fail-open): %s", exc)
-            return content
-        if result.passed:
-            return content
-
-        # Reply excerpt is logged because attributing a flag to its turn from
-        # the results file alone proved unreliable (snippets are truncated),
-        # and an unattributable flag cannot be triaged as true or false.
-        logger.warning(
-            "Numeric verification: ungrounded amounts %s (mode=%s, tool_calls=%d) "
-            "reply=%r",
-            result.ungrounded,
-            mode,
-            len(tool_trace),
-            content[:160],
-        )
-        if self._langfuse is not None:
-            try:
-                with self._langfuse.span(
-                    "klaudia.numeric_verify",
-                    input={"ungrounded": result.ungrounded[:20], "mode": mode},
-                    metadata={"tool_calls": len(tool_trace)},
-                ):
-                    pass
-            except Exception:
-                pass
-        if mode != "enforce" or not allow_enforce:
-            return content
-
-        corrected = await self._c.supervisor.correct_numeric_claims(
-            content, result.ungrounded, _format_evidence(tool_trace)
-        )
-        recheck = verify_reply(corrected, tool_trace, extra_texts)
-        if recheck.passed:
-            logger.info("Numeric enforcement: corrected reply verified")
-            return corrected
-        logger.error(
-            "Numeric enforcement: rewrite still ungrounded %s; shipping original",
-            recheck.ungrounded,
-        )
-        return content
-
-    async def _recall_memory(self, user_id: int, query: str) -> str:
-        """Long-term memory context for the system prompt (fail-soft, cheap).
-
-        mem0 search = embed + pgvector scan; safe to run in the context gather.
-        Returns "" when memory is disabled or the embed service is unreachable.
-        """
-        mem = self._c.memory
-        if mem is None:
-            return ""
-        return await mem.recall(user_id, query)
-
-    def _remember(
-        self, user_id: int, spreadsheet_id: str | None, user_text: str, reply: str
-    ) -> None:
-        """Persist the turn to long-term memory in the background (write mode).
-
-        The reply is already sent, so mem0's LLM extraction never adds latency
-        to the response. Only active when MEMORY_MODE=write. The write runs
-        inline (mem0.add here) or via Taskiq (enqueue, a worker runs it),
-        selected by MEMORY_WRITE_MODE; either way it is backgrounded off the
-        reply and tracked so drain_background can await it.
-        """
-        mem = self._c.memory
-        if mem is None or self._c.settings.memory_mode != "write":
-            return
-        import asyncio
-
-        if self._c.settings.memory_write_mode == "taskiq":
-            coro = self._enqueue_memory(user_id, spreadsheet_id, user_text, reply)
-        else:
-            coro = mem.remember(user_id, spreadsheet_id, user_text, reply)
-        task = asyncio.create_task(coro)
-        self._bg_tasks.add(task)
-        task.add_done_callback(self._bg_tasks.discard)
-
-    async def _enqueue_memory(
-        self, user_id: int, spreadsheet_id: str | None, user_text: str, reply: str
-    ) -> None:
-        """Enqueue a memory write to Taskiq (a worker runs mem0.add). Fail-soft:
-        a dispatch error (e.g. Redis down) is logged, never raised into the turn.
-        """
-        try:
-            from app.services.core.memory_tasks import persist_memory_task
-
-            await persist_memory_task.kiq(
-                user_id=user_id,
-                spreadsheet_id=spreadsheet_id,
-                user_text=user_text,
-                assistant_text=reply,
-            )
-        except Exception as exc:
-            logger.warning("Memory enqueue failed (fail-soft): %s", exc)
-
-    async def drain_background(self) -> None:
-        """Await in-flight background memory writes.
-
-        The eval harness calls this before a fresh-session recall so a prior
-        turn's write has landed (mem0 writes are async); it is also a clean hook
-        for graceful shutdown so memory writes are not lost. No-op when memory
-        is off (no tasks).
-        """
-        import asyncio
-
-        pending = list(self._bg_tasks)
-        if pending:
-            await asyncio.gather(*pending, return_exceptions=True)
-
-    async def _recent_activity_context(self) -> str:
-        """Deterministic cross-session continuity for the active spreadsheet.
-
-        Reads the most-recently-edited sheets so a fresh session is not blank
-        ("lanjut yang kemarin"). Ledger backend only: the gsheets backend has
-        no per-sheet edit timestamps. Fails soft: any error yields an empty
-        context rather than breaking the request.
-        """
-        service = self._c.spreadsheets
-        scope = get_active_spreadsheet()
-        if service is None or not scope:
-            return ""
-        try:
-            activity = await service.recent_activity(scope, limit=3)
-        except Exception as exc:
-            logger.warning("Recent-activity read failed (fail-soft): %s", exc)
-            return ""
-        return build_continuity_context(activity)
-
     async def _resolve_scope(
         self, user_id: int, spreadsheet_id: str | None
     ) -> str | None:
         """Resolve the spreadsheet this request operates on.
 
-        Returns None when per-user spreadsheets are off (gsheets backend):
-        tools then fall through to the single default workspace.
+        The selected workbook must belong to the authenticated user.
         """
         if self._c.spreadsheets is None:
             return None
@@ -1061,8 +557,8 @@ class KlaudiaOrchestrator:
             session_id=session_id,
             processing_time_ms=elapsed,
             tools_used=[],
-            runtime=self._c.settings.chat_runtime,
-            run_status="rejected" if self._c.settings.chat_runtime == "main" else None,
+            runtime="main",
+            run_status="rejected",
         )
 
     async def _check_queue_pressure(self) -> str | None:
@@ -1204,7 +700,7 @@ class KlaudiaOrchestrator:
                     },
                 }
 
-        # Build final extraction_results from DB so supervisor sees the same
+        # Build final extraction_results from DB so main agent sees the same
         # shape sync mode produces.
         results: list[dict[str, Any]] = []
         for ef in enqueued:

@@ -90,7 +90,6 @@ class MainChatTurn:
     text: str
     extraction_contexts: tuple[str, ...]
     metadata: ChatMetadata
-    memory_context: str = ""
     document_ids: tuple[int, ...] = ()
     request_key: str | None = None
 
@@ -230,7 +229,7 @@ class _SessionOperations:
 
 
 class MainChatService:
-    """Run the main agent without injecting legacy prompts or sheet inventories."""
+    """Run the main agent with on-demand resource discovery."""
 
     def __init__(
         self,
@@ -287,7 +286,6 @@ class MainChatService:
                 "date": turn.metadata.date,
                 "time": turn.metadata.time,
                 "timezone": turn.metadata.timezone,
-                "memory": _bounded_context(turn.memory_context),
                 "history": _history_context(history),
                 "extractions": _bounded_context("\n".join(turn.extraction_contexts)),
                 "document_ids": turn.document_ids,
@@ -339,8 +337,16 @@ class MainChatService:
         """
         payload = json.loads(task.record["input_payload"])
         turn_fields = payload["turn"]
-        turn_fields["metadata"] = ChatMetadata.model_validate(turn_fields["metadata"])
-        turn = MainChatTurn(**turn_fields)
+        turn = MainChatTurn(
+            user_id=turn_fields["user_id"],
+            session_id=turn_fields["session_id"],
+            active_workbook_id=turn_fields["active_workbook_id"],
+            text=turn_fields["text"],
+            extraction_contexts=tuple(turn_fields["extraction_contexts"]),
+            metadata=ChatMetadata.model_validate(turn_fields["metadata"]),
+            document_ids=tuple(turn_fields.get("document_ids", ())),
+            request_key=turn_fields.get("request_key"),
+        )
         try:
             outcome = await self._invoke(turn, payload["request"], task=task)
             await task.set_status(outcome.status)

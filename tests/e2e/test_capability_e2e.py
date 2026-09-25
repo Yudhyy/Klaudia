@@ -80,7 +80,7 @@ async def test_main_agent_capability(scenario, container, capability_report):
     """Grade live model behavior using the same runner as scripted integration tests."""
     from app.services.core.operations import OperationService
     from klaudia.core.agent.agent import MainAgent
-    from klaudia.core.supervisor.llm import build_chat_llm
+    from klaudia.core.agent.llm import build_chat_llm
 
     if container.ledger_store is None or container.catalogue is None:
         raise RuntimeError("Candidate capability benchmark requires the ledger backend")
@@ -96,7 +96,7 @@ async def test_main_agent_capability(scenario, container, capability_report):
         google_cloud_location=settings.google_cloud_location,
         openai_base_url=endpoint,
         openai_api_key=api_key,
-        thinking_level=settings.llm_thinking_level_worker,
+        thinking_level=settings.llm_thinking_level,
         disable_thinking=settings.llm_disable_thinking,
     )
     agent = MainAgent(

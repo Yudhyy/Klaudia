@@ -2,8 +2,7 @@
 
 The app-side owner of the user -> spreadsheets -> sheets model: CRUD with
 ownership guards for /v1/spreadsheets, and scope resolution for chat
-requests (which spreadsheet the agents operate on). Only built when
-SHEETS_BACKEND=ledger; the gsheets backend stays single-workspace.
+requests (the active workbook hint supplied to the main agent).
 
 Ownership failures raise SpreadsheetNotFoundError so foreign spreadsheets
 are indistinguishable from absent ones (non-enumerating, same stance as

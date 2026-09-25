@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 
 from app.helpers.auth import get_current_user
 from app.helpers.ratelimit import chat_limit, limiter
-from app.services.core.approvals import ApprovalNotFoundError, ApprovalService
+from app.services.workflow.approvals import CheckedApprovals
 from ledger.resources import ResourceNotFoundError
 from ledger.errors import RevisionConflictError, IdempotencyConflictError
 
@@ -26,7 +26,7 @@ class ApprovalDecision(BaseModel):
     decision: str = Field(pattern="^(approve|reject)$")
 
 
-def _service(request: Request) -> ApprovalService:
+def _service(request: Request) -> CheckedApprovals:
     service = request.app.state.container.approvals
     if service is None:
         raise HTTPException(status_code=503, detail="Approvals unavailable")
@@ -40,7 +40,7 @@ async def list_approvals(
     response: Response,
     user_id: int = Depends(get_current_user),
 ) -> list[dict]:
-    """Pending destructive operations awaiting this user's decision."""
+    """Pending ledger operations awaiting this user's decision."""
     return await _service(request).list_pending(user_id)
 
 
@@ -59,12 +59,10 @@ async def resolve_approval(
         if body.decision == "approve":
             return await service.approve(user_id, approval_id)
         return await service.reject(user_id, approval_id)
-    except (ApprovalNotFoundError, ResourceNotFoundError):
+    except ResourceNotFoundError:
         raise HTTPException(status_code=404, detail="Approval not found")
     except (RevisionConflictError, IdempotencyConflictError, ValueError) as exc:
-        if approval_id.startswith("checked:"):
-            raise HTTPException(status_code=409, detail=str(exc))
-        raise HTTPException(status_code=500, detail="Approval execution failed")
+        raise HTTPException(status_code=409, detail=str(exc))
     except Exception as exc:
         logger.error("Approval %s failed: %s", approval_id, exc)
         raise HTTPException(status_code=500, detail="Approval execution failed")

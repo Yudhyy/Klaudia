@@ -1,22 +1,4 @@
-"""In-process MCP tool-call spy.
-
-The public HTTP response only reports sub-agent names. To assert the *granular*
-MCP tool calls (e.g. `tool_append_rows`) and their parameters, we wrap every tool
-in the archive and spreadsheet registries and record each invocation.
-
-Each registry tool is a `StructuredTool.from_function(coroutine=_call, ...)`
-(see klaudia/interfaces/tool_registry.py). `coroutine` is a real pydantic field,
-so it can be reassigned — unlike the `ainvoke` method — and `_call(**kwargs)`
-receives the exact tool arguments. We wrap `coroutine` to record (name, kwargs)
-then delegate, leaving behavior unchanged. Registries are restored on exit.
-
-Usage:
-
-    spy = MCPSpy([container.mcp_archive, container.mcp_gsheets])
-    with spy.capture() as calls:
-        await orchestrator.process(...)
-    # calls == [("tool_append_rows", {"sheet": "Jun", ...}), ...]
-"""
+"""Capture ledger MCP reads and extraction events in application tests."""
 
 from __future__ import annotations
 

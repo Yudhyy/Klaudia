@@ -26,9 +26,7 @@ def _service(request: Request) -> CatalogueService:
     """
     service = request.app.state.container.catalogue
     if service is None:
-        raise HTTPException(
-            status_code=503, detail="Resource discovery requires SHEETS_BACKEND=ledger"
-        )
+        raise HTTPException(status_code=503, detail="Resource discovery is unavailable")
     return service
 
 

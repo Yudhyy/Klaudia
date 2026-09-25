@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 DEFAULT_DATABASE_URL = "postgresql://klaudia:klaudia@localhost:5432/klaudia"
@@ -41,12 +41,7 @@ class Settings(BaseSettings):
     llm_model: str = Field(default="gemini-3-flash-preview", alias="LLM_MODEL")
     llm_api_key: str = Field(default="", alias="LLM_API_KEY", repr=False)
     llm_temperature: float = Field(default=0.5, alias="LLM_TEMPERATURE")
-    llm_thinking_level_routing: str = Field(
-        default="minimal", alias="LLM_THINKING_LEVEL_ROUTING"
-    )
-    llm_thinking_level_worker: str = Field(
-        default="minimal", alias="LLM_THINKING_LEVEL_WORKER"
-    )
+    llm_thinking_level: str = Field(default="minimal", alias="LLM_THINKING_LEVEL")
     google_cloud_project: str = Field(default="", alias="GOOGLE_CLOUD_PROJECT")
     google_cloud_location: str = Field(default="global", alias="GOOGLE_CLOUD_LOCATION")
     google_genai_use_vertexai: bool = Field(
@@ -83,20 +78,6 @@ class Settings(BaseSettings):
         min_length=1,
         repr=False,
     )
-
-    # Memory
-    memory_mode: str = Field(default="off", alias="MEMORY_MODE")  # off|read|write
-    memory_write_mode: str = Field(default="inline", alias="MEMORY_WRITE_MODE")
-    memory_top_k: int = Field(default=6, alias="MEMORY_TOP_K")
-    memory_collection: str = Field(default="klaudia_memory", alias="MEMORY_COLLECTION")
-    memory_llm_model: str = Field(default="deepseek-flash", alias="MEMORY_LLM_MODEL")
-    memory_embed_base_url: str = Field(
-        default="http://localhost:8100/v1", alias="MEMORY_EMBED_BASE_URL"
-    )
-    memory_embed_model: str = Field(
-        default="paraphrase-multilingual-MiniLM-L12-v2", alias="MEMORY_EMBED_MODEL"
-    )
-    memory_embed_dims: int = Field(default=384, alias="MEMORY_EMBED_DIMS")
 
     # Redis (hot cache + Taskiq broker + pubsub)
     redis_url: str = Field(
@@ -149,40 +130,16 @@ class Settings(BaseSettings):
     )
 
     # MCP transport: "stdio" owns local subprocesses; "http" connects to
-    # stateless remote services; "sse" is a legacy rollback mode.
+    # stateless remote services; "sse" connects to existing SSE endpoints.
     mcp_transport: str = Field(default="stdio", alias="MCP_TRANSPORT")
-    mcp_archive_url: str = Field(
-        default="http://localhost:8001/mcp", alias="MCP_ARCHIVE_URL"
-    )
     mcp_ledger_url: str = Field(
         default="http://localhost:8003/mcp", alias="MCP_LEDGER_URL"
     )
-    mcp_gsheets_url: str = Field(
-        default="http://localhost:8002/mcp", alias="MCP_GSHEETS_URL"
-    )
     mcp_auth_token: str = Field(default="", alias="MCP_AUTH_TOKEN", repr=False)
 
-    sheets_backend: str = Field(default="ledger", alias="SHEETS_BACKEND")
     main_chat_require_approval: bool = Field(
         default=False, alias="MAIN_CHAT_REQUIRE_APPROVAL"
     )
-    chat_runtime: Literal["legacy", "main"] = Field(
-        default="main", alias="CHAT_RUNTIME"
-    )
-
-    @model_validator(mode="after")
-    def validate_chat_runtime(self) -> "Settings":
-        """Reject main chat without its ownership-enforcing ledger backend.
-
-        Returns:
-            Validated service settings.
-
-        Raises:
-            ValueError: Main chat uses an unsupported sheets backend.
-        """
-        if self.chat_runtime == "main" and self.sheets_backend != "ledger":
-            raise ValueError("CHAT_RUNTIME=main requires SHEETS_BACKEND=ledger")
-        return self
 
     # Langfuse Observability
     langfuse_public_key: str = Field(default="", alias="LANGFUSE_PUBLIC_KEY")

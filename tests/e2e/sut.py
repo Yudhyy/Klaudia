@@ -87,10 +87,10 @@ class SystemUnderTest(Protocol):
         ...
 
 
-class LegacySUT:
+class ApplicationSUT:
     """Preserve the existing orchestrator, extraction spies and bound scope."""
 
-    runtime = "legacy"
+    runtime = "main"
 
     def __init__(self, orchestrator: Any, spies: tuple[Any, Any]) -> None:
         """Bind the existing chat runtime and its two observation boundaries.
@@ -109,16 +109,16 @@ class LegacySUT:
             case: Dataset case and declared access contract.
 
         Returns:
-            A reason when the legacy bound-workbook contract is insufficient.
+            A reason when the fixture bound-workbook contract is insufficient.
         """
         return (
-            "owned_workbooks discovery is not supported by legacy chat"
+            "owned_workbooks cases require the explicit main-agent adapter"
             if case.resource_scope != "bound_workbook"
             else None
         )
 
     async def run(self, request: TurnRequest) -> ResponseView:
-        """Invoke legacy chat while preserving its original evidence fields.
+        """Invoke application chat while preserving its original evidence fields.
 
         Args:
             request: Server identity, session and bound workbook.
