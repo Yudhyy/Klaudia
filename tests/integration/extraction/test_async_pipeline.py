@@ -69,9 +69,9 @@ async def test_async_image_extraction_via_worker(postgres_db, monkeypatch):
 
     try:
         async with httpx.AsyncClient(timeout=2.0) as hc:
-            await hc.get("http://127.0.0.1:9000/minio/health/live")
+            await hc.get("http://127.0.0.1:9000/health")
     except Exception:
-        pytest.skip("MinIO not reachable on http://127.0.0.1:9000")
+        pytest.skip("S3 not reachable on http://127.0.0.1:9000")
 
     # Spawn worker subprocess
     worker = subprocess.Popen(

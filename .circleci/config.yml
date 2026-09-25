@@ -7,9 +7,17 @@ executors:
   python-with-services:
     docker:
       - image: cimg/python:3.11
+
       - image: cimg/redis:7.2
-      - image: minio/minio:RELEASE.2025-09-07T16-13-09Z 
-        command: server /data
+
+      # RustFS provides the S3-compatible service.
+      - image: rustfs/rustfs:1.0.0
+        environment:
+          RUSTFS_VOLUMES: /data
+          RUSTFS_ADDRESS: "0.0.0.0:9000"
+          RUSTFS_ACCESS_KEY: minioadmin
+          RUSTFS_SECRET_KEY: minioadmin
+
       - image: cimg/postgres:16.4
         environment:
           POSTGRES_USER: klaudia
@@ -71,17 +79,21 @@ jobs:
       - checkout
       - install-deps
       - run:
-          name: Wait for Redis, MinIO, and Postgres
+          name: Wait for Redis, S3, and Postgres
           command: |
-            for i in $(seq 1 30); do
-              if curl -sf http://127.0.0.1:9000/minio/health/live > /dev/null \
-                 && (echo PING | nc -w 1 127.0.0.1 6379 | grep -q PONG) \
-                 && nc -z 127.0.0.1 5432; then
-                echo "services up"; exit 0
+            for i in $(seq 1 60); do
+              if curl -fsS \
+                  http://127.0.0.1:9000/health \
+                  > /dev/null \
+                && (echo PING | nc -w 1 127.0.0.1 6379 | grep -q PONG) \
+                && nc -z 127.0.0.1 5432; then
+                echo "services up"
+                exit 0
               fi
               sleep 1
             done
-            echo "services did not come up" >&2; exit 1
+            echo "services did not come up" >&2
+            exit 1
       - run:
           name: Run API, financial core, and service integration tests (mock KIE)
           command: >

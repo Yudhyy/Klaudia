@@ -28,22 +28,49 @@ services:
       timeout: 3s
       retries: 10
 
-  minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+  rustfs-volume-init:
+    image: alpine:3.20
+    command:
+      - sh
+      - -c
+      - chown -R 10001:10001 /data
     volumes:
-      - minio-data:/data
+      - rustfs-data:/data
+
+  minio:
+    image: rustfs/rustfs:1.0.0
+
+    environment:
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: "0.0.0.0:9000"
+      RUSTFS_CONSOLE_ADDRESS: "0.0.0.0:9001"
+      RUSTFS_CONSOLE_ENABLE: "true"
+
+      # Preserve your existing development credentials.
+      RUSTFS_ACCESS_KEY: minioadmin
+      RUSTFS_SECRET_KEY: minioadmin
+
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+
+    volumes:
+      - rustfs-data:/data
+
+    depends_on:
+      rustfs-volume-init:
+        condition: service_completed_successfully
+
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test:
+        - CMD
+        - curl
+        - -fsS
+        - http://127.0.0.1:9000/health
       interval: 5s
       timeout: 3s
-      retries: 10
+      retries: 20
+      start_period: 20s
 
   # Isolated Postgres for the e2e sandbox (tests/e2e). Separate server, separate
   # volume, port 5433 — so a bench run cannot see or damage development data, and
@@ -87,3 +114,4 @@ volumes:
   pg-sandbox-data:
   minio-data:
   nocodb-data:
+  rustfs-data:
