@@ -95,23 +95,7 @@ services:
       timeout: 3s
       retries: 10
 
-  # Optional human grid UI over the ledger Postgres.
-  # Start with: docker compose --profile ui up -d
-  # Then add a data source in NocoDB pointing at postgres:5432/klaudia.
-  nocodb:
-    image: nocodb/nocodb:latest
-    profiles: ["ui"]
-    ports:
-      - "8080:8080"
-    volumes:
-      - nocodb-data:/usr/app/data
-    depends_on:
-      postgres:
-        condition: service_healthy
-
 volumes:
   pg-data:
   pg-sandbox-data:
-  minio-data:
-  nocodb-data:
   rustfs-data:

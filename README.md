@@ -20,7 +20,6 @@
   <img src="https://img.shields.io/badge/LangGraph-Agentic%20Workflow-white" />
   <img src="https://img.shields.io/badge/LangChain-Orchestration-7fc8ff" />
   <img src="https://img.shields.io/badge/PostgreSQL-Ledger%20%2B%20pgvector-336791" />
-  <img src="https://img.shields.io/badge/NocoDB-Grid%20View-3c4be7" />
   <img src="https://img.shields.io/badge/MCP-Tool%20Boundary-black" />
   <img src="https://img.shields.io/badge/Deepseekv4-pro-4e6bfe" />
   <img src="https://img.shields.io/badge/Qwen3.5-4B%20Fine%20Tuned-623ae7" />
@@ -464,7 +463,6 @@ cp .env.template .env                 # add model credentials
 ./startup.sh                          # API + MCP servers
 
 # optional
-docker compose --profile ui up -d        # NocoDB grid view over the ledger
 docker compose --profile sandbox up -d   # isolated store for the evaluation suite
 ```
 
