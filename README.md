@@ -447,11 +447,20 @@ conversation-to-memory extraction.
 | Queue and cache | Redis, Taskiq workers |
 | Object storage | MinIO, BLAKE3 content addressing |
 | Observability | Langfuse (fail-open tracing) |
-| CI | CircleCI: lint, unit, integration with real service containers |
-| Client | React Native, Expo (separate repository) |
+| CI | CircleCI: path-based backend and mobile checks |
+| Client | React Native and Expo in `apps/mobile` |
 
 Model serving lives on a separate inference platform (LiteLLM, vLLM, LMCache,
 autoscaling). This repository consumes an endpoint; it does not serve models.
+
+CircleCI runs the mobile install, type check, and tests for changes under
+`apps/mobile/`. Backend paths run the existing Python lint, unit, and integration
+jobs. Changes to shared build files, including `.circleci/`, `scripts/`, and
+`docker-compose.yml`, run both sets. Feature branches compare with `development`;
+PRs that target `main` from another base may not get exact path selection before
+merge. Pipelines on `development` or `main` always run both. The CircleCI project
+must trigger pipelines on pushes to those branches and enable dynamic
+configuration for the setup workflow in `.circleci/config.yml`.
 
 ---
 
