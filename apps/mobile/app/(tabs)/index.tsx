@@ -50,6 +50,7 @@ export default function ChatScreen(): React.JSX.Element {
   const [messageText, setMessageText] = useState('');
   const [attachment, setAttachment] = useState<Attachment | null>(null);
   const [sessionId, setSessionId] = useState<number>();
+  const [taskId, setTaskId] = useState<string>();
   const [isStreaming, setIsStreaming] = useState(false);
   const [status, setStatus] = useState<string>();
   const [error, setError] = useState<string>();
@@ -68,6 +69,7 @@ export default function ChatScreen(): React.JSX.Element {
   useEffect(() => {
     abortController.current?.abort();
     setSessionId(undefined);
+    setTaskId(undefined);
     setMessages([INITIAL_MESSAGE]);
     setApprovals([]);
     setError(undefined);
@@ -146,12 +148,21 @@ export default function ChatScreen(): React.JSX.Element {
             return;
           }
           if (event.type === 'approval_required') {
-            setApprovals((current) => mergeApprovals(current, [event]));
+            setStatus('Preparing the approval...');
             return;
           }
           if (event.type === 'done') {
             setSessionId(event.session_id);
+            setTaskId(event.task_id ?? undefined);
             streamedContent = event.content || streamedContent;
+            if (
+              event.run_status !== null &&
+              event.run_status !== undefined &&
+              event.run_status !== 'answered' &&
+              event.run_status !== 'awaiting_approval'
+            ) {
+              setError(`Klaudia stopped with status: ${event.run_status}. The ledger may have changed.`);
+            }
             setApprovals((current) =>
               mergeApprovals(current, event.pending_approvals ?? []),
             );
@@ -191,10 +202,32 @@ export default function ChatScreen(): React.JSX.Element {
       setResolvingApprovalId(approvalId);
       setError(undefined);
       try {
+        if (taskId === undefined) {
+          throw new Error('The saved task is unavailable. Reload the conversation before retrying.');
+        }
         await api.resolveApproval(approvalId, decision);
+        const resumed = await api.resumeTask(taskId);
+        if (resumed.run_status !== 'answered' && resumed.run_status !== 'awaiting_approval') {
+          throw new Error(`The saved task stopped with status: ${resumed.run_status}. Retry the decision to resume it.`);
+        }
+        setSessionId(resumed.session_id);
+        setTaskId(resumed.task_id ?? undefined);
         setApprovals((current) =>
-          current.filter((approval) => approval.approval_id !== approvalId),
+          mergeApprovals(
+            current.filter((approval) => approval.approval_id !== approvalId),
+            resumed.pending_approvals,
+          ),
         );
+        if (resumed.message.content) {
+          setMessages((current) => [
+            ...current,
+            {
+              id: nextMessageId('assistant'),
+              role: 'assistant',
+              content: resumed.message.content,
+            },
+          ]);
+        }
       } catch (caughtError: unknown) {
         setError(errorMessage(caughtError, 'Failed to process the approval.'));
       } finally {
@@ -202,11 +235,11 @@ export default function ChatScreen(): React.JSX.Element {
         setResolvingApprovalId(undefined);
       }
     },
-    [],
+    [nextMessageId, taskId],
   );
 
   const ledgerUnavailable = activeSpreadsheet === null;
-  const composerDisabled = isStreaming || ledgerUnavailable;
+  const composerDisabled = isStreaming || ledgerUnavailable || approvals.length > 0;
 
   return (
     <KeyboardAvoidingView
@@ -268,10 +301,14 @@ export default function ChatScreen(): React.JSX.Element {
           approval={approval}
           ledgerName={activeSpreadsheet?.name ?? 'Active ledger'}
           resolving={resolvingApprovalId === approval.approval_id}
-          disabled={resolvingApprovalId !== undefined}
+          disabled={resolvingApprovalId !== undefined || isStreaming || taskId === undefined}
           onDecision={(approvalId, decision) => void resolveApproval(approvalId, decision)}
         />
       ))}
+
+      {approvals.length > 0 && (
+        <Text style={styles.pendingNote}>Review the pending change before sending another message.</Text>
+      )}
 
       <ChatInput
         value={messageText}
@@ -419,5 +456,11 @@ const styles = StyleSheet.create({
     color: '#FCA5A5',
     fontSize: 12,
     lineHeight: 17,
+  },
+  pendingNote: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
   },
 });

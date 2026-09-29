@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Radius } from '../../constants/theme';
 import type { ApprovalDecision, PendingApproval } from '../../services/api';
@@ -23,11 +23,19 @@ export function ApprovalCard({
       <Text style={styles.label}>APPROVAL REQUIRED</Text>
       <Text style={styles.summary}>{approval.summary}</Text>
       <Text style={styles.target}>Ledger: {ledgerName}</Text>
-      <Text style={styles.target}>Sheet: {approval.sheet ?? 'Ledger structure'}</Text>
       <Text style={styles.target}>Action: {approval.action}</Text>
-      <Text style={styles.impact}>
-        {approval.rows_affected} rows, {approval.columns_affected} columns
-      </Text>
+      {approval.rows_affected > 0 && (
+        <Text style={styles.impact}>
+          {approval.rows_affected} rows, {approval.columns_affected} columns
+        </Text>
+      )}
+      <Text style={styles.target}>Expires: {approval.expires_at}</Text>
+      <Text style={styles.target}>Proposed change:</Text>
+      <ScrollView style={styles.proposal} nestedScrollEnabled>
+        <Text style={styles.proposalText} selectable>
+          {JSON.stringify(approval.proposal, null, 2)}
+        </Text>
+      </ScrollView>
       <View style={styles.actions}>
         <Pressable
           style={({ pressed }) => [
@@ -81,6 +89,17 @@ const styles = StyleSheet.create({
   impact: {
     color: Colors.textSecondary,
     fontSize: 12,
+  },
+  proposal: {
+    maxHeight: 180,
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: '#111115',
+  },
+  proposalText: {
+    color: Colors.textPrimary,
+    fontSize: 11,
+    fontFamily: 'monospace',
   },
   target: {
     color: Colors.textPrimary,

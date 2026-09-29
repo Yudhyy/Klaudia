@@ -27,10 +27,12 @@ export type SendMessagePayload = {
 export type PendingApproval = {
   approval_id: string;
   action: string;
-  sheet: string | null;
+  operation_ref: string;
+  proposal: Record<string, unknown>;
   summary: string;
   rows_affected: number;
   columns_affected: number;
+  expires_at: string;
 };
 
 export type AuthSession = {
@@ -75,6 +77,14 @@ export type ApprovalResolution = {
   result?: unknown;
 };
 
+export type ResumedTask = {
+  message: { role: string; content: string };
+  session_id: number;
+  task_id: string | null;
+  run_status: string | null;
+  pending_approvals: PendingApproval[];
+};
+
 export type SSEEvent =
   | { type: 'session'; session_id: number }
   | { type: 'guardrail'; stage: string; status: string; message?: string }
@@ -98,6 +108,8 @@ export type SSEEvent =
       tools_used: string[];
       content: string;
       pending_approvals?: PendingApproval[];
+      task_id?: string | null;
+      run_status?: string | null;
     }
   | { type: 'error'; message: string };
 
@@ -127,6 +139,7 @@ type ApiClient = {
     approvalId: string,
     decision: ApprovalDecision,
   ) => Promise<ApprovalResolution>;
+  resumeTask: (taskId: string) => Promise<ResumedTask>;
   health: () => Promise<unknown>;
 };
 
@@ -245,6 +258,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       let processedLength = 0;
       let frameBuffer = '';
       let settled = false;
+      let receivedDone = false;
 
       const cleanup = (): void => {
         signal?.removeEventListener('abort', abortRequest);
@@ -268,10 +282,16 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         xhr.abort();
       }
 
+      const handleEvent = (event: SSEEvent): void => {
+        if (event.type === 'done') receivedDone = true;
+        if (event.type === 'error') fail(new Error(event.message));
+        onEvent(event);
+      };
+
       const readProgress = (): void => {
         const nextChunk = xhr.responseText.slice(processedLength);
         processedLength = xhr.responseText.length;
-        frameBuffer = parseSseFrames(frameBuffer + nextChunk, onEvent);
+        frameBuffer = parseSseFrames(frameBuffer + nextChunk, handleEvent);
       };
 
       signal?.addEventListener('abort', abortRequest);
@@ -286,9 +306,13 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         }
         readProgress();
         if (frameBuffer.trim()) {
-          parseSseFrames(`${frameBuffer}\n\n`, onEvent);
+          parseSseFrames(`${frameBuffer}\n\n`, handleEvent);
         }
-        finish();
+        if (!settled && !receivedDone) {
+          fail(new Error('Klaudia ended the stream before sending a final response.'));
+        } else {
+          finish();
+        }
       };
       xhr.onerror = () => fail(new Error('Unable to connect to the Klaudia server.'));
       xhr.onabort = () => fail(createAbortError());
@@ -334,6 +358,10 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
           method: 'POST',
           body: JSON.stringify({ decision }),
         }),
+      ),
+    resumeTask: async (taskId) =>
+      parseResumedTask(
+        await request(`/tasks/${encodeURIComponent(taskId)}/resume`, { method: 'POST' }),
       ),
     health: () => request('/health', undefined, false),
   };
@@ -432,9 +460,19 @@ function parseSseEvent(eventName: string, payload: unknown): SSEEvent | null {
         tools_used: payload.tools_used,
         content: payload.content,
       };
-      return pendingApprovals === undefined
-        ? doneEvent
-        : { ...doneEvent, pending_approvals: pendingApprovals };
+      if (
+        (payload.task_id !== undefined && payload.task_id !== null && typeof payload.task_id !== 'string') ||
+        (payload.run_status !== undefined && payload.run_status !== null && typeof payload.run_status !== 'string')
+      ) {
+        return null;
+      }
+      if (pendingApprovals?.length && typeof payload.task_id !== 'string') return null;
+      return {
+        ...doneEvent,
+        ...(pendingApprovals === undefined ? {} : { pending_approvals: pendingApprovals }),
+        ...(payload.task_id === undefined ? {} : { task_id: payload.task_id }),
+        ...(payload.run_status === undefined ? {} : { run_status: payload.run_status }),
+      };
     }
     case 'error':
       return typeof payload.message === 'string'
@@ -525,10 +563,9 @@ function parseSpreadsheetInfo(value: unknown): SpreadsheetInfo {
 }
 
 function parseSheetRows(value: unknown): JsonScalar[][] {
-  if (!isRecord(value) || (value.values !== undefined && !Array.isArray(value.values))) {
+  if (!isRecord(value) || !Array.isArray(value.values)) {
     throw invalidResponseError('sheet data');
   }
-  if (value.values === undefined) return [];
 
   const rows: JsonScalar[][] = [];
   for (const row of value.values) {
@@ -555,25 +592,53 @@ function parseApprovalResolution(value: unknown): ApprovalResolution {
   };
 }
 
+/** Read the public fields returned after a saved task resumes. */
+function parseResumedTask(value: unknown): ResumedTask {
+  if (
+    !isRecord(value) ||
+    !isRecord(value.message) ||
+    typeof value.message.role !== 'string' ||
+    typeof value.message.content !== 'string' ||
+    typeof value.session_id !== 'number' ||
+    !(value.task_id === null || typeof value.task_id === 'string') ||
+    !(value.run_status === null || typeof value.run_status === 'string')
+  ) {
+    throw invalidResponseError('task');
+  }
+  const approvals = parseOptionalApprovals(value.pending_approvals);
+  if (approvals === null || approvals === undefined) throw invalidResponseError('task');
+  return {
+    message: { role: value.message.role, content: value.message.content },
+    session_id: value.session_id,
+    task_id: value.task_id,
+    run_status: value.run_status,
+    pending_approvals: approvals,
+  };
+}
+
 function parsePendingApproval(value: unknown): PendingApproval | null {
   if (
     !isRecord(value) ||
     typeof value.approval_id !== 'string' ||
     typeof value.action !== 'string' ||
-    !(value.sheet === null || typeof value.sheet === 'string') ||
+    typeof value.operation_ref !== 'string' ||
+    !isRecord(value.proposal) ||
     typeof value.summary !== 'string' ||
     typeof value.rows_affected !== 'number' ||
-    typeof value.columns_affected !== 'number'
+    typeof value.columns_affected !== 'number' ||
+    typeof value.expires_at !== 'string'
   ) {
     return null;
   }
   return {
     approval_id: value.approval_id,
     action: value.action,
-    sheet: value.sheet,
+    operation_ref: value.operation_ref,
+    proposal: value.proposal,
     summary: value.summary,
     rows_affected: value.rows_affected,
     columns_affected: value.columns_affected,
+    expires_at: value.expires_at,
   };
 }
 

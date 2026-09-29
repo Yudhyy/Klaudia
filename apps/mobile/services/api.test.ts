@@ -135,6 +135,16 @@ test('rejects malformed sheet data returned by the server', async () => {
   });
 });
 
+test('rejects sheet responses without the required values grid', async () => {
+  const client = createApiClient({
+    baseUrl: 'http://localhost:8000/v1',
+    getAccessToken: () => 'token',
+    fetchImpl: async () => Response.json({ spreadsheetId: 'ledger-123' }),
+  });
+
+  await assert.rejects(client.getSheetData('Expenses', 'ledger-123'), ApiError);
+});
+
 test('keeps an incomplete SSE frame for the next chunk', () => {
   const events: SSEEvent[] = [];
   const firstChunk = [
@@ -151,7 +161,7 @@ test('keeps an incomplete SSE frame for the next chunk', () => {
   assert.match(remainder, /approval_required/);
 
   const finalRemainder = parseSseFrames(
-    `${remainder}"action":"delete_sheet","sheet":"Jun","summary":"Delete Jun","rows_affected":35,"columns_affected":7}\n\n`,
+    `${remainder}"action":"checked_table_append","operation_ref":"prepared:1","proposal":{"table_id":"expenses","records":[{"Amount":12500}]},"summary":"Append 1 record","rows_affected":1,"columns_affected":1,"expires_at":"2026-09-29T12:00:00+00:00"}\n\n`,
     (event) => events.push(event),
   );
 
@@ -159,12 +169,71 @@ test('keeps an incomplete SSE frame for the next chunk', () => {
   assert.deepEqual(events[1], {
     type: 'approval_required',
     approval_id: 'approve-1',
-    action: 'delete_sheet',
-    sheet: 'Jun',
-    summary: 'Delete Jun',
-    rows_affected: 35,
-    columns_affected: 7,
+    action: 'checked_table_append',
+    operation_ref: 'prepared:1',
+    proposal: { table_id: 'expenses', records: [{ Amount: 12500 }] },
+    summary: 'Append 1 record',
+    rows_affected: 1,
+    columns_affected: 1,
+    expires_at: '2026-09-29T12:00:00+00:00',
   });
+});
+
+test('rejects an approval event missing its exact proposal', () => {
+  const events: SSEEvent[] = [];
+  parseSseFrames(
+    'event: approval_required\ndata: {"approval_id":"approve-1","action":"checked_table_append","operation_ref":"prepared:1","summary":"Append","rows_affected":1,"columns_affected":1,"expires_at":"2026-09-29T12:00:00+00:00"}\n\n',
+    (event) => events.push(event),
+  );
+  assert.deepEqual(events, []);
+});
+
+test('keeps durable task identity and status from the final stream event', () => {
+  const events: SSEEvent[] = [];
+  parseSseFrames(
+    'event: done\ndata: {"session_id":9,"processing_time_ms":12,"tools_used":[],"content":"Approval needed","pending_approvals":[],"task_id":"task:123","run_status":"awaiting_approval"}\n\n',
+    (event) => events.push(event),
+  );
+
+  assert.deepEqual(events, [{
+    type: 'done',
+    session_id: 9,
+    processing_time_ms: 12,
+    tools_used: [],
+    content: 'Approval needed',
+    pending_approvals: [],
+    task_id: 'task:123',
+    run_status: 'awaiting_approval',
+  }]);
+});
+
+test('resumes a durable task with the backend response contract', async () => {
+  let requestUrl = '';
+  let requestInit: RequestInit | undefined;
+  const client = createApiClient({
+    baseUrl: 'http://localhost:8000/v1',
+    getAccessToken: () => 'token',
+    fetchImpl: async (input, init) => {
+      requestUrl = String(input);
+      requestInit = init;
+      return Response.json({
+        message: { role: 'assistant', content: 'The row was added.' },
+        session_id: 9,
+        processing_time_ms: 12,
+        tools_used: [],
+        pending_approvals: [],
+        task_id: 'task:123',
+        run_status: 'answered',
+      });
+    },
+  });
+
+  const response = await client.resumeTask('task:123');
+
+  assert.equal(requestUrl, 'http://localhost:8000/v1/tasks/task%3A123/resume');
+  assert.equal(requestInit?.method, 'POST');
+  assert.equal(response.message.content, 'The row was added.');
+  assert.equal(response.run_status, 'answered');
 });
 
 test('ignores malformed SSE payloads instead of trusting their event names', () => {
@@ -271,6 +340,38 @@ test('logs out after an unauthorized stream response', async () => {
     return true;
   });
   assert.equal(rejectedToken, 'expired-token');
+});
+
+test('rejects a stream that ends without a final event', async () => {
+  const transport = new MockXmlHttpRequest();
+  const client = createApiClient({
+    baseUrl: 'http://localhost:8000/v1',
+    getAccessToken: () => 'token',
+    xhrFactory: () => transport as unknown as XMLHttpRequest,
+  });
+
+  const stream = client.streamMessage({ messages: [{ role: 'user', content: 'Hello' }] }, () => undefined);
+  transport.responseText = 'event: token\ndata: {"text":"Partial"}\n\n';
+  transport.status = 200;
+  transport.onload?.();
+
+  await assert.rejects(stream, /before sending a final response/);
+});
+
+test('rejects a server error event even when HTTP status is successful', async () => {
+  const transport = new MockXmlHttpRequest();
+  const client = createApiClient({
+    baseUrl: 'http://localhost:8000/v1',
+    getAccessToken: () => 'token',
+    xhrFactory: () => transport as unknown as XMLHttpRequest,
+  });
+
+  const stream = client.streamMessage({ messages: [{ role: 'user', content: 'Hello' }] }, () => undefined);
+  transport.responseText = 'event: error\ndata: {"message":"Task stopped"}\n\n';
+  transport.status = 200;
+  transport.onload?.();
+
+  await assert.rejects(stream, /Task stopped/);
 });
 
 test('aborts an active stream when its signal is cancelled', async () => {
