@@ -1,119 +1,19 @@
 version: 2.1
+setup: true
 
-executors:
-  python:
-    docker:
-      - image: cimg/python:3.11
-  python-with-services:
-    docker:
-      - image: cimg/python:3.11
-
-      - image: cimg/redis:7.2
-
-      # RustFS provides the S3-compatible service.
-      - image: rustfs/rustfs:1.0.0
-        environment:
-          RUSTFS_VOLUMES: /data
-          RUSTFS_ADDRESS: "0.0.0.0:9000"
-          RUSTFS_ACCESS_KEY: minioadmin
-          RUSTFS_SECRET_KEY: minioadmin
-
-      - image: cimg/postgres:16.4
-        environment:
-          POSTGRES_USER: klaudia
-          POSTGRES_PASSWORD: klaudia
-          POSTGRES_DB: klaudia
-
-commands:
-  install-deps:
-    description: Install uv and sync all workspace packages
-    steps:
-      - restore_cache:
-          keys:
-            - uv-cache-v1-{{ checksum "uv.lock" }}
-            - uv-cache-v1-
-      - run:
-          name: Install uv
-          command: pip install uv
-      - run:
-          name: Sync dependencies
-          command: uv sync --all-packages --group dev
-      - save_cache:
-          key: uv-cache-v1-{{ checksum "uv.lock" }}
-          paths:
-            - ~/.cache/uv
-
-jobs:
-  lint:
-    executor: python
-    steps:
-      - checkout
-      - install-deps
-      - run:
-          name: Ruff check
-          command: uv run ruff check app/ klaudia/ config/ mcp-ledger/ tests/
-      - run:
-          name: Ruff format check
-          command: uv run ruff format --check app/ klaudia/ config/ mcp-ledger/ tests/
-
-  unit-test:
-    executor: python
-    steps:
-      - checkout
-      - install-deps
-      - run:
-          name: Run unit tests
-          command: uv run pytest tests/unit -q --junitxml=test-results/unit.xml
-      - store_test_results:
-          path: test-results
-
-  integration-test:
-    executor: python-with-services
-    environment:
-      MOCK_KIE: "true"
-      LANGFUSE_ENABLED: "false"
-      DATABASE_URL: postgresql://klaudia:klaudia@127.0.0.1:5432/klaudia
-      PG_TEST_URL: postgresql://klaudia:klaudia@127.0.0.1:5432/klaudia
-      JWT_SECRET: test-secret-that-is-at-least-32-bytes-long
-    steps:
-      - checkout
-      - install-deps
-      - run:
-          name: Wait for Redis, S3, and Postgres
-          command: |
-            for i in $(seq 1 60); do
-              if curl -fsS \
-                  http://127.0.0.1:9000/health \
-                  > /dev/null \
-                && (echo PING | nc -w 1 127.0.0.1 6379 | grep -q PONG) \
-                && nc -z 127.0.0.1 5432; then
-                echo "services up"
-                exit 0
-              fi
-              sleep 1
-            done
-            echo "services did not come up" >&2
-            exit 1
-      - run:
-          name: Run API, financial core, and service integration tests (mock KIE)
-          command: >
-            uv run pytest
-            tests/integration/api
-            tests/integration/extraction/test_ingest_pipeline.py
-            tests/integration/extraction/test_async_pipeline.py
-            tests/integration/database
-            tests/integration/mcp-ledger
-            -q --junitxml=test-results/integration.xml
-      - store_test_results:
-          path: test-results
+orbs:
+  path-filtering: circleci/path-filtering@1.0.0
 
 workflows:
-  ci:
+  select-checks:
     jobs:
-      - lint
-      - unit-test:
-          requires:
-            - lint
-      - integration-test:
-          requires:
-            - unit-test
+      - path-filtering/filter:
+          base-revision: development
+          config-path: .circleci/continue.yml
+          # Unmapped paths run both, except documentation and licences.
+          mapping: |
+            ^apps/mobile/.*$ run_mobile true
+            ^(app|klaudia|mcp-ledger|config|tests|sample-data)/.*$ run_backend true
+            ^(pyproject\.toml|uv\.lock)$ run_backend true
+            ^(\.circleci|\.github|scripts)/.*$ run_full true
+            ^(?!(apps/mobile/|app/|klaudia/|mcp-ledger/|config/|tests/|sample-data/|docs/|\.circleci/|\.github/|scripts/|pyproject\.toml$|uv\.lock$|README\.md$|LICENSE(\.md)?$)).+$ run_full true
