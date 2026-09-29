@@ -1,5 +1,3 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
 # dependencies
 node_modules/
 
@@ -34,18 +32,9 @@ yarn-error.*
 .env*
 .local
 
-# data sample test
-sample_data/
-
 # typescript
 *.tsbuildinfo
 
 # generated native folders
 /ios
 /android
-
-# coding agent
-.codex/
-AGENTS.md
-.claude/
-CLAUDE.md

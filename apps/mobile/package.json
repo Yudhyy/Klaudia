@@ -1,5 +1,5 @@
 {
-  "name": "klaudia-app",
+  "name": "@klaudia/mobile",
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {

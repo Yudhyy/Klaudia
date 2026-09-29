@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "klaudia-app",
-    "slug": "klaudia-app",
+    "name": "klaudia",
+    "slug": "klaudia-mobile",
     "scheme": "klaudia",
     "version": "1.0.0",
     "orientation": "portrait",
