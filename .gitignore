@@ -38,7 +38,6 @@ venv.bak/
 # Coding agents (dev-specific)
 .claude/
 CLAUDE.md
-.claudeignore
 .agents/
 AGENTS.md
 .codex/
@@ -50,8 +49,8 @@ tests/api/
 endpoint_test/
 
 # Credentials (defense in depth)
-service_account.json
-gcp_service_account.json
+secrets/**
+!secrets/.gitkeep
 *.pem
 *.key
 
@@ -62,7 +61,6 @@ pids/
 # Docs
 docs/paper/
 docs/PLAN.md
-docs/SCALE.md
 docs/MEMORY.md
 docs/ARCHITECTURE.md
 docs/RESEARCH.md

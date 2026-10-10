@@ -467,17 +467,18 @@ configuration for the setup workflow in `.circleci/config.yml`.
 ## 📟 Running it
 
 ```bash
-docker compose up -d                  # Postgres, Redis, MinIO
-cp .env.template .env                 # add model credentials
-./startup.sh                          # API + MCP servers
+cp .env.template .env   # initialize environment variables
+docker compose up --build -d   # rebuild images and run containers
+docker compose up -d   # alternative: run existing containers without rebuilding
+docker compose logs -f api   # follow API logs in real-time
 
 # optional
 docker compose --profile sandbox up -d   # isolated store for the evaluation suite
 ```
 
 ```bash
-uv run pytest tests/unit -q                                    # fast, hermetic
-MOCK_KIE=true uv run pytest tests/e2e -q # full evaluation
+uv run pytest tests/unit -q   # fast, hermetic
+MOCK_KIE=true uv run pytest tests/e2e -q   # full evaluation
 ```
 
 ---

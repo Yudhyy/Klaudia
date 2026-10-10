@@ -1,0 +1,61 @@
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Dependencies
+node_modules
+**/node_modules
+.venv
+**/.venv
+.notebooklm-cli-venv/
+.notebooklm-playwright/
+.pip-cache/
+.uv-cache/
+.cache/
+.build/
+
+# version control and local tooling
+.git
+.github
+.circleci
+.venv
+**/.venv
+__pycache__
+**/__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+htmlcov
+
+# local environment and credentials (injected at runtime, never baked into images)
+.env
+.env.*
+!.env.template
+secrets
+**/secrets
+*.pem
+*.key
+
+# unrelated or development-only content
+apps/mobile
+**/node_modules
+logs
+pids
+scripts
+tests
+docs
+*.md

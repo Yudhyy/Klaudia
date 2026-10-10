@@ -1,32 +1,44 @@
-# Local infra for Klaudia development: `docker compose up -d`
-# PostgreSQL, Redis, and MinIO match the defaults in config/settings.py.
+# Local development stack. The API and worker share one immutable application image.
+# MCP-Ledger runs as a stdio subprocess owned by the API process.
+
+x-klaudia-environment: &klaudia-environment
+  DATABASE_URL: "${DATABASE_URL_CONTAINER:-postgresql://${POSTGRES_USER:-klaudia}:${POSTGRES_PASSWORD:-klaudia}@postgres:5432/${POSTGRES_DB:-klaudia}}"
+  REDIS_URL: "${REDIS_URL_CONTAINER:-redis://redis:6379/0}"
+  TASKIQ_BROKER_URL: "${TASKIQ_BROKER_URL_CONTAINER:-redis://redis:6379/1}"
+  TASKIQ_RESULT_BACKEND_URL: "${TASKIQ_RESULT_BACKEND_URL_CONTAINER:-redis://redis:6379/2}"
+  MINIO_ENDPOINT: "${MINIO_ENDPOINT_CONTAINER:-http://minio:9000}"
+  GOOGLE_APPLICATION_CREDENTIALS: "${GOOGLE_APPLICATION_CREDENTIALS_CONTAINER:-/run/secrets/gcp_service_account.json}"
 
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: klaudia
-      POSTGRES_PASSWORD: klaudia
-      POSTGRES_DB: klaudia
+      POSTGRES_USER: ${POSTGRES_USER:-klaudia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-klaudia}
+      POSTGRES_DB: ${POSTGRES_DB:-klaudia}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pg-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U klaudia"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 3s
       retries: 10
+      start_period: 5s
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
+      start_period: 3s
+    restart: unless-stopped
 
   rustfs-volume-init:
     image: alpine:3.20
@@ -39,28 +51,21 @@ services:
 
   minio:
     image: rustfs/rustfs:1.0.0
-
     environment:
       RUSTFS_VOLUMES: /data
       RUSTFS_ADDRESS: "0.0.0.0:9000"
       RUSTFS_CONSOLE_ADDRESS: "0.0.0.0:9001"
       RUSTFS_CONSOLE_ENABLE: "true"
-
-      # Preserve your existing development credentials.
-      RUSTFS_ACCESS_KEY: minioadmin
-      RUSTFS_SECRET_KEY: minioadmin
-
+      RUSTFS_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      RUSTFS_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
     ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
-
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - rustfs-data:/data
-
     depends_on:
       rustfs-volume-init:
         condition: service_completed_successfully
-
     healthcheck:
       test:
         - CMD
@@ -71,13 +76,82 @@ services:
       timeout: 3s
       retries: 20
       start_period: 20s
+    restart: unless-stopped
 
-  # Isolated Postgres for the e2e sandbox (tests/e2e). Separate server, separate
-  # volume, port 5433 — so a bench run cannot see or damage development data, and
-  # the whole store can be dropped and rebuilt:
-  #   docker compose --profile sandbox up -d
-  #   docker compose --profile sandbox down -v   # wipe it
-  # Application and ledger schemas initialise on first connection.
+  api:
+    image: klaudia-protocol:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    env_file:
+      - .env
+    environment:
+      <<: *klaudia-environment
+      HOST: 0.0.0.0
+      PORT: "8000"
+    volumes:
+      - ./secrets:/run/secrets:ro
+    ports:
+      # Bind beyond loopback so a physical Expo/mobile device on the LAN can reach the API.
+      - "${APP_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/v1/health', timeout=3)"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    stop_grace_period: 30s
+    restart: unless-stopped
+
+  # Separate process for the Taskiq extraction queue; it shares the API image,
+  # but not the API process lifecycle.
+  worker:
+    image: klaudia-protocol:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    env_file:
+      - .env
+    environment:
+      <<: *klaudia-environment
+    volumes:
+      - ./secrets:/run/secrets:ro
+    command:
+      - taskiq
+      - worker
+      - app.services.extraction.queue.broker:broker
+      - app.services.extraction.queue.tasks
+      - app.services.extraction.queue.state
+      - --workers
+      - "${WORKER_COUNT:-1}"
+      - --max-async-tasks
+      - "${WORKER_CONCURRENCY:-8}"
+      - --log-level
+      - INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    stop_grace_period: 30s
+    restart: unless-stopped
+
+  # Isolated store for the end-to-end sandbox. Never shares the development volume.
   postgres-sandbox:
     image: postgres:16-alpine
     profiles: ["sandbox"]
@@ -86,14 +160,15 @@ services:
       POSTGRES_PASSWORD: klaudia
       POSTGRES_DB: klaudia_sandbox
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - pg-sandbox-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U klaudia -d klaudia_sandbox"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
 
 volumes:
   pg-data:
