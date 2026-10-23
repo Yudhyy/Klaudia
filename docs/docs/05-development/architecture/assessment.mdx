@@ -1,0 +1,166 @@
+---
+sidebar_position: 3
+title: Architecture assessment
+---
+
+# Architecture assessment
+
+Assessment of source at
+[150469f](https://github.com/Yudhyy/Klaudia/tree/150469f4691c5850d233d23710a8a9bd962fd822),
+checked on 2026-10-23 under [issue #3](https://github.com/Yudhyy/Klaudia/issues/3).
+Read the [current overview](overview.mdx) before the [target design](target.mdx).
+These findings and proposed follow-ups do not approve a package migration.
+No application code changed during this assessment.
+
+## Findings and order of work
+
+| Order | Finding | Next work |
+| --- | --- | --- |
+| First | MCP exposes direct mutations outside the main chat operation path | Use existing [issue #8](https://github.com/Yudhyy/Klaudia/issues/8); avoid a duplicate architecture issue |
+| First | Extraction progress counts events and subscribes after work is queued | Add deterministic failure tests, then make completion depend on saved page state |
+| Next | Agent proposal types import ledger persistence implementations | Isolate those contracts inside the existing ledger package |
+| When identity work starts | Authentication uses a database module under extraction | Extract only identity reads/writes, coordinated with [issue #9](https://github.com/Yudhyy/Klaudia/issues/9) |
+| Alongside schema changes | Several stores execute schema changes on startup | Define upgrade ownership within the migration work required by #9 |
+| After interface choices | No dedicated import-policy check was found | Add narrow checks for agreed dependency rules |
+
+This order favors authorization and observed completion behavior before folder
+moves. Object-store naming already has [issue #5](https://github.com/Yudhyy/Klaudia/issues/5).
+The documentation-site work under #4 can proceed independently.
+
+## Observed dependency direction
+
+A read-only AST scan covered 124 Python files under `app`, `klaudia`, `ledger`,
+and `config`. It counted absolute import statements between those roots, including
+function-local imports. It did not resolve dynamic imports, relative imports,
+or installed-package metadata into a complete runtime graph.
+
+| Import direction | Statements | Importing files |
+| --- | ---: | ---: |
+| `app` to `config` | 18 | 18 |
+| `app` to `klaudia` | 11 | 6 |
+| `app` to `ledger` | 49 | 17 |
+| `klaudia` to `ledger` | 13 | 4 |
+
+No absolute import back from `ledger` to `app` or `klaudia` appeared in this scan.
+That useful direction should remain. The counts locate change points; they do
+not measure code quality or prove the absence of runtime cycles.
+
+### Agent contracts pull in persistence
+
+[Write tools](https://github.com/Yudhyy/Klaudia/blob/150469f4691c5850d233d23710a8a9bd962fd822/klaudia/core/agent/writes.py#L12)
+import `TableAppendProposal` from `ledger.table_operations` and `AuthoringProposal`
+from `ledger.authoring`. Both ledger modules import asyncpg and contain database
+execution code. The [authoring tools](https://github.com/Yudhyy/Klaudia/blob/150469f4691c5850d233d23710a8a9bd962fd822/klaudia/core/agent/authoring.py#L8)
+also import the authoring proposal from that implementation.
+
+The agent already has `OperationExecutor`, `CatalogueReader`, and `AuthoringReader`
+interfaces. Keep these interfaces. Move the proposal definitions and their
+validation into ledger contract modules that do not import persistence or MCP.
+Update consumers without changing tool schemas, serialized requests, validation
+behavior, or checkpoint identity. This needs no new top-level domain package.
+
+The [klaudia package metadata](https://github.com/Yudhyy/Klaudia/blob/150469f4691c5850d233d23710a8a9bd962fd822/klaudia/pyproject.toml)
+does not declare its direct ledger distribution dependency; the root workspace
+currently installs both. Keeping contracts in `ledger` requires an explicit
+dependency. This is a package-isolation concern, not evidence that the current
+root install fails.
+
+### Identity persistence sits under extraction
+
+[Authentication routes](https://github.com/Yudhyy/Klaudia/blob/150469f4691c5850d233d23710a8a9bd962fd822/app/routes/v1/auth.py#L54)
+use `container.db_client`. Its
+[implementation](https://github.com/Yudhyy/Klaudia/blob/150469f4691c5850d233d23710a8a9bd962fd822/app/services/extraction/infra/db_client.py#L177)
+owns user creation, credential lookup, and last-login updates alongside sessions,
+conversation, document metadata, and extraction cache.
+
+A small identity store can hide those three operations behind an interface used
+by authentication. Reuse the existing asyncpg pool and schema for the first
+change. Preserve HTTP responses, password handling, token behavior, and conflict
+handling. Do not split every method of `AppDBClient` or rename conversation
+sessions into authentication sessions. Account deletion and token invalidation
+remain the separate behavior requested by #9.
+
+## Extraction completion needs one owner
+
+In [the orchestrator](https://github.com/Yudhyy/Klaudia/blob/150469f4691c5850d233d23710a8a9bd962fd822/app/services/core/orchestrator.py#L626),
+`ingest.enqueue` runs before `stream_progress` subscribes. The
+[progress helper](https://github.com/Yudhyy/Klaudia/blob/150469f4691c5850d233d23710a8a9bd962fd822/app/services/extraction/queue/progress.py#L37)
+increments a per-file count for each message. It does not deduplicate page IDs
+or consult saved page state before declaring its wait complete.
+
+An isolated probe executed the unchanged helper with a fake Redis interface.
+For two expected pages, two events for page 1 made the helper return without an
+event for page 2. With no delivered events, it waited until its deadline and
+returned no events. This confirms the helper behavior; it does not measure real
+Redis delivery, reproduce the full upload flow, or establish production frequency.
+
+The enqueue/subscribe order permits an early completion notification to precede
+subscription. The API can then wait for a notification it did not observe even
+when a page result is already saved. This second case follows from the call
+order; a deterministic integration test should establish the whole-path effect.
+
+The orchestrator also reads raw page rows and writes the aggregate file status,
+while [worker tasks](https://github.com/Yudhyy/Klaudia/blob/150469f4691c5850d233d23710a8a9bd962fd822/app/services/extraction/queue/tasks.py#L125)
+persist page outcomes. Put completion and status rules in the extraction module.
+Its interface should return a bounded, owner-checked file/page outcome. Use
+progress messages as wake-up signals; derive completion from distinct expected
+pages and saved outcomes. Handle late workers and a disconnected API explicitly.
+Do not change the existing inline/queued selection during this repair.
+
+## Preserve transaction ownership
+
+[TaskConnection and TaskSession](https://github.com/Yudhyy/Klaudia/blob/150469f4691c5850d233d23710a8a9bd962fd822/app/services/workflow/store.py#L52)
+use the database connection that holds the task advisory lock for checked ledger
+writes. Their operation methods and the standalone
+[OperationService](https://github.com/Yudhyy/Klaudia/blob/150469f4691c5850d233d23710a8a9bd962fd822/app/services/core/operations.py)
+call the same ledger functions through different connection adapters. The durable
+adapter also supplies task approval policy and checks session ownership.
+
+This coupling protects execution and recovery. Do not replace it with a new pool
+inside an operation module, or turn the entire model run into one transaction.
+An individual operation must keep effect and receipt together; recovery must
+reuse the original operation reference. A caller-held connection is a valid
+interface here. Add another wrapper only when it hides repeated policy or
+transaction work, rather than forwarding the same methods again.
+
+Existing [durable-task tests](https://github.com/Yudhyy/Klaudia/blob/150469f4691c5850d233d23710a8a9bd962fd822/tests/integration/api/test_durable_tasks.py)
+and [process-kill tests](https://github.com/Yudhyy/Klaudia/blob/150469f4691c5850d233d23710a8a9bd962fd822/tests/integration/api/test_process_recovery.py)
+describe the recovery checks that future changes must retain. Their presence is
+not a fresh test pass from this assessment.
+
+## Schema ownership before wider extraction
+
+`AppDBClient.connect`, `LedgerStore.connect`, `MemoryDocumentStore.initialize`,
+and `TaskStore.connect` each execute schema SQL. The
+[ledger store](https://github.com/Yudhyy/Klaudia/blob/150469f4691c5850d233d23710a8a9bd962fd822/mcp-ledger/ledger/store.py#L135)
+applies base, catalogue, operation, and typed-formula schemas. The
+[memory store](https://github.com/Yudhyy/Klaudia/blob/150469f4691c5850d233d23710a8a9bd962fd822/app/services/memory/store.py#L55)
+also applies additive changes. No versioned migration setup was found in the
+reviewed repo paths.
+
+Before adding account lifecycle columns or moving schema ownership into proposed
+packages, define who owns upgrades and their startup order. Existing #9 already
+requires a safe migration for installed databases. Start with that need; this
+assessment does not select Alembic, SQLAlchemy, separate schemas, or a rewrite of
+all startup SQL. Retain the ledger's standalone initialization contract.
+
+## Small follow-ups and acceptance
+
+| Proposed task | Acceptance that matters |
+| --- | --- |
+| Repair extraction completion | Test duplicate events, completion before subscription, missed notifications, late workers, timeout, and owner isolation; persist accurate terminal status |
+| Isolate ledger proposal contracts | Tool schemas and checkpoint compatibility stay stable; importing agent contracts no longer loads ledger persistence modules |
+| Isolate identity persistence | Authentication uses a narrow identity interface; existing behavior and schema stay unchanged |
+| Check import direction in CI | Fail on forbidden imports and report file/line; retain explicit adapters and accepted framework use |
+
+The import checks should protect specific rules: no `app`, `klaudia`, or `config`
+imports from ledger code, no app/config imports from the agent package, and no database or MCP
+imports in agreed contract and calculation modules. Ledger transport and storage
+adapters remain allowed to use their own dependencies. Do not ban LangChain from
+the entire agent package while its model/tool interface still uses it.
+
+No new services, event bus, generic repository layer, or empty domain packages
+are required for these tasks. Broader extraction should follow measured change
+cost or a concrete use case. Revisit the transaction guidance if deployment or
+database ownership changes; the current proposal assumes one shared PostgreSQL
+database and in-process checked operations.

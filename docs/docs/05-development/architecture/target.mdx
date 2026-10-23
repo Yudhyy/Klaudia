@@ -1,0 +1,755 @@
+---
+sidebar_position: 2
+title: Proposed architecture
+---
+
+import AppArchitecture from '../img/app-architecture.avif';
+
+# Proposed architecture
+
+Status: proposed design, not the current implementation or a migration approval.
+Read the [current architecture](overview.mdx) first. The trees and deployment
+sketches below describe a possible destination; they do not establish that each
+package, client, dependency, or service exists. Assess and migrate one boundary
+at a time under [issue #3](https://github.com/Yudhyy/Klaudia/issues/3).
+
+Design reference: [Domain-Driven Hexagon](https://github.com/Sairyss/domain-driven-hexagon).
+
+hexagonal (ddd, clean) modular-monolith: one monorepo, one fastapi modular monolith, several pure domain packages, thin http/mcp/mobile/web adapters, and evals as a release gate.
+
+<img alt="Main Architecture" src={AppArchitecture} className="p-4 dark:bg-immich-dark-primary my-4" />
+
+
+## Repo Tree
+```
+klaudia/
+├── .circleci/
+│   ├── config.yml
+│   └── continue.yml
+│
+├── apps/                                 # web, mobile, cli/tui
+│   ├── web/                              # next.js app router
+│   │   ├── app/
+│   │   │   ├── (marketing)/
+│   │   │   │   ├── page.tsx
+│   │   │   │   └── layout.tsx
+│   │   │   ├── (auth)/
+│   │   │   │   ├── login/page.tsx
+│   │   │   │   ├── register/page.tsx
+│   │   │   │   └── layout.tsx
+│   │   │   ├── (workspace)/
+│   │   │   │   ├── chat/page.tsx
+│   │   │   │   ├── spreadsheets/page.tsx
+│   │   │   │   ├── spreadsheets/[resource_id]/page.tsx
+│   │   │   │   ├── documents/page.tsx
+│   │   │   │   ├── documents/[document_id]/page.tsx
+│   │   │   │   ├── approvals/page.tsx
+│   │   │   │   ├── tasks/page.tsx
+│   │   │   │   ├── memory/page.tsx
+│   │   │   │   └── settings/page.tsx
+│   │   │   ├── layout.tsx
+│   │   │   └── globals.css
+│   │   ├── features/
+│   │   │   ├── auth/
+│   │   │   │   ├── components/
+│   │   │   │   ├── hooks/
+│   │   │   │   └── api.ts
+│   │   │   ├── chat/
+│   │   │   │   ├── components/
+│   │   │   │   ├── hooks/
+│   │   │   │   └── api.ts
+│   │   │   ├── ledger/
+│   │   │   ├── documents/
+│   │   │   ├── approvals/
+│   │   │   ├── tasks/
+│   │   │   └── memory/
+│   │   ├── components/
+│   │   │   ├── ui/
+│   │   │   └── layout/
+│   │   ├── lib/
+│   │   │   ├── api-client.ts
+│   │   │   ├── query-client.ts
+│   │   │   ├── auth.ts
+│   │   │   ├── env.ts
+│   │   │   └── utils.ts
+│   │   ├── providers/
+│   │   ├── public/
+│   │   ├── tests/
+│   │   ├── next.config.ts
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   └── vitest.config.ts
+│   │
+│   ├── mobile/                           # expo / react native
+│   │   ├── app/
+│   │   │   ├── (tabs)/
+│   │   │   │   ├── _layout.tsx
+│   │   │   │   ├── index.tsx
+│   │   │   │   ├── profile.tsx
+│   │   │   │   └── sheet.tsx
+│   │   │   ├── _layout.tsx
+│   │   │   └── auth.tsx
+│   │   ├── features/
+│   │   │   ├── auth/
+│   │   │   ├── chat/
+│   │   │   ├── ledger/
+│   │   │   ├── documents/
+│   │   │   ├── approvals/
+│   │   │   └── tasks/
+│   │   ├── components/
+│   │   │   └── ui/
+│   │   ├── lib/
+│   │   │   ├── api-client.ts
+│   │   │   ├── auth-session.ts
+│   │   │   ├── secure-storage.ts
+│   │   │   └── env.ts
+│   │   ├── constants/
+│   │   ├── assets/
+│   │   ├── tests/
+│   │   ├── app.json
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   │
+│   └── cli/                              # rust cli/tui crate
+│       ├── src/
+│       │   ├── main.rs                   # entry point cli/tui
+│       │   ├── app.rs                    # application state & event loop
+│       │   ├── ui/                       # ratatui tui layouts & components
+│       │   │   ├── mod.rs
+│       │   │   ├── chat.rs
+│       │   │   ├── ledger.rs
+│       │   │   ├── documents.rs
+│       │   │   └── components/
+│       │   ├── client/                   # json-rpc 2.0/rest client
+│       │   │   ├── mod.rs
+│       │   │   ├── jsonrpc.rs
+│       │   │   └── endpoints.rs
+│       │   ├── config.rs                 # cli env / local auth config
+│       │   └── error.rs
+│       ├── tests/                        # integration / ui unit tests
+│       │   └── cli_test.rs
+│       ├── build.rs                      # cargo build script (generate rust types from contracts)
+│       └── Cargo.toml                    # rust crate manifest
+│
+├── services/
+│   └── api/                                  # the only python deployable for now
+│       ├── src/klaudia_api/
+│       │   ├── __init__.py
+│       │   ├── main.py
+│       │   │
+│       │   ├── interfaces/                   # inbound adapters
+│       │   │   ├── __init__.py
+│       │   │   ├── http/                     # fastapi rest adapter
+│       │   │   │   ├── __init__.py
+│       │   │   │   ├── app_factory.py
+│       │   │   │   ├── dependencies.py
+│       │   │   │   ├── error_handlers.py
+│       │   │   │   ├── middleware.py
+│       │   │   │   └── v1/
+│       │   │   │       ├── __init__.py
+│       │   │   │       ├── auth.py           # invoke identity_core use cases
+│       │   │   │       ├── chat.py
+│       │   │   │       ├── sessions.py
+│       │   │   │       ├── tasks.py
+│       │   │   │       ├── approvals.py
+│       │   │   │       ├── memory.py
+│       │   │   │       ├── resources.py
+│       │   │   │       ├── spreadsheets.py
+│       │   │   │       ├── documents.py
+│       │   │   │       └── health.py
+│       │   │   │       
+│       │   │   ├── mcp/                     # mcp server adapter
+│       │   │   │   ├── __init__.py
+│       │   │   │   ├── host.py              # fastmcp host/transport
+│       │   │   │   ├── registry.py          # tool registration
+│       │   │   │   ├── auth.py
+│       │   │   │   ├── policy.py
+│       │   │   │   └── ledger/              # mcp-ledger
+│       │   │   │       ├── __init__.py
+│       │   │   │       └── server.py
+│       │   │   │
+│       │   │   └── workers/                 # taskiq / background entrypoints
+│       │   │       ├── __init__.py
+│       │   │       ├── broker.py
+│       │   │       ├── extraction_worker.py
+│       │   │       ├── recovery_worker.py
+│       │   │       └── scheduled_worker.py
+│       │   │
+│       │   ├── adapters/                    # outbound infrastructure adapters
+│       │   │   ├── __init__.py
+│       │   │   ├── llm/
+│       │   │   │   ├── __init__.py
+│       │   │   │   ├── model_factory.py
+│       │   │   │   ├── openai_compatible_adapter.py
+│       │   │   │   ├── gemini_vertex_adapter.py 
+│       │   │   │   ├── anthropic_adapter.py 
+│       │   │   │   └── fake_model_adapter.py
+│       │   │   ├── events/
+│       │   │   │   ├── in_memory_event_publisher.py
+│       │   │   │   └── postgres_outbox_event_publisher.py
+│       │   │   ├── persistence/
+│       │   │   │   ├── __init__.py
+│       │   │   │   ├── database.py
+│       │   │   │   ├── unit_of_work.py
+│       │   │   │   ├── postgres_memory_repository.py
+│       │   │   │   ├── postgres_checkpoint_repository.py
+│       │   │   │   ├── postgres_ledger_repository.py
+│       │   │   │   ├── postgres_operation_repository.py
+│       │   │   │   └── postgres_approval_repository.py
+│       │   │   ├── documents/
+│       │   │   │   ├── __init__.py
+│       │   │   │   ├── object_store/
+│       │   │   │   │   └── s3_object_store.py
+│       │   │   │   ├── kie/
+│       │   │   │   │   ├── __init__.py
+│       │   │   │   │   ├── openai_compatible_vision_kie_adapter.py
+│       │   │   │   │   ├── gemini_vertex_kie_adapter.py 
+│       │   │   │   │   ├── kie_factory.py
+│       │   │   │   │   └── fake_kie_adapter.py
+│       │   │   │   ├── queue/
+│       │   │   │   │   └── redis_queue_adapter.py
+│       │   │   │   └── cache/
+│       │   │   │       └── redis_dedup_cache.py
+│       │   │   ├── formulas/
+│       │   │   │   ├── __init__.py
+│       │   │   │   └── ironcalc_adapter.py
+│       │   │   ├── observability/        # vendor implementations
+│       │   │   │   ├── __init__.py
+│       │   │   │   ├── tracer_factory.py
+│       │   │   │   └── langfuse_tracer.py
+│       │   │   └── guardrails/
+│       │   │       ├── __init__.py
+│       │   │       ├── rule_guardrail_adapter.py
+│       │   │       └── llm_guardrail_adapter.py
+│       │   │
+│       │   ├── composition/              # the only composition root
+│       │   │   ├── __init__.py
+│       │   │   ├── container.py
+│       │   │   ├── settings.py
+│       │   │   └── lifespan.py
+│       │   └── observability/            # cross-cutting application concern
+│       │       ├── __init__.py
+│       │       ├── logging.py            # structured json logs
+│       │       ├── tracing.py            # trace factory + run metadata        
+│       │       └── correlation.py        # request/session/task/operation context
+│       │
+│       ├── migrations/                      # versioned alembic migrations
+│       │   ├── versions/
+│       │   ├── env.py
+│       │   └── alembic.ini
+│       ├── config/
+│       │   ├── models.yaml
+│       │   └── models.schema.json
+│       ├── tests/
+│       │   ├── unit/
+│       │   ├── integration/
+│       │   └── conftest.py
+│       ├── Dockerfile
+│       └── pyproject.toml
+│
+├── packages/
+│   ├── identity-core/
+│   │   ├── src/identity_core/
+│   │   │   ├── __init__.py
+│   │   │   ├── domain/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── user.py
+│   │   │   │   ├── session.py
+│   │   │   │   ├── credential.py
+│   │   │   │   ├── role.py
+│   │   │   │   ├── permission.py
+│   │   │   │   └── ports/
+│   │   │   │       ├── __init__.py
+│   │   │   │       ├── user_repository.py
+│   │   │   │       ├── session_repository.py
+│   │   │   │       ├── password_hasher_port.py
+│   │   │   │       └── token_issuer_port.py       
+│   │   │   └── application/
+│   │   │       ├── __init__.py
+│   │   │       ├── register_user.py
+│   │   │       ├── authenticate.py
+│   │   │       ├── refresh_session.py
+│   │   │       └── authorize.py
+│   │   ├── tests/
+│   │   └── pyproject.toml
+│   │
+│   ├── shared-kernel/                    # zero infrastructure dependencies
+│   │   ├── src/shared_kernel/
+│   │   │   ├── __init__.py
+│   │   │   ├── ids.py
+│   │   │   ├── money.py
+│   │   │   ├── decimal_value.py
+│   │   │   ├── revision.py
+│   │   │   ├── ownership.py
+│   │   │   ├── operation_ref.py
+│   │   │   ├── result.py
+│   │   │   ├── errors.py
+│   │   │   ├── clock.py
+│   │   │   └── pagination.py
+│   │   ├── tests/
+│   │   └── pyproject.toml
+│   │
+│   ├── contracts/                        # openapi + generated clients
+│   │   ├── openapi/
+│   │   │   └── klaudia.json              # generated and committed
+│   │   ├── generated/
+│   │   │   ├── typescript/
+│   │   │   │   ├── schema.d.ts
+│   │   │   │   └── index.ts
+│   │   │   ├── python/
+│   │   │   │   └── README.md
+│   │   │   └── rust/                     # generated rust dtos / structs
+│   │   │       ├── Cargo.toml
+│   │   │       └── src/
+│   │   │           └── lib.rs
+│   │   ├── scripts/                      # drift Check
+│   │   │   ├── export-openapi.mjs
+│   │   │   ├── generate-clients.mjs
+│   │   │   └── generate-rust-dto.sh
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   │
+│   ├── agent-core/                       # agent domain, use cases, ports
+│   │   ├── src/agent_core/
+│   │   │   ├── __init__.py
+│   │   │   ├── domain/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── agent_run.py
+│   │   │   │   ├── agent_step.py
+│   │   │   │   ├── task.py
+│   │   │   │   ├── message.py
+│   │   │   │   ├── attachment.py
+│   │   │   │   ├── tool_call.py
+│   │   │   │   ├── tool_result.py
+│   │   │   │   ├── tool_spec.py
+│   │   │   │   ├── skill.py
+│   │   │   │   ├── guardrail.py
+│   │   │   │   ├── checkpoint.py
+│   │   │   │   ├── budget.py
+│   │   │   │   └── ports/
+│   │   │   │       ├── __init__.py
+│   │   │   │       ├── model_port.py
+│   │   │   │       ├── tool_port.py
+│   │   │   │       ├── memory_port.py
+│   │   │   │       ├── document_port.py         # capability-level
+│   │   │   │       ├── ledger_port.py
+│   │   │   │       ├── approval_port.py         # agent asks: "is this action approved?"
+│   │   │   │       ├── checkpoint_port.py
+│   │   │   │       └── event_publisher_port.py  # publish agent lifecycle events
+│   │   │   ├── application/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── start_chat_run.py
+│   │   │   │   ├── continue_chat_run.py
+│   │   │   │   ├── resume_task.py
+│   │   │   │   ├── approve_pending_operation.py
+│   │   │   │   ├── reject_pending_operation.py
+│   │   │   │   ├── verify_response.py
+│   │   │   │   └── rebuild_context.py
+│   │   │   └── tools/
+│   │   │       ├── __init__.py
+│   │   │       ├── registry.py
+│   │   │       ├── policy.py
+│   │   │       └── schemas.py
+│   │   ├── tests/
+│   │   └── pyproject.toml
+│   │
+│   ├── agent-skills/                     # versioned skills + prompts
+│   │   ├── skills/
+│   │   │   ├── decimal-formulas/
+│   │   │   │   ├── SKILL.md
+│   │   │   │   └── tests.yaml
+│   │   │   ├── financial-execution/
+│   │   │   │   ├── SKILL.md
+│   │   │   │   └── tests.yaml
+│   │   │   ├── policy-reconciliation/
+│   │   │   │   ├── SKILL.md
+│   │   │   │   └── tests.yaml
+│   │   │   ├── resource-discovery/
+│   │   │   │   ├── SKILL.md
+│   │   │   │   └── tests.yaml
+│   │   │   ├── schema-inspection/
+│   │   │   │   ├── SKILL.md
+│   │   │   │   └── tests.yaml
+│   │   │   ├── table-append/
+│   │   │   │   ├── SKILL.md
+│   │   │   │   └── tests.yaml
+│   │   │   ├── table-authoring/
+│   │   │   │   ├── SKILL.md
+│   │   │   │   └── tests.yaml
+│   │   │   └── table-calculation/
+│   │   │       ├── SKILL.md
+│   │   │       └── tests.yaml
+│   │   ├── src/agent_skills/
+│   │   │   ├── __init__.py
+│   │   │   ├── loader.py
+│   │   │   ├── registry.py
+│   │   │   ├── validator.py
+│   │   │   └── models.py
+│   │   ├── tests/
+│   │   └── pyproject.toml
+│   │
+│   ├── ledger-core/                          # deterministic accountant domain
+│   │   ├── src/ledger_core/
+│   │   │   ├── __init__.py
+│   │   │   ├── domain/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── resource.py
+│   │   │   │   ├── catalogue.py
+│   │   │   │   ├── spreadsheet.py
+│   │   │   │   ├── sheet.py
+│   │   │   │   ├── table.py
+│   │   │   │   ├── row.py
+│   │   │   │   ├── cell.py
+│   │   │   │   ├── typed_value.py
+│   │   │   │   ├── typed_schema.py
+│   │   │   │   ├── formula.py
+│   │   │   │   ├── calculation.py
+│   │   │   │   ├── financial_record.py
+│   │   │   │   ├── accounting_policy.py
+│   │   │   │   ├── operation.py
+│   │   │   │   ├── operation_status.py
+│   │   │   │   ├── receipt.py
+│   │   │   │   ├── approval.py               # financial operation approval
+│   │   │   │   └── events.py
+│   │   │   ├── application/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── search_resources.py
+│   │   │   │   ├── inspect_resource.py
+│   │   │   │   ├── query_financial_data.py
+│   │   │   │   ├── calculate.py
+│   │   │   │   ├── prepare_append.py
+│   │   │   │   ├── prepare_table_authoring.py
+│   │   │   │   ├── approve_operation.py
+│   │   │   │   ├── execute_operation.py
+│   │   │   │   ├── recover_operation.py
+│   │   │   │   └── issue_receipt.py
+│   │   │   └── ports/
+│   │   │       ├── __init__.py
+│   │   │       ├── ledger_repository.py
+│   │   │       ├── catalogue_repository.py
+│   │   │       ├── operation_repository.py
+│   │   │       ├── approval_repository.py
+│   │   │       ├── formula_engine_port.py
+│   │   │       └── event_publisher_port.py #publish ledger domain events
+│   │   ├── tests/
+│   │   └── pyproject.toml
+│   │
+│   └── document-intelligence/              # ingestion + extraction domain
+│       ├── src/document_intelligence/
+│       │   ├── __init__.py
+│       │   ├── domain/
+│       │   │   ├── __init__.py
+│       │   │   ├── document.py
+│       │   │   ├── page.py
+│       │   │   ├── extraction_job.py
+│       │   │   ├── extraction_result.py
+│       │   │   ├── field_prediction.py
+│       │   │   ├── confidence.py
+│       │   │   └── ports/
+│       │   │       ├── __init__.py
+│       │   │       ├── object_store_port.py
+│       │   │       ├── kie_model_port.py
+│       │   │       ├── queue_port.py
+│       │   │       ├── dedup_cache_port.py
+│       │   │       └── document_repository_port.py
+│       │   └── application/
+│       │       ├── __init__.py
+│       │       ├── ingest_document.py
+│       │       ├── split_pdf.py
+│       │       ├── extract_fields.py
+│       │       ├── normalize_extraction.py
+│       │       ├── deduplicate_document.py
+│       │       └── get_extraction_progress.py
+│       ├── tests/
+│       └── pyproject.toml
+│
+├── infra/
+│   ├── docker/
+│   │   ├── api.Dockerfile
+│   │   ├── worker.Dockerfile
+│   │   └── web.Dockerfile
+│   └── compose/
+│       ├── docker-compose.yml
+│       ├── docker-compose.dev.yml
+│       └── docker-compose.test.yml
+│
+├── evals/
+│   ├── datasets/
+│   │   ├── capability/
+│   │   ├── guardrails/
+│   │   ├── financial/                    # MBABench
+│   │   ├── extraction/
+│   │   ├── reconciliation/
+│   │   └── hostile/
+│   ├── runners/
+│   │   ├── smoke.py
+│   │   ├── capability.py
+│   │   ├── financial.py
+│   │   ├── guardrails.py
+│   │   └── regression.py
+│   ├── baselines/
+│   │   ├── smoke.json
+│   │   ├── financial.json
+│   │   └── guardrails.json
+│   ├── reports/                          # gitignored
+│   └── README.md
+│
+├── docs/
+│   ├── .gitignore
+│   ├── README.md
+│   ├── docusaurus.config.ts
+│   ├── package.json
+│   ├── pnpm-lock.json
+│   ├── sidebars.ts
+│   ├── tsconfig.json
+│   ├── static/
+│   ├── src/
+│   │   ├── css/
+│   │   ├── components/
+│   │   └── pages/
+│   └── docs/
+│       ├── 01-getting-started/
+│       ├── 02-installation/
+│       ├── 03-configuration/
+│       ├── 04-using-klaudia/
+│       ├── 05-development/
+│       │   ├── architecture/
+│       │   │   ├── _category_.json
+│       │   │   ├── overview.mdx
+│       │   │   ├── boundaries.md
+│       │   │   ├── agent-runtime.md
+│       │   │   ├── ledger-runtime.md
+│       │   │   ├── document-pipeline.md
+│       │   │   ├── database.md
+│       │   │   ├── auth.md
+│       │   │   ├── directories.md
+│       │   │   ├── contracts.md
+│       │   │   └── decisions/
+│       │   │       ├── _category_.json
+│       │   │       ├── 0001-use-uv-workspace.md
+│       │   │       ├── 0002-hexagonal-modular-monolith.md
+│       │   │       ├── 0003-openapi-contract-first.md
+│       │   │       └── 0004-ironcalc-as-formula-engine.md
+│       │   └── research/                # training/fine-tuning, modeling, comparison, etc...
+│       │       ├── _category_.json
+│       │       ├── models/
+│       │       ├── papers/
+│       │       ├── experiments/
+│       │       ├── evals/
+│       │       └── design/
+│       └── 06-policies/
+│
+├── scripts/
+│   ├── export_openapi.py
+│   ├── seed_dev_data.py
+│   ├── run_worker.sh
+│   └── migrate.sh
+│
+├── tests/
+│   ├── architecture/
+│   └── e2e/
+│       ├── datasets/                    # golden dataset versioned (20–100 real cases)
+│       ├── runners/
+│       └── conftest.py
+│
+├── .env.template
+├── .gitignore
+├── .dockerignore
+├── .python-version
+├── pnpm-workspace.yaml
+├── pnpm-lock.yaml
+├── Cargo.lock
+├── pyproject.toml                        # uv workspace root
+├── uv.lock
+├── README.md
+├── AGENTS.md
+├── Makefile
+└── turbo.json                            # optional js task orchestration
+```
+
+## Dependency Rule
+```
+apps/web ────────┐
+apps/mobile ─────┼──> packages/contracts (TypeScript / REST)
+                 │
+apps/cli (rust) ─┼──> packages/contracts (Rust DTO / JSON-RPC & REST)
+                 │
+services/api ────┼──> packages/contracts (OpenAPI & JSON-RPC Spec)
+                 ├──> packages/shared-kernel
+                 ├──> packages/identity-core
+                 ├──> packages/agent-core
+                 ├──> packages/agent-skills
+                 ├──> packages/ledger-core
+                 └──> packages/document-intelligence
+
+agent-core ──/──> ledger-core
+agent-core ──/──> document-intelligence
+agent-core ──/──> identity-core
+```
+
+# Klaudia Architecture
+
+```text
+                                    clients
+                           mobile / web / api / cli
+                                       │
+                                       ▼
+                         ┌──────────────────────────┐
+                         │ load balancer / gateway  │
+                         └─────────────┬────────────┘
+                                       │
+                                       ▼
+
+                    ╔════════════════════════════════════════╗
+                    ║      stateless application plane       ║
+                    ╚════════════════════════════════════════╝
+
+                         ┌──────────────────────────┐
+                         │       klaudia api        │
+                         │        fastapi           │
+                         │                          │
+                         │ auth / jwt / acl         │
+                         │ rate limits              │
+                         │ request validation       │
+                         │ tracing                  │
+                         └─────────────┬────────────┘
+                                       │
+                                       ▼
+                         ┌──────────────────────────┐
+                         │    thin orchestrator     │
+                         │                          │
+                         │ session reconstruction   │
+                         │ attachment routing       │
+                         │ approval routing         │
+                         │ task resume              │
+                         └─────────────┬────────────┘
+                                       │
+                                       ▼
+                         ┌──────────────────────────┐
+                         │      main agent          │
+                         │                          │
+                         │ intent / planning        │
+                         │ tool selection           │
+                         │ clarification            │
+                         │ response generation      │
+                         └─────────────┬────────────┘
+                                       │
+                     ┌─────────────────┼──────────────────┐
+                     │                 │                  │
+                     ▼                 ▼                  ▼
+              ┌─────────────┐   ┌─────────────┐   ┌──────────────┐
+              │   skills    │   │   context   │   │ task runtime │
+              │             │   │   broker    │   │              │
+              │ procedures  │   │             │   │ checkpoint   │
+              │ policies    │   │ catalogue   │   │ op history   │
+              │ workflows   │   │ memory docs │   │ budgets      │
+              └─────────────┘   │ working set │   └──────────────┘
+                                └──────┬──────┘
+                                       │
+                                       ▼
+                              ┌────────────────┐
+                              │  tool facade   │
+                              │                │
+                              │ search         │
+                              │ inspect        │
+                              │ query          │
+                              │ calculate      │
+                              │ mutate         │
+                              │ memory         │
+                              │ documents      │
+                              └───────┬────────┘
+                                      │
+                                      ▼
+
+              ╔════════════════════════════════════════════╗
+              ║       deterministic financial runtime      ║
+              ╚════════════════════════════════════════════╝
+
+                  ┌─────────────────────────────────────┐
+                  │       deterministic core            │
+                  │                                     │
+                  │ resource resolver / catalogue       │
+                  │ query engine                        │
+                  │ finance engine                      │
+                  │ accounting invariants               │
+                  │ operation engine                    │
+                  │ formula runtime                     │
+                  └──────────────────┬──────────────────┘
+                                     │
+                    ┌────────────────┼──────────────────┐
+                    │                │                  │
+                    ▼                ▼                  ▼
+
+               query engine    finance engine     formula engine
+                                                        │
+                                                        ▼
+                                                  ┌───────────┐
+                                                  │ ironcalc  │
+                                                  │ adapter   │
+                                                  └───────────┘
+
+                                     │
+                                     ▼
+                    ┌────────────────────────────────┐
+                    │    transaction coordinator     │
+                    │                                │
+                    │ authorization                  │
+                    │ revision check                 │
+                    │ preconditions                  │
+                    │ idempotency                    │
+                    │ approval                       │
+                    │ mutation                       │
+                    │ formula recalc                 │
+                    │ accounting validation          │
+                    │ postconditions                 │
+                    │ operation receipt              │
+                    └───────────────┬────────────────┘
+                                    │
+                                    ▼
+
+              ╔════════════════════════════════════════════╗
+              ║               stateful plane               ║
+              ╚════════════════════════════════════════════╝
+
+                         ┌─────────────────────────┐
+                         │       postgres          │
+                         │                         │
+                         │ auth.*                  │
+                         │ ledger.*                │
+                         │ catalogue.*             │
+                         │ memory.*                │
+                         │ workflow.*              │
+                         │ audit.*                 │
+                         └─────────────────────────┘
+
+                   ┌──────────────┐    ┌──────────────┐
+                   │    redis     │    │      s3      │
+                   │              │    │              │
+                   │ queue        │    │ documents    │
+                   │ cache        │    │ uploads      │
+                   │ locks        │    │ source files │
+                   └──────────────┘    └──────────────┘
+
+
+              ╔════════════════════════════════════════════╗
+              ║               model plane                  ║
+              ╚════════════════════════════════════════════╝
+
+                        ┌───────────────────────┐
+                        │    model gateway      │
+                        │                       │
+                        │ provider routing      │
+                        │ retries/timeouts      │
+                        │ tracing               │
+                        │ token accounting      │
+                        └───────────┬───────────┘
+                                    │
+                   ┌────────────────┼────────────────┐
+                   │                │                │
+                   ▼                ▼                ▼
+
+              hosted llm      self-hosted llm     extraction
+              deepseek etc.       vllm          vlm/kie model
+                                     │
+                                    gpu
+```
