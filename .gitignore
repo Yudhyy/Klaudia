@@ -39,8 +39,8 @@ venv.bak/
 .claude/
 CLAUDE.md
 .agents/
-AGENTS.md
 .codex/
+/.local/
 
 # Test artifacts
 .coverage

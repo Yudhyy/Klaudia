@@ -494,6 +494,11 @@ tests/e2e/      the sandbox: dataset, generators, runners, reports
 scripts/        migration, mirroring, tenancy and sandbox utilities
 ```
 
+Read the [current architecture](docs/docs/05-development/architecture/overview.mdx)
+for source-linked request paths and module responsibilities. The
+[target design](docs/docs/05-development/architecture/target.mdx) describes proposed
+changes. See [CONTRIBUTING.md](CONTRIBUTING.md) for the issue and PR workflow.
+
 ---
 
 ## 📗 Research
