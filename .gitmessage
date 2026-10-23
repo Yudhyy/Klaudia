@@ -1,0 +1,10 @@
+# <type>(<scope>): <imperative summary, <=72 chars>
+# type: feat | fix | docs | style | refactor | perf | test | chore | ci | revert
+# scope: agents | auth | ledger | mcp | extraction | api | infra | docs
+#
+# Body: what changed and why. Wrap at 72 chars.
+#
+# Footer:
+# Closes #<n>
+# Refs #<n>
+# BREAKING CHANGE: <description>

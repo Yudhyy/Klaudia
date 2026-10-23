@@ -345,7 +345,7 @@ do not rename their bound workbook into an active-resource hint.
 
 - **No LLM judge.** Everything is exact-match, so qualitative properties
   (was the clarifying question the *right* one, is the explanation faithful)
-  are not graded at all. Design in `docs/PLAN.md` Part 3, section 2.
+  are not graded at all.
 - **No tiering.** Cases are flat; there is no difficulty ladder separating a
   one-sheet lookup from a multi-entity consolidation.
 - **Historical cases still name agents.** Their existing routing assertions remain

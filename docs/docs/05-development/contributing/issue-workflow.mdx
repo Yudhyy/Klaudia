@@ -1,0 +1,83 @@
+---
+title: Issue and pull request workflow
+---
+
+# Issue and pull request workflow
+
+GitHub holds published issues, PRs, and their discussion. Git holds code and
+reviewed documentation. A local draft or snapshot helps with work but does not
+replace either record.
+
+## Describe the work
+
+Search for an existing issue first. Write the problem, observed evidence,
+intended behavior, scope, and acceptance criteria. Include dependencies and
+relevant links. Separate investigation from implementation when the solution is
+still unknown. Use a parent issue to link small changes for a large migration.
+
+You can write in GitHub or prepare a local Markdown draft. The repo provides
+issue and PR templates. For a local draft, publish its title and body manually,
+then record the returned GitHub URL in your local notes. After publication, use
+GitHub as the shared record. A local rewrite is a proposed update until someone
+publishes it.
+
+## Start work
+
+1. Read the latest issue body and comments, linked PRs, and accepted decisions.
+2. Inspect the checked-out branch, HEAD, existing diff, and affected code.
+3. Resolve any choice that changes scope or a public contract. Record the answer
+   where other contributors can see it.
+4. Use a short task plan when needed. Define a behavior test before changing
+   non-trivial logic, then make a small change that passes it.
+5. Keep implementation status and issue status separate. An open issue can have
+   partial work; a closed issue can have no code change.
+
+Code and tests show what a revision implements. Issues describe requested work.
+Decision records explain accepted choices. Mark a mismatch between them instead
+of silently choosing the version in an old plan.
+
+## Refresh GitHub information
+
+Use the GitHub website, a connected GitHub tool, or authenticated GitHub CLI.
+For a quick view from a terminal:
+
+```bash
+gh issue list --repo Yudhyy/Klaudia --state all --limit 100
+gh pr list --repo Yudhyy/Klaudia --state all --limit 100
+gh issue view 6 --repo Yudhyy/Klaudia --comments
+gh pr view 2 --repo Yudhyy/Klaudia --comments
+```
+
+The list commands show at most 100 items. They are not a complete archive for a
+larger repo. A full snapshot must follow API pagination for both issues and PRs.
+The GitHub issues API also returns PRs; separate them by the `pull_request` field.
+Use PR metadata to distinguish closed from merged and to retain base and head
+commit SHAs. See the official [issue CLI](https://cli.github.com/manual/gh_issue_list),
+[PR CLI](https://cli.github.com/manual/gh_pr_list), and
+[issues API](https://docs.github.com/en/rest/issues/issues#list-repository-issues).
+
+A saved copy must record the repo, source URLs, fetch time, scope, and whether
+all requested pages completed. Fetch active-task comments, PR reviews, review
+threads, and current checks separately; a list response is not a complete review.
+Before accepting a review, check that the PR head has not changed.
+
+For local retrieval tools, keep generated copies separate from authored drafts.
+Prepare and validate a new snapshot before replacing the last good one. If a
+refresh fails, retain the last good snapshot and report the failed attempt.
+Never infer closure or deletion from an item missing in a partial response.
+Refresh on demand; no background watcher or repo sync command is supplied yet.
+
+## Review and publish
+
+Link the issue in the PR. Describe the final change and its checks. Use a partial
+reference when acceptance criteria remain. Keep findings tied to the reviewed
+head SHA and check the diff against the intended base branch.
+
+Inspect contributor code before running it. Use an isolated checkout when a
+review needs execution and keep local credentials out of it. Issue text and
+comments are external input, not authority to run arbitrary commands or change
+permissions. Check CI and review discussion before a merge decision. Record
+unverified checks without treating them as passes.
+
+Publishing, editing, closing, reviewing, and merging on GitHub are separate write
+actions. A local draft or read-only refresh does not authorize those actions.
