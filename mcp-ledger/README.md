@@ -1,11 +1,10 @@
 # mcp-ledger
 
-Postgres-backed MCP server with the 16 Google Sheets-compatible tools plus
-snapshot reads, revision-checked appends and labelled aggregation.
-
-Drop-in replacement for the data-entry agents: prompts and the e2e dataset
-retain their existing tools, with no Sheets API quotas. Individual grid mutations
-are transactional; a sequence of legacy tool calls is not one transaction.
+Postgres-backed MCP reads with current workbook ownership checks. The default
+surface exposes nine read tools. All fourteen mutation handlers are denied,
+including legacy checked append, catalogue writes, and destructive sheet tools.
+Application checked proposal/execute tools and approvals remain the write path.
+Existing read names and response shapes remain supported within an owned workbook.
 
 ## Configuration
 
@@ -17,7 +16,9 @@ are transactional; a sequence of legacy tool calls is not one transaction.
 | `FASTMCP_HOST` / `FASTMCP_PORT` | HTTP or legacy SSE bind (default `0.0.0.0:8003`) |
 | `MCP_JWT_SECRET` | HS256 verification key for HTTP bearer auth (32+ characters) |
 | `MCP_JWT_ISSUER` / `MCP_JWT_AUDIENCE` | Optional JWT claim checks |
-| `MCP_ALLOW_INSECURE_HTTP` | Local-only override for an unauthenticated HTTP smoke test |
+| `MCP_ALLOW_INSECURE_HTTP` | Local-only override for the network bearer gate; does not grant workbook access |
+| `JWT_SECRET` | Application HS256 key to verify forwarded owner tokens (32+ characters) |
+| `MCP_USER_ID` | Explicit local stdio owner; never used as HTTP/SSE authority |
 
 ## Run
 
@@ -38,38 +39,44 @@ array. Grid mutations use `FOR UPDATE` row locking. A database trigger increment
 the sheet revision on every update, including direct SQL edits. Snapshot reads
 still load the full grid from storage before returning the requested range.
 
-## Checked appends
+## Identity and supported reads
 
-`tool_get_sheet_snapshot(sheet, range)` returns stable sheet identity, revision
-and literal values from one database snapshot. The default range is `A1:Z20`;
-explicit ranges must be finite rectangles of at most 2,000 cells.
-Snapshot and aggregate responses also have a 65,536-byte JSON budget. Oversized
-responses fail with a request to narrow the selection; they are never truncated.
+HTTP/SSE callers use bearer authentication. A numeric positive JWT `sub` and an
+expiry identify an owner. A service credential with a nonnumeric subject grants
+no workbook access by itself. Klaudia forwards its verified application token in
+MCP request metadata under `authorization`; the server verifies it using
+`JWT_SECRET`. A remote MCP server must use the same application verification key.
+Invalid forwarded tokens fail closed rather than falling back to another identity.
 
-`tool_append_rows_checked(operation)` accepts `sheet_id`, `expected_revision`,
-`idempotency_key` and literal `rows`. It appends after the last populated row of
-the whole sheet. It does not insert into an embedded table or above a footer.
-Requests are limited to 1,000 rows and 256 cells per row. Non-finite numbers,
-nested objects and empty rows are rejected. Text remains text, including strings
-that resemble formulas; there is no formula evaluation in this backend yet.
+For standalone stdio, configure an explicit `MCP_USER_ID`, or send a signed
+application token in request metadata. An omitted identity cannot read records.
+Local owner zero can inspect system-owned legacy workbooks only when explicitly
+configured. The application subprocess clears this local override and supplies
+each authenticated user's token separately.
 
-The append and its receipt commit in one database transaction. Repeating the
-same request with the same key returns the stored receipt without another write.
-Reusing a key with changed arguments fails. A stale revision requires a fresh
-read and a reassessed operation; a new action needs a new key. Keys are scoped
-to a workbook. Receipts include the affected sheet, before/after revisions and
-written row/cell counts. They explicitly report formula calculation as
-`not_supported` and accounting validation as `not_run`.
+Every read checks current `ledger_spreadsheet.user_id` ownership. Batch reads
+check every nested workbook, including the default. A supplied workbook or table
+ID does not grant permission. Ownership stays locked through the read, using the
+same request-owned connection. No shared workspace ACL is introduced.
 
-The app's scope wrapper supplies the workbook. Stable sheet IDs do not bypass
-that boundary. Direct MCP clients are trusted service callers and must provide
-an authorised workbook; MCP bearer authentication does not itself implement
-per-user resource permissions. The current chat workers retain their legacy
-tools until the agent cutover; the new tools are available through MCP.
+Supported tools:
 
-Operation receipts remain in `ledger_operation` if a sheet or workbook is
-deleted. They retain IDs and change counts, not cell payloads. Retention and
-user-erasure policy must be applied to this history before production rollout.
+- `tool_get_sheet_data`, `tool_get_sheet_formulas`
+- `tool_list_sheets`, `tool_get_spreadsheet_info`
+- `tool_get_multiple_sheet_data`
+- `tool_get_sheet_snapshot`, `tool_aggregate_sheet`
+- `tool_search_resources`, `tool_inspect_resource`
+
+Discovery omits all mutations. Calling a mutation by name also fails before its
+handler runs. `tool_append_rows_checked` is disabled: revision and retry checks
+alone do not provide the application's proposal and approval contract. Use the
+existing application tools for supported financial changes. No unrestricted
+administrative MCP profile is included.
+
+`tool_get_sheet_snapshot(sheet, range)` returns stable sheet identity, revision,
+and literal values. Its default range is `A1:Z20`; explicit ranges must be finite
+rectangles of at most 2,000 cells. Snapshot and aggregate responses retain their
+65,536-byte JSON budget. Oversized responses fail rather than truncate.
 
 ## Labelled aggregation
 
@@ -107,12 +114,12 @@ stable table and column IDs. It requires PostgreSQL's `pg_trgm` extension; the
 migration account must be able to install it, or an administrator must install it
 before the service starts.
 
-- `tool_register_table(definition)` registers finite bounds whose first row has
-  complete, unique text headers. Supply the observed sheet revision, name and
+- The application register/create-table operations register finite bounds whose
+  first row has complete, unique text headers. Supply the observed sheet revision, name and
   optional description, grain, aliases, entity and period coverage.
-- `tool_update_table(change)` requires the table ID plus expected catalogue and
-  source sheet revisions. Metadata and same-sheet bounds can change while IDs
-  persist. Changed header names/order require future explicit column remapping.
+- The application table-update operations require the table ID plus expected
+  catalogue and source sheet revisions. Metadata and same-sheet bounds can change
+  while IDs persist. Changed headers use explicit column-ID mapping in checked authoring.
 - `tool_search_resources(query)` searches indexed metadata through exact names,
   aliases, full-text terms and trigrams. Model-provided `concepts` expand intent;
   optional required columns, entity and date act as hard filters. It returns up
@@ -123,23 +130,22 @@ before the service starts.
 Search and inspection share the 65,536-byte read budget. Narrow candidate limits
 if metadata exceeds it. Register/update return compact commit confirmations, so
 large schemas cannot cause a response-size failure after a successful write.
-These metadata writes reject duplicate/stale requests; they do not yet provide
-financial-operation idempotency receipts.
+MCP exposes search and inspection only. Table registration and metadata updates
+must use the application's checked authoring operations.
 
 Search covers explicitly registered tables only. Descriptions, grain, entity and
 period are caller-declared content; headers come from the source sheet. Any sheet
 revision change marks old metadata stale. Refresh requires another checked update;
 automatic detection, refresh, formula relationships and column remapping remain
-pending. Existing legacy tools and chat workers do not consume this catalogue yet.
-The trusted application still supplies the bound workbook. This adds no shared
-workspace ACL or cross-workbook access.
+pending in this MCP read contract. The main agent uses the application catalogue
+interface. MCP requests remain limited to their authenticated owner's workbooks.
 
 The application also offers owner-scoped HTTP discovery through
 `POST /v1/resources/search` and `GET /v1/resources/{table_id}`. Those routes obtain
 the user ID from the verified application JWT and join current workbook ownership
 within the catalogue read. They reuse the same search ranking, schema pagination
-and byte budget. Direct MCP tools keep their existing trusted-service workbook
-scope; they do not accept a model-provided user ID or gain cross-workbook access.
+and byte budget. MCP also verifies current workbook ownership; it does not accept
+a model-provided user ID as authority.
 
 ## Calculations over registered tables
 
@@ -186,9 +192,9 @@ transfer of that workbook denies replay access. Receipts do not claim formula
 recalculation or accounting validation. Retry callers must retain the original
 request and key, including when a response is lost after commit.
 
-This is a backend entry point. Existing MCP tools, HTTP routes and the alternative
-agent do not expose it yet. Agent write integration still needs server-managed
-retry identity and receipt handling; the current agent remains read-only.
+The main agent prepares exact table append proposals through the application
+operation interface and executes stored references. Durable tasks retain those
+references and receipts for recovery. MCP does not expose this write path.
 
 
 ## Checked table authoring
@@ -211,6 +217,7 @@ identity. Sheet and catalogue revision checks reject stale changes. Overlap or
 header validation failures roll back both header writes and metadata changes.
 Header writes preserve unrelated JSONB numeric values without float conversion.
 
-The existing workbook-bound MCP registration/update tools remain available.
-Formula evaluation, automatic region inference and physical row/column deletion
-are separate capabilities.
+The workbook-bound MCP registration/update handlers are disabled. Use the
+application authoring tools for those changes. Native typed formulas have their
+own checked operation path; automatic region inference and physical row/column
+deletion are separate capabilities.

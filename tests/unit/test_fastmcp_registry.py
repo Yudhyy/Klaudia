@@ -2,6 +2,10 @@
 
 import json
 import sys
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+from pydantic import SecretStr
+from langchain_core.callbacks import BaseCallbackHandler
 
 import pytest
 
@@ -64,3 +68,80 @@ async def test_registry_connection_failure_is_not_silenced(tmp_path):
 
     with pytest.raises(RuntimeError, match="connection failed"):
         await registry.connect()
+
+
+async def test_registry_forwards_identity_outside_tool_arguments():
+    """Server-supplied identity travels in metadata, outside model arguments."""
+    registry = MCPToolRegistry("ledger", url="https://mcp.example/mcp")
+    registry._client = SimpleNamespace(
+        call_tool=AsyncMock(return_value=SimpleNamespace(content=[], is_error=False))
+    )
+    tool = registry._wrap_tool(
+        SimpleNamespace(
+            name="read",
+            description="Read",
+            input_schema={
+                "type": "object",
+                "properties": {"spreadsheet_id": {"type": "string"}},
+            },
+        )
+    )
+    await tool.ainvoke(
+        {"spreadsheet_id": "owned"},
+        config={
+            "configurable": {"__mcp_authorization": SecretStr("signed-user-token")}
+        },
+    )
+    call = registry._client.call_tool.await_args
+    assert call.kwargs.get("meta") == {"authorization": "signed-user-token"}
+
+
+async def test_registry_does_not_return_mcp_failure_as_success():
+    """Rejected MCP calls propagate as failures to application callers."""
+    registry = MCPToolRegistry("ledger", url="https://mcp.example/mcp")
+    registry._client = SimpleNamespace(
+        call_tool=AsyncMock(return_value=SimpleNamespace(content=[], is_error=True))
+    )
+    tool = registry._wrap_tool(
+        SimpleNamespace(
+            name="read",
+            description="Read",
+            input_schema={"type": "object", "properties": {}},
+        )
+    )
+    with pytest.raises(RuntimeError, match="MCP tool read failed"):
+        await tool.ainvoke({})
+
+
+async def test_forwarded_identity_is_not_tracing_metadata():
+    """Callback metadata and tool arguments do not contain the raw credential."""
+    observations = []
+
+    class CaptureToolStart(BaseCallbackHandler):
+        """Record callback input without accessing private call configuration."""
+
+        def on_tool_start(self, serialized, input_str, **kwargs):
+            """Capture public callback arguments for credential checks."""
+            observations.append((serialized, input_str, kwargs))
+
+    registry = MCPToolRegistry("ledger", url="https://mcp.example/mcp")
+    registry._client = SimpleNamespace(
+        call_tool=AsyncMock(return_value=SimpleNamespace(content=[], is_error=False))
+    )
+    tool = registry._wrap_tool(
+        SimpleNamespace(
+            name="read",
+            description="Read",
+            input_schema={"type": "object", "properties": {}},
+        )
+    )
+    await tool.ainvoke(
+        {},
+        config={
+            "callbacks": [CaptureToolStart()],
+            "configurable": {"__mcp_authorization": SecretStr("private-fixture-token")},
+        },
+    )
+    assert observations and "private-fixture-token" not in json.dumps(
+        observations, default=str
+    )

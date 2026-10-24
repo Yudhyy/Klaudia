@@ -27,7 +27,7 @@ def run_server(transport: str) -> None:
         transport: One of stdio, http, or legacy sse.
 
     Raises:
-        RuntimeError: If HTTP starts without auth or an explicit dev override.
+        RuntimeError: A network transport has no auth or explicit dev override.
     """
     if transport == "stdio":
         mcp.run(transport="stdio")
@@ -36,12 +36,12 @@ def run_server(transport: str) -> None:
     host = os.getenv("FASTMCP_HOST", "0.0.0.0")
     port = int(os.getenv("FASTMCP_PORT", "8003"))
     if (
-        transport == "http"
+        transport in {"http", "sse"}
         and not os.getenv("MCP_JWT_SECRET")
         and not _enabled("MCP_ALLOW_INSECURE_HTTP")
     ):
         raise RuntimeError(
-            "HTTP transport requires MCP_JWT_SECRET; set "
+            "Network transport requires MCP_JWT_SECRET; set "
             "MCP_ALLOW_INSECURE_HTTP=true only for local development"
         )
 

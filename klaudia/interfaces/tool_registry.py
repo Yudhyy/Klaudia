@@ -10,6 +10,7 @@ from fastmcp.client.transports import (
     StreamableHttpTransport,
 )
 from langchain_core.tools import BaseTool, StructuredTool
+from langchain_core.runnables import RunnableConfig
 
 logger = logging.getLogger(__name__)
 
@@ -182,17 +183,38 @@ class MCPToolRegistry:
         # This preserves nested `items` that Pydantic drops for bare `list`.
         args_schema = _normalize_schema(input_schema)
 
-        async def _call(**kwargs: Any) -> str:
+        async def _call(config: RunnableConfig, **kwargs: Any) -> str:
+            """Forward trusted request metadata and propagate tool failures.
+
+            Args:
+                config: Server-controlled call context with optional secret identity.
+                kwargs: Model-visible tool arguments.
+
+            Returns:
+                Tool text without credentials or transport metadata.
+
+            Raises:
+                RuntimeError: The connection or tool call failed.
+            """
             client = self._client
             if client is None:
                 raise RuntimeError(f"MCP {self._name} is not connected")
             # Strip None values so MCP tools see only explicit args.
             clean = {k: v for k, v in kwargs.items() if v is not None}
+            authorization = config.get("configurable", {}).get("__mcp_authorization")
+            metadata = (
+                {"authorization": authorization.get_secret_value()}
+                if authorization is not None
+                else None
+            )
             result = await client.call_tool(
                 tool_name,
                 clean,
                 raise_on_error=False,
+                meta=metadata,
             )
+            if result.is_error:
+                raise RuntimeError(f"MCP tool {tool_name} failed")
             if result.content:
                 # Concatenate all text content blocks (some tools emit one per row).
                 return "\n".join(c.text for c in result.content if hasattr(c, "text"))

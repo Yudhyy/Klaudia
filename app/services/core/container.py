@@ -78,7 +78,12 @@ def _build_ledger_registry(settings: Settings) -> MCPToolRegistry:
             command=sys.executable,
             args=["main.py", "--transport", "stdio"],
             cwd=str(_PROJECT_ROOT / "mcp-ledger"),
-            env={**os.environ, "DATABASE_URL": settings.database_url},
+            env={
+                **os.environ,
+                "DATABASE_URL": settings.database_url,
+                "JWT_SECRET": settings.jwt_secret,
+                "MCP_USER_ID": "",
+            },
         )
     if transport in {"http", "sse"}:
         url = settings.mcp_ledger_url

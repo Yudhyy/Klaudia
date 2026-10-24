@@ -440,7 +440,7 @@ conversation-to-memory extraction.
 | API | FastAPI, JWT auth, per-user rate limits |
 | Agents | Single main agent with versioned skills |
 | Tool boundary | Checked application tools and ledger MCP reads |
-| Ledger | PostgreSQL, sheet-semantics grids, 23-tool API |
+| Ledger | PostgreSQL grids, nine scoped MCP read tools, checked application writes |
 | Memory | Owner-scoped PostgreSQL documents and revision history |
 | Reasoning model | DeepSeek v4 pro today, swappable by configuration |
 | Extraction model | DeepSeek V4 Flash Vision; Qwen 3.5 4B fine-tune and Gemini selectable |
