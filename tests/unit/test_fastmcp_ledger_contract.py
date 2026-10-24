@@ -14,29 +14,15 @@ EXPECTED_TOOLS = {
     "tool_list_sheets",
     "tool_get_spreadsheet_info",
     "tool_get_multiple_sheet_data",
-    "tool_update_cells",
-    "tool_batch_update_cells",
-    "tool_append_rows",
-    "tool_add_rows",
-    "tool_add_columns",
-    "tool_clear_range",
-    "tool_create_sheet",
-    "tool_rename_sheet",
-    "tool_copy_sheet",
-    "tool_delete_sheet",
-    "tool_batch_update",
     "tool_get_sheet_snapshot",
-    "tool_append_rows_checked",
     "tool_aggregate_sheet",
-    "tool_register_table",
-    "tool_update_table",
     "tool_search_resources",
     "tool_inspect_resource",
 }
 
 
 async def test_ledger_tool_surface_and_context_injection():
-    """The migration preserves tool names and hides injected context."""
+    """The supported read surface hides injected context and disabled writes."""
     tools = await mcp.list_tools()
 
     assert {tool.name for tool in tools} == EXPECTED_TOOLS
@@ -44,15 +30,13 @@ async def test_ledger_tool_surface_and_context_injection():
 
 
 async def test_ledger_tools_publish_safety_annotations():
-    """Read and delete operations advertise their real safety profiles."""
+    """Every advertised operation identifies itself as read-only."""
     tools = {tool.name: tool for tool in await mcp.list_tools()}
 
     assert tools["tool_get_sheet_data"].annotations.read_only_hint is True
     assert tools["tool_get_sheet_data"].annotations.open_world_hint is False
-    assert tools["tool_delete_sheet"].annotations.destructive_hint is True
-    assert tools["tool_append_rows"].annotations.destructive_hint is False
     assert tools["tool_get_sheet_snapshot"].annotations.read_only_hint is True
-    assert tools["tool_append_rows_checked"].annotations.idempotent_hint is True
+    assert all(tool.annotations.read_only_hint is True for tool in tools.values())
 
 
 def test_http_auth_rejects_short_shared_secret(monkeypatch):

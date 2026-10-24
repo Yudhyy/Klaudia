@@ -21,9 +21,13 @@ import logging
 import os
 import uuid
 from dataclasses import dataclass
+from contextlib import contextmanager
+from contextvars import ContextVar
+from collections.abc import Iterator
 from typing import Any, Callable, Optional
 
 import asyncpg
+from ledger.connections import BorrowedConnection
 
 from ledger.errors import SheetNotFoundError
 from ledger.operations import AppendRows, execute_append
@@ -131,6 +135,25 @@ class LedgerStore:
     def __init__(self, dsn: str) -> None:
         self._dsn = dsn
         self._pool: asyncpg.Pool | None = None
+        self._borrowed: ContextVar[BorrowedConnection | None] = ContextVar(
+            "ledger_borrowed_connection", default=None
+        )
+
+    @contextmanager
+    def bind_connection(self, connection: asyncpg.Connection) -> Iterator[None]:
+        """Keep this request's ledger queries on a caller-held connection.
+
+        Args:
+            connection: Connection holding the request's ownership locks.
+
+        Yields:
+            A scope that restores the previous connection even after cancellation.
+        """
+        token = self._borrowed.set(BorrowedConnection(connection))
+        try:
+            yield
+        finally:
+            self._borrowed.reset(token)
 
     async def connect(self) -> None:
         self._pool = await asyncpg.create_pool(self._dsn, min_size=1, max_size=5)
@@ -147,7 +170,11 @@ class LedgerStore:
             self._pool = None
 
     @property
-    def pool(self) -> asyncpg.Pool:
+    def pool(self) -> asyncpg.Pool | BorrowedConnection:
+        """Return the request-bound connection or the store's ordinary pool."""
+        borrowed = self._borrowed.get()
+        if borrowed is not None:
+            return borrowed
         if self._pool is None:
             raise RuntimeError("Ledger store not connected")
         return self._pool
