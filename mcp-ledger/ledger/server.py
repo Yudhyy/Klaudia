@@ -1,10 +1,4 @@
-"""Ledger MCP server: the Google Sheets tool surface backed by Postgres.
-
-Drop-in replacement for mcp-gsheets: identical tool names, parameter
-names, and response shapes, so the data-entry agents, prompts, and the
-e2e dataset run unchanged. `spreadsheet_id` maps to a ledger workspace
-(default from LEDGER_WORKSPACE, mirroring the old SHEET_ID fallback).
-"""
+"""Owner-scoped ledger reads over MCP with application-governed writes."""
 
 import os
 import re
@@ -20,6 +14,7 @@ from fastmcp.server.context import Context
 from mcp.types import ToolAnnotations
 
 from ledger import grid as g
+from ledger.authorization import LedgerAuthorization
 from ledger.catalogue import CatalogueStore
 from ledger.evidence import bounded_evidence as _bounded_evidence
 from ledger.evidence import schema_page
@@ -115,15 +110,15 @@ def _build_auth() -> JWTVerifier | None:
 mcp = FastMCP(
     name="mcp-ledger",
     instructions=(
-        "Ledger MCP Server for data entry operations. "
-        "Provides tools for reading, writing, and managing spreadsheet-style "
-        "ledger tabs stored in Postgres. Use for receipt data entry, automated "
-        "data input, and sheet management. A default workspace is configured; "
-        "tools use it automatically when spreadsheet_id is omitted."
+        "Read owned PostgreSQL workbooks using verified request identity. "
+        "Workbook selection does not grant access. MCP mutations are disabled; "
+        "use the application's checked proposal and execution tools for writes. "
+        "Omitted workbook IDs select LEDGER_WORKSPACE under the same owner check."
     ),
     lifespan=ledger_lifespan,
     auth=_build_auth(),
     strict_input_validation=True,
+    middleware=[LedgerAuthorization()],
 )
 
 

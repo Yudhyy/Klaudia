@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
+from pydantic import SecretStr
 
 from app.helpers.auth import get_current_user
 from klaudia.interfaces.tool_registry import MCPToolRegistry
@@ -34,11 +35,30 @@ def _get_tool(registry: MCPToolRegistry, name: str):
     return tool
 
 
-async def _invoke(tool, args: dict[str, Any]) -> Any:
-    """Call a LangChain StructuredTool and parse its JSON string response."""
+async def _invoke(tool, args: dict[str, Any], authorization: str) -> Any:
+    """Forward verified request identity without adding model arguments.
+
+    Args:
+        tool: Connected MCP read tool.
+        args: Workbook and read selection.
+        authorization: Bearer token accepted by the route dependency.
+
+    Returns:
+        Parsed MCP JSON response.
+
+    Raises:
+        RuntimeError: MCP rejected or failed the read.
+    """
     # Strip None values — MCP tools rely on their own defaults for optional params.
     clean_args = {k: v for k, v in args.items() if v is not None}
-    raw: str = await tool.ainvoke(clean_args)
+    raw: str = await tool.ainvoke(
+        clean_args,
+        config={
+            "configurable": {
+                "__mcp_authorization": SecretStr(authorization),
+            }
+        },
+    )
     try:
         return json.loads(raw)
     except (json.JSONDecodeError, TypeError):
@@ -60,7 +80,11 @@ async def get_spreadsheet_info(
     tool = _get_tool(registry, "tool_get_spreadsheet_info")
     scope = await _resolve_scope(request, user_id, spreadsheet_id)
     try:
-        data = await _invoke(tool, {"spreadsheet_id": scope})
+        data = await _invoke(
+            tool,
+            {"spreadsheet_id": scope},
+            request.headers["authorization"].split(" ", 1)[1],
+        )
         return JSONResponse(content=data)
     except HTTPException:
         raise
@@ -86,7 +110,9 @@ async def get_sheet_data(
     scope = await _resolve_scope(request, user_id, spreadsheet_id)
     try:
         data = await _invoke(
-            tool, {"sheet": sheet, "range": range, "spreadsheet_id": scope}
+            tool,
+            {"sheet": sheet, "range": range, "spreadsheet_id": scope},
+            request.headers["authorization"].split(" ", 1)[1],
         )
         return JSONResponse(content=data)
     except HTTPException:
