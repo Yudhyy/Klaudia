@@ -3,13 +3,14 @@
 import json
 import sys
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 from pydantic import SecretStr
 from langchain_core.callbacks import BaseCallbackHandler
 
 import pytest
 
 from klaudia.interfaces.tool_registry import MCPToolRegistry
+from klaudia.interfaces import tool_registry
 
 
 def _write_server(tmp_path):
@@ -68,6 +69,37 @@ async def test_registry_connection_failure_is_not_silenced(tmp_path):
 
     with pytest.raises(RuntimeError, match="connection failed"):
         await registry.connect()
+
+
+@pytest.mark.parametrize(
+    "path", ["/sse", "/ledger/sse/", "/sse?tenant=one", "/SSE#old", "/%73se"]
+)
+def test_registry_rejects_legacy_endpoints_before_connecting(path):
+    with pytest.raises(ValueError, match="removed.*Streamable HTTP"):
+        MCPToolRegistry("ledger", url=f"https://mcp.example{path}")
+
+
+@pytest.mark.parametrize("failure", ["HTTP 404", "HTTP 401", "unsupported protocol"])
+async def test_http_connection_failure_does_not_try_another_transport(
+    monkeypatch, failure
+):
+    transport = object()
+    build_transport = Mock(return_value=transport)
+    client = AsyncMock()
+    client.__aenter__.side_effect = RuntimeError(failure)
+    build_client = Mock(return_value=client)
+    monkeypatch.setattr(tool_registry, "StreamableHttpTransport", build_transport)
+    monkeypatch.setattr(tool_registry, "Client", build_client)
+    registry = MCPToolRegistry(
+        "ledger", url="https://mcp.example/custom", auth_token="token"
+    )
+
+    with pytest.raises(RuntimeError, match="connection failed") as error:
+        await registry.connect()
+
+    assert str(error.value.__cause__) == failure
+    build_transport.assert_called_once_with("https://mcp.example/custom", auth="token")
+    build_client.assert_called_once_with(transport, mode="auto")
 
 
 async def test_registry_forwards_identity_outside_tool_arguments():

@@ -2,10 +2,10 @@ import asyncio
 import logging
 from contextlib import suppress
 from typing import Any
+from urllib.parse import unquote, urlsplit
 
 from fastmcp import Client
 from fastmcp.client.transports import (
-    SSETransport,
     StdioTransport,
     StreamableHttpTransport,
 )
@@ -58,9 +58,8 @@ def _normalize_schema(schema: dict[str, Any]) -> dict[str, Any]:
 class MCPToolRegistry:
     """Connect to an MCP server and expose its tools as LangChain tools.
 
-    A URL uses Streamable HTTP unless it ends in ``/sse``, which keeps the old
-    transport available during the FastMCP 4 rollout. Use ``from_stdio`` for a
-    child process owned by Klaudia. The public ``tools`` property stays stable
+    Remote URLs use Streamable HTTP. Use ``from_stdio`` for a child process
+    owned by Klaudia. The public ``tools`` property stays stable
     so the agent layer does not depend on an MCP client implementation.
     """
 
@@ -78,6 +77,11 @@ class MCPToolRegistry:
         if not url and not stdio_command:
             raise ValueError(
                 "MCPToolRegistry needs either url (HTTP) or stdio_command (stdio)"
+            )
+        if url and unquote(urlsplit(url).path).rstrip("/").lower().endswith("/sse"):
+            raise ValueError(
+                "Legacy HTTP+SSE endpoints were removed; use a Streamable HTTP "
+                "endpoint such as /mcp with MCP_TRANSPORT=http."
             )
         self._name = name
         self._url = url
@@ -130,15 +134,11 @@ class MCPToolRegistry:
         """Own one FastMCP client connection until registry shutdown."""
         try:
             if self._url:
-                if self._url.rstrip("/").endswith("/sse"):
-                    transport = SSETransport(self._url, auth=self._auth_token)
-                    transport_label = f"sse {self._url}"
-                else:
-                    transport = StreamableHttpTransport(
-                        self._url,
-                        auth=self._auth_token,
-                    )
-                    transport_label = f"http {self._url}"
+                transport = StreamableHttpTransport(
+                    self._url,
+                    auth=self._auth_token,
+                )
+                transport_label = f"http {self._url}"
             else:
                 transport = StdioTransport(
                     command=self._stdio_command,

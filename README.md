@@ -96,6 +96,7 @@ API client -> JWT and rate limits -> input guardrails
 PostgreSQL stores ledger grids, documents, context and task state. Redis handles
 queues and deduplication; MinIO stores uploaded document blobs. The sheet-read API
 uses the ledger MCP transport. The agent calls the checked application tools.
+MCP supports `stdio` (default) and `http` (Streamable HTTP).
 
 **Tenancy model:** user → spreadsheets → sheets. Chat receives an active-workbook hint and resolves the user's named destination from owned resources. Authenticated catalogue reads can
 search all workbooks currently owned by the user:
