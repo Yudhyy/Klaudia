@@ -13,24 +13,68 @@ Existing read names and response shapes remain supported within an owned workboo
 | `DATABASE_URL` | Postgres DSN (required) |
 | `LEDGER_WORKSPACE` | Default workspace when `spreadsheet_id` is omitted (default `default`) |
 | `LEDGER_TITLE` | Workspace display title (default `Klaudia Ledger`) |
-| `FASTMCP_HOST` / `FASTMCP_PORT` | HTTP or legacy SSE bind (default `0.0.0.0:8003`) |
+| `FASTMCP_HOST` / `FASTMCP_PORT` | Streamable HTTP bind (default `0.0.0.0:8003`) |
+| `FASTMCP_STREAMABLE_HTTP_PATH` | HTTP endpoint path (default `/mcp`); paths ending in `/sse` are reserved for migration errors |
+| `FASTMCP_HTTP_ALLOWED_HOSTS` | JSON array of trusted public MCP hostnames, for example `["ledger.example"]`; the SDK also trusts loopback and the bound address |
+| `FASTMCP_HTTP_ALLOWED_ORIGINS` | JSON array of trusted cross-origin browser origins, for example `["https://app.example"]` |
 | `MCP_JWT_SECRET` | HS256 verification key for HTTP bearer auth (32+ characters) |
 | `MCP_JWT_ISSUER` / `MCP_JWT_AUDIENCE` | Optional JWT claim checks |
-| `MCP_ALLOW_INSECURE_HTTP` | Local-only override for the network bearer gate; does not grant workbook access |
+| `MCP_ALLOW_INSECURE_HTTP` | Local development override for the bearer gate; requires a loopback bind and grants no workbook access |
 | `JWT_SECRET` | Application HS256 key to verify forwarded owner tokens (32+ characters) |
-| `MCP_USER_ID` | Explicit local stdio owner; never used as HTTP/SSE authority |
+| `MCP_USER_ID` | Explicit local stdio owner; never used as HTTP authority |
 
 ## Run
 
 ```bash
 python main.py --transport stdio   # local subprocess (default)
 python main.py --transport http    # stateless service at /mcp; auth required
-python main.py --transport sse     # legacy rollback only
 ```
 
-FastMCP is pinned to `4.0.0b3`. HTTP starts in stateless mode so requests can
-reach any replica. Put TLS and rate limits at the gateway. For an external
-endpoint, replace the shared HS256 verifier with an asymmetric key and JWKS.
+HTTP uses the SDK's strict Host/Origin guard on every bind address. For a public
+hostname, configure the trusted hosts and browser origins before starting the
+process. Invalid supplied Origins receive 403; untrusted Host headers receive
+421. CORS is separate from these request checks. Put TLS termination and rate
+limits at a trusted gateway and preserve the configured public Host header.
+
+The explicit `MCP_ALLOW_INSECURE_HTTP=true` development override is permitted
+only with `FASTMCP_HOST=127.0.0.1`, `::1`, or `localhost`. Do not publish that
+unauthenticated listener through a proxy. It never enables the local owner
+fallback for HTTP requests.
+
+FastMCP remains pinned to `4.0.0b3`, with MCP SDK `2.0.0`. HTTP runs in stateless
+mode so requests can reach any replica. The SDK supports the current `2026-07-28`
+protocol and handshake-era revisions `2024-11-05`, `2025-03-26`, `2025-06-18`, and
+`2025-11-25`. Klaudia's automatic protocol selection probes the current revision
+and can negotiate an older revision over the same transport; it never switches
+to legacy HTTP+SSE. Integration checks exercise `2026-07-28` and `2025-11-25`.
+
+Current-protocol requests carry version/capability metadata and matching HTTP
+routing headers. They do not use initialization sessions, standalone GET streams,
+or session IDs. Older revisions retain their SDK-defined handshake behavior.
+Streamable HTTP clients support both JSON and request-scoped SSE responses;
+SSE response encoding remains valid. See the [current binding](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http)
+and [protocol versioning](https://modelcontextprotocol.io/docs/2026-07-28/learn/versioning).
+
+## Transport migration
+
+Both the server entry point and `MCP_TRANSPORT` now accept only `stdio` and `http`. Unsupported values fail before serving or connecting. The application also rejects URLs whose decoded path ends in `/sse`,
+including trailing slashes and query strings, with migration instructions. This reserved path is Klaudia policy; MCP itself does not prescribe endpoint names.
+
+1. Start the remote server with `python main.py --transport http`. Keep the
+   existing verification keys, owner-token settings, and database target.
+2. Configure trusted hosts/origins for the HTTP bind and TLS gateway. The default
+   all-interface bind requires bearer configuration; the development override
+   must explicitly choose a loopback bind.
+3. Set application `MCP_TRANSPORT=http` and `MCP_LEDGER_URL` to the server's exact
+   Streamable HTTP URL, normally `https://ledger.example/mcp`. If the server uses
+   `FASTMCP_STREAMABLE_HTTP_PATH`, match that custom path on the client.
+4. Retain `MCP_AUTH_TOKEN` and signed per-request application identity. Verify
+   authorized reads and rejected foreign-workbook reads before switching clients.
+
+There is no `/mcp` to `/sse` rewrite or legacy transport fallback after an HTTP,
+authentication, or protocol error. Local stdio clients keep their configuration.
+The mobile/chat SSE API is independent and unchanged. This migration preserves
+the existing bearer verifier; adding OAuth/JWKS is a separate change.
 
 ## Storage
 
@@ -41,7 +85,7 @@ still load the full grid from storage before returning the requested range.
 
 ## Identity and supported reads
 
-HTTP/SSE callers use bearer authentication. A numeric positive JWT `sub` and an
+HTTP callers use bearer authentication. A numeric positive JWT `sub` and an
 expiry identify an owner. A service credential with a nonnumeric subject grants
 no workbook access by itself. Klaudia forwards its verified application token in
 MCP request metadata under `authorization`; the server verifies it using

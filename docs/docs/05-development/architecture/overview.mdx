@@ -127,13 +127,18 @@ chat service does not automatically retry a stopped task.
 
 The [sheet HTTP routes](https://github.com/Yudhyy/Klaudia/blob/150469f4691c5850d233d23710a8a9bd962fd822/app/routes/v1/sheets.py)
 use a different path: they resolve workbook ownership and invoke read tools
-through the ledger MCP registry. Stdio is the default transport; HTTP and legacy
-SSE are configurable. The
+through the ledger MCP registry. At the recorded `150469f` revision, stdio was
+the default transport; HTTP and legacy SSE were configurable. The
 [MCP server](https://github.com/Yudhyy/Klaudia/blob/150469f4691c5850d233d23710a8a9bd962fd822/mcp-ledger/ledger/server.py)
-also exposes direct mutation tools. Do not infer that every MCP entry point has
+also exposed direct mutation tools. Do not infer that every MCP entry point had
 the main chat approval and ownership boundary.
-[Issue #8](https://github.com/Yudhyy/Klaudia/issues/8) tracks this separate
+[Issue #8](https://github.com/Yudhyy/Klaudia/issues/8) tracked this separate
 authorization work. Native formulas do not establish IronCalc or Excel support.
+
+The supported transports are stdio and Streamable HTTP. See the
+[current MCP contract and migration guide](https://github.com/Yudhyy/Klaudia/blob/development/mcp-ledger/README.md)
+for authentication, Host/Origin configuration, and protocol compatibility. The
+earlier source links on this page remain tied to the recorded revision.
 
 ## Document extraction path
 

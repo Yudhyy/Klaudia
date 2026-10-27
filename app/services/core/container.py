@@ -85,32 +85,13 @@ def _build_ledger_registry(settings: Settings) -> MCPToolRegistry:
                 "MCP_USER_ID": "",
             },
         )
-    if transport in {"http", "sse"}:
-        url = settings.mcp_ledger_url
-        if transport == "sse":
-            url = _sse_url(url)
+    if transport == "http":
         return MCPToolRegistry(
-            "mcp-ledger", url, auth_token=settings.mcp_auth_token or None
+            "mcp-ledger",
+            settings.mcp_ledger_url,
+            auth_token=settings.mcp_auth_token or None,
         )
-    raise ValueError("MCP_TRANSPORT must be stdio, http or sse")
-
-
-def _sse_url(url: str) -> str:
-    """Convert a configured MCP HTTP endpoint to its SSE endpoint.
-
-    Args:
-        url: Configured remote MCP URL.
-
-    Returns:
-        The URL unchanged when it already ends in /sse, otherwise with the
-        trailing /mcp path replaced by /sse.
-    """
-    normalized = url.rstrip("/")
-    if normalized.endswith("/sse"):
-        return normalized
-    if normalized.endswith("/mcp"):
-        return f"{normalized[:-4]}/sse"
-    return f"{normalized}/sse"
+    raise ValueError("MCP_TRANSPORT must be stdio or http")
 
 
 class KlaudiaContainer:

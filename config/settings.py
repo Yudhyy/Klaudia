@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 DEFAULT_DATABASE_URL = "postgresql://klaudia:klaudia@localhost:5432/klaudia"
@@ -129,9 +129,23 @@ class Settings(BaseSettings):
         default=120, alias="EXTRACTION_PAGE_TIMEOUT_SECONDS"
     )
 
-    # MCP transport: "stdio" owns local subprocesses; "http" connects to
-    # stateless remote services; "sse" connects to existing SSE endpoints.
-    mcp_transport: str = Field(default="stdio", alias="MCP_TRANSPORT")
+    # HTTP uses Streamable HTTP; stdio owns a local subprocess.
+    mcp_transport: Literal["stdio", "http"] = Field(
+        default="stdio", alias="MCP_TRANSPORT"
+    )
+
+    @field_validator("mcp_transport", mode="before")
+    @classmethod
+    def validate_mcp_transport(cls, value: object) -> object:
+        if isinstance(value, str):
+            value = value.strip().lower()
+            if value == "sse":
+                raise ValueError(
+                    "MCP_TRANSPORT=sse was removed; supported transports are stdio and http. "
+                    "Use http with a Streamable HTTP endpoint such as /mcp."
+                )
+        return value
+
     mcp_ledger_url: str = Field(
         default="http://localhost:8003/mcp", alias="MCP_LEDGER_URL"
     )

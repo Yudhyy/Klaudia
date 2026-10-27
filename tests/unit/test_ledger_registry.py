@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.services.core.container import _build_ledger_registry, _sse_url
+from app.services.core.container import _build_ledger_registry
 from config.settings import Settings
 
 
@@ -24,21 +24,35 @@ def test_database_url_cannot_be_empty():
         Settings(_env_file=None, DATABASE_URL="")
 
 
-@pytest.mark.parametrize("transport, suffix", [("http", "mcp"), ("sse", "sse")])
-def test_remote_ledger_registry_preserves_authentication(transport, suffix):
+@pytest.mark.parametrize("path", ["/mcp", "/ledger/read/", "/custom?tenant=one"])
+def test_remote_ledger_registry_preserves_authentication(path):
     """Transport selection retains the configured ledger endpoint and token."""
     registry = _build_ledger_registry(
         Settings(
             _env_file=None,
-            MCP_TRANSPORT=transport,
-            MCP_LEDGER_URL="https://mcp.example/ledger/mcp",
+            MCP_TRANSPORT="http",
+            MCP_LEDGER_URL=f"https://mcp.example{path}",
             MCP_AUTH_TOKEN="signed-token",
         )
     )
-    assert registry._url == f"https://mcp.example/ledger/{suffix}"
+    assert registry._url == f"https://mcp.example{path}"
     assert registry._auth_token == "signed-token"
 
 
-def test_sse_url_keeps_explicit_path():
-    """An explicit SSE URL is not rewritten twice."""
-    assert _sse_url("https://mcp.example/sse/") == "https://mcp.example/sse"
+@pytest.mark.parametrize(
+    "transport", ["sse", "SSE", "websocket", "streamable-http", ""]
+)
+def test_settings_reject_removed_or_unknown_transports(transport):
+    with pytest.raises(ValidationError, match="stdio.*http"):
+        Settings(_env_file=None, MCP_TRANSPORT=transport)
+
+
+def test_removed_transport_has_migration_instructions():
+    with pytest.raises(ValidationError, match="removed.*Streamable HTTP"):
+        Settings(_env_file=None, MCP_TRANSPORT="sse")
+
+
+@pytest.mark.parametrize("transport", ["HTTP", " http ", "STDIO"])
+def test_transport_settings_normalize_supported_values(transport):
+    settings = Settings(_env_file=None, MCP_TRANSPORT=transport)
+    assert settings.mcp_transport == transport.strip().lower()
