@@ -569,3 +569,6 @@ truth of an organisation.**
 **Yudhy McCodey**
 
 Building agentic systems for real-world financial automation.
+
+## 🔶 License
+This repository is licensed under [AGPL-3.0](LICENSE).
