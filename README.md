@@ -98,6 +98,30 @@ queues and deduplication; MinIO stores uploaded document blobs. The sheet-read A
 uses the ledger MCP transport. The agent calls the checked application tools.
 MCP supports `stdio` (default) and `http` (Streamable HTTP).
 
+Queued document extraction derives completion from saved outcomes for each
+expected page, including cache hits and failures. Redis notifications wake the
+check; duplicate or lost notifications do not determine completion. Workers
+commit each page outcome and aggregate file status together, so completion does
+not depend on the API staying connected. Files stay `pending` until all expected
+pages finish, then become `completed`, `partial`, or `failed`.
+
+The streaming API retains `queueing`, `queued`, and `page_done` extraction events.
+It may now emit `page_done` for pages already saved before subscription, including
+cache hits. On timeout it emits `status: "deferred"`, `complete: false`, and
+`pending_pages` with the missing page numbers. This event includes `pages_total`
+and a summary; it does not include page bodies. The internal extraction result
+retains `status: "pending"` and explicit pending page entries for the main agent.
+An attachment's final extraction event now carries the reconciled file status.
+Non-streaming extraction still runs inline; streaming still uses `EXTRACTION_MODE`.
+
+The extraction outcome interface checks both file and session ownership. It
+returns at most `MAX_PDF_PAGES` pages and 262,144 characters of extraction per page.
+Oversized page bodies are omitted with `extraction_truncated: true` and an explicit
+error; the full saved text remains available through the paginated archive reader.
+Outcome database operations have a five-second deadline, shortened to the remaining
+worker wait during polling with a 100 ms allowance for the final snapshot. If pool
+or lock contention prevents checking saved state, extraction reports an error.
+
 **Tenancy model:** user → spreadsheets → sheets. Chat receives an active-workbook hint and resolves the user's named destination from owned resources. Authenticated catalogue reads can
 search all workbooks currently owned by the user:
 

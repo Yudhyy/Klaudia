@@ -8,8 +8,8 @@ task per page; results land in:
     - pages.agent_extracted (LLM-visible)
     - pubsub channel `extraction:file:<file_id>:progress` for SSE streaming
 
-Idempotency: each task is keyed by (user_id, page_blake3). A duplicate
-fire is harmless — both writes converge to the same JSON.
+Page writes serialize by file and page. A failed retry preserves an already
+saved success. Each write commits the aggregate file status in the same transaction.
 """
 
 from __future__ import annotations
@@ -18,15 +18,14 @@ import json
 import logging
 from typing import Any
 
-from app.exceptions import OCRError
 from app.services.extraction.agents.schema import validate_and_merge
 from app.services.extraction.queue.broker import broker
 from app.services.extraction.queue.state import get_context
+from app.services.extraction.outcomes import ExtractionOutcomes, PageOutcome, QueuedPage
+from app.services.extraction.queue.progress import PROGRESS_CHANNEL_FMT
+from config.settings import get_settings
 
 logger = logging.getLogger(__name__)
-
-
-PROGRESS_CHANNEL_FMT = "extraction:file:{file_id}:progress"
 
 
 @broker.task(
@@ -51,18 +50,13 @@ async def extract_page_task(
     store = ctx.store
     ocr = ctx.ocr
 
-    # Resolve page reference (hash + minio key) from the private join table.
-    row = await db.fetchone(
-        """
-        SELECT page_blake3, page_minio_key
-        FROM file_blob_page
-        WHERE blob_id = $1 AND page = $2
-        """,
-        (blob_id, page),
+    outcomes = ExtractionOutcomes(db, get_settings().max_pdf_pages)
+    scope, row = await outcomes.resolve_page(
+        QueuedPage(user_id, file_id, blob_id, page)
     )
-    if row is None:
-        msg = f"file_blob_page missing blob_id={blob_id} page={page}"
-        logger.error(msg)
+    if row["page_blake3"] is None:
+        msg = "Prepared page reference is missing"
+        await outcomes.save(scope, PageOutcome(page, "failed", error=msg))
         await _publish_progress(cache, file_id, page, status="failed", error=msg)
         return {"status": "failed", "error": msg}
 
@@ -72,7 +66,7 @@ async def extract_page_task(
     # L1
     cached = await _safe_get(cache.get_extraction, user_id, page_blake3)
     if cached is not None:
-        await _persist_page_row(db, file_id, page, cached, source="redis")
+        await outcomes.save(scope, PageOutcome(page, "cached", cached, "redis"))
         await _publish_progress(
             cache, file_id, page, status="cached", cache_layer="redis"
         )
@@ -83,7 +77,9 @@ async def extract_page_task(
         try:
             extraction = json.loads(database_row["extraction_json"])
             await _safe_set(cache.set_extraction, user_id, page_blake3, extraction)
-            await _persist_page_row(db, file_id, page, extraction, source="database")
+            await outcomes.save(
+                scope, PageOutcome(page, "cached", extraction, "database")
+            )
             await _publish_progress(
                 cache, file_id, page, status="cached", cache_layer="database"
             )
@@ -97,15 +93,15 @@ async def extract_page_task(
     except Exception as e:
         msg = f"object_store.get({page_key!r}) failed: {e}"
         logger.error(msg)
-        await _persist_failure(db, file_id, page, msg)
+        await outcomes.save(scope, PageOutcome(page, "failed", error=msg))
         await _publish_progress(cache, file_id, page, status="failed", error=msg)
         return {"status": "failed", "error": msg}
 
     try:
         raw = await ocr.extract_from_image(jpg)
         validated = validate_and_merge(raw)
-    except OCRError as e:
-        await _persist_failure(db, file_id, page, str(e))
+    except Exception as e:
+        await outcomes.save(scope, PageOutcome(page, "failed", error=str(e)))
         await _publish_progress(cache, file_id, page, status="failed", error=str(e))
         return {"status": "failed", "error": str(e)}
 
@@ -117,60 +113,9 @@ async def extract_page_task(
         schema_version=ocr.schema_version,
     )
     await _safe_set(cache.set_extraction, user_id, page_blake3, validated)
-    await _persist_page_row(db, file_id, page, validated, source=None)
+    await outcomes.save(scope, PageOutcome(page, "extracted", validated))
     await _publish_progress(cache, file_id, page, status="extracted")
     return {"status": "extracted"}
-
-
-async def _persist_page_row(
-    db, file_id: int, page: int, extraction: dict[str, Any], *, source: str | None
-) -> None:
-    """Upsert into the LLM-visible `pages` table.
-
-    We store one row per (file_id, page); reruns (e.g. retries) replace it.
-    """
-    existing = await db.fetchone(
-        "SELECT id FROM pages WHERE metadata_file_id = $1 AND page = $2",
-        (file_id, page),
-    )
-    msg = "cached" if source else "extracted"
-    if existing is None:
-        await db.execute(
-            """
-            INSERT INTO pages (metadata_file_id, page, agent_extracted, status, status_message)
-            VALUES ($1, $2, $3, 'extracted', $4)
-            """,
-            (file_id, page, json.dumps(extraction, ensure_ascii=False), msg),
-        )
-    else:
-        await db.execute(
-            """
-            UPDATE pages
-            SET agent_extracted = $1, status = 'extracted', status_message = $2
-            WHERE id = $3
-            """,
-            (json.dumps(extraction, ensure_ascii=False), msg, existing["id"]),
-        )
-
-
-async def _persist_failure(db, file_id: int, page: int, message: str) -> None:
-    existing = await db.fetchone(
-        "SELECT id FROM pages WHERE metadata_file_id = $1 AND page = $2",
-        (file_id, page),
-    )
-    if existing is None:
-        await db.execute(
-            """
-            INSERT INTO pages (metadata_file_id, page, status, status_message)
-            VALUES ($1, $2, 'failed', $3)
-            """,
-            (file_id, page, message),
-        )
-    else:
-        await db.execute(
-            "UPDATE pages SET status = 'failed', status_message = $1 WHERE id = $2",
-            (message, existing["id"]),
-        )
 
 
 async def _publish_progress(

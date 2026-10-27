@@ -160,11 +160,14 @@ async def test_async_image_extraction_via_worker(postgres_db, monkeypatch):
         assert ef.cached_hits == 0
 
         # Subscribe to progress; wait up to 30s
-        from app.services.extraction.queue.progress import stream_progress
+        from app.services.extraction.outcomes import ExtractionOutcomes, ExtractionScope
+        from app.services.extraction.queue.progress import ProgressWait, stream_progress
 
         events = []
         async for ev in stream_progress(
-            cache.client, file_pages={ef.file_id: 1}, timeout_seconds=30.0
+            cache.client,
+            ExtractionOutcomes(db, settings.max_pdf_pages),
+            ProgressWait({ExtractionScope(1, sid, ef.file_id): (1,)}, 30.0),
         ):
             events.append(ev)
 
@@ -180,6 +183,12 @@ async def test_async_image_extraction_via_worker(postgres_db, monkeypatch):
         assert page_row is not None
         assert page_row["status"] == "extracted"
         assert "ALFAMIDI CAWANG BARU" in (page_row["agent_extracted"] or "")
+        assert (
+            await db.fetchval(
+                "SELECT status FROM metadata_file WHERE id = $1", (ef.file_id,)
+            )
+            == "completed"
+        )
 
         await tasks_mod.broker.shutdown()
         await ocr.shutdown()
