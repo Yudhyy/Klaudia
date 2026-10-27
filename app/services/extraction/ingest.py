@@ -26,6 +26,11 @@ from app.models.attachment import FileAttachment
 from app.services.core.observability import LangfuseService
 from app.services.extraction.agents.config import get_default_extraction
 from app.services.extraction.agents.schema import validate_and_merge
+from app.services.extraction.outcomes import (
+    ExtractionOutcomes,
+    ExtractionScope,
+    PageOutcome,
+)
 from app.services.extraction.infra.db_client import AppDBClient
 from app.services.extraction.infra.dedup_cache import DedupCache
 from app.services.extraction.infra.filename import sanitize_filename
@@ -110,6 +115,7 @@ class IngestService:
         self._store = store
         self._ocr = ocr
         self._langfuse = langfuse
+        self._outcomes = ExtractionOutcomes(db, settings.max_pdf_pages)
 
     async def ingest(
         self,
@@ -567,6 +573,10 @@ class IngestService:
         """
         from app.services.extraction.queue.tasks import extract_page_task
 
+        if await self._db.get_session_owner(session_id) != user_id:
+            from ledger.resources import ResourceNotFoundError
+
+            raise ResourceNotFoundError("Extraction session not found")
         attachment = self._sanitize_and_verify(attachment)
         self._guard_attachment(attachment)
         if is_pdf(attachment.filename, attachment.content_type):
@@ -595,11 +605,10 @@ class IngestService:
             if cached is not None:
                 # Persist to LLM-visible pages table immediately; warm L1 if
                 # the hit was from L2.
-                await self._persist_page(
-                    file_id,
-                    IngestPage(
+                await self._outcomes.save(
+                    ExtractionScope(user_id, session_id, file_id),
+                    PageOutcome(
                         page=page_num,
-                        page_id=None,
                         extraction=cached["extraction"],
                         status="cached",
                         cache_layer=cached["layer"],

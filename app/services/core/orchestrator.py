@@ -629,11 +629,10 @@ class KlaudiaOrchestrator:
         session_id: int,
         user_id: int,
     ) -> AsyncIterator[dict[str, Any]]:
-        """Async path: enqueue per-page tasks, subscribe to pubsub, build the
-        final extraction_results list from DB once all pages report.
-        """
+        """Enqueue pages and consume owner-checked saved extraction outcomes."""
         from app.exceptions import IngestRejectedError
-        from app.services.extraction.queue.progress import stream_progress
+        from app.services.extraction.queue.progress import ProgressWait, stream_progress
+        from app.services.extraction.outcomes import ExtractionOutcomes, ExtractionScope
 
         settings = self._c.settings
         cache = self._c.dedup_cache
@@ -675,93 +674,41 @@ class KlaudiaOrchestrator:
             yield {"__final__": True, "payload": []}
             return
 
-        # Wait for queued pages via pubsub. Cache hits are already in the DB
-        # by now — we only subscribe for files that have queued pages > 0.
-        file_pages = {ef.file_id: ef.queued for ef in enqueued if ef.queued > 0}
+        outcomes = ExtractionOutcomes(self._c.db_client, settings.max_pdf_pages)
+        file_pages = {
+            ExtractionScope(user_id, session_id, ef.file_id): tuple(
+                p.page for p in ef.pages
+            )
+            for ef in enqueued
+        }
         timeout = settings.extraction_page_timeout_seconds * max(
-            (max(file_pages.values()) if file_pages else 1), 1
+            max(ef.queued for ef in enqueued), 1
         )
-
-        if file_pages and cache is not None and hasattr(cache, "client"):
-            async for event in stream_progress(
-                cache.client,  # type: ignore[attr-defined]
-                file_pages=file_pages,
-                timeout_seconds=float(timeout),
-            ):
-                yield {
-                    "type": "extraction",
-                    "data": {
-                        "status": "page_done",
-                        "file_id": event.file_id,
-                        "page": event.page,
-                        "page_status": event.status,
-                        "cache_layer": event.cache_layer,
-                        "error": event.error,
-                    },
-                }
-
-        # Build final extraction_results from DB so main agent sees the same
-        # shape sync mode produces.
-        results: list[dict[str, Any]] = []
-        for ef in enqueued:
-            pages_rows = await self._c.db_client.fetchall(
-                "SELECT page, agent_extracted, status FROM pages "
-                "WHERE metadata_file_id = $1 ORDER BY page",
-                (ef.file_id,),
-            )
-            file_row = await self._c.db_client.fetchone(
-                "SELECT status, status_message FROM metadata_file WHERE id = $1",
-                (ef.file_id,),
-            )
-            import json as _json
-
-            pages_payload = []
-            for r in pages_rows:
-                ext = {}
-                if r["agent_extracted"]:
-                    try:
-                        ext = _json.loads(r["agent_extracted"])
-                    except _json.JSONDecodeError:
-                        pass
-                pages_payload.append(
-                    {
-                        "page": r["page"],
-                        "extraction": ext,
-                        "status": r["status"],
-                    }
-                )
-            payload = {
-                "file_id": ef.file_id,
-                "file_name": ef.file_name,
-                "pages": pages_payload,
-                "status": file_row["status"] if file_row else "completed",
-                "summary": f"File {ef.file_name}: {len(pages_payload)} page(s)",
+        redis_client = getattr(cache, "client", None)
+        async for event in stream_progress(
+            redis_client, outcomes, ProgressWait(file_pages, float(timeout))
+        ):
+            yield {
+                "type": "extraction",
+                "data": {
+                    "status": "page_done",
+                    "file_id": event.file_id,
+                    "page": event.page,
+                    "page_status": event.status,
+                    "cache_layer": event.cache_layer,
+                    "error": event.error,
+                },
             }
-            results.append(payload)
-            yield {"type": "extraction", "data": payload}
 
-        # Final aggregate status update on metadata_file (workers don't track
-        # the per-file roll-up).
-        for ef, payload in zip(enqueued, results):
-            page_statuses = [p["status"] for p in payload["pages"]]
-            ok = sum(1 for s in page_statuses if s == "extracted")
-            total = len(page_statuses)
-            if total == 0:
-                final_status = "failed"
-                msg = "no pages persisted"
-            elif ok == total:
-                final_status = "completed"
-                msg = f"All {total} page(s) extracted"
-            elif ok == 0:
-                final_status = "failed"
-                msg = "All pages failed"
-            else:
-                final_status = "partial"
-                msg = f"{ok}/{total} page(s) extracted"
-            await self._c.db_client.execute(
-                "UPDATE metadata_file SET status = $1, status_message = $2 WHERE id = $3",
-                (final_status, msg, ef.file_id),
-            )
-            payload["status"] = final_status
+        results: list[dict[str, Any]] = []
+        for scope in file_pages:
+            outcome = await outcomes.read(scope)
+            payload = outcome.as_payload()
+            results.append(payload)
+            event_payload = dict(payload)
+            if not outcome.complete:
+                event_payload["status"] = "deferred"
+                event_payload["pages_total"] = len(event_payload.pop("pages"))
+            yield {"type": "extraction", "data": event_payload}
 
         yield {"__final__": True, "payload": results}
