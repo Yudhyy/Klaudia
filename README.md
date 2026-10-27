@@ -571,4 +571,4 @@ truth of an organisation.**
 Building agentic systems for real-world financial automation.
 
 ## 🔶 License
-This repository is licensed under [AGPL-3.0](https://github.com/Yudhyy/Klaudia/blob/main/LICENSE).
+This repository is licensed under [AGPL-3.0](LICENSE).
