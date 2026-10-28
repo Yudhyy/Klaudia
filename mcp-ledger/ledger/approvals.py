@@ -8,6 +8,8 @@ from typing import Any
 import asyncpg
 
 from ledger.errors import ApprovalRequiredError, IdempotencyConflictError
+from ledger.append_contracts import TableAppend
+from ledger.authoring_contracts import AuthoringProposal
 from ledger.resources import ResourceNotFoundError
 
 
@@ -85,7 +87,7 @@ async def decide_approval(
         ValueError: Approval expired or was already resolved differently.
         RevisionConflictError: Source revisions changed before approval.
     """
-    from ledger.table_operations import TableAppend, _lock_target, _plan_append
+    from ledger.table_operations import _lock_target, _plan_append
 
     async with pool.acquire() as connection:
         async with connection.transaction():
@@ -133,7 +135,7 @@ async def decide_approval(
                         ),
                     )
                 elif operation["idempotency_key"].startswith("authoring:"):
-                    from ledger.authoring import AuthoringProposal, lock_authoring
+                    from ledger.authoring import lock_authoring
 
                     await lock_authoring(
                         connection,

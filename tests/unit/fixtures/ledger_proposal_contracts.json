@@ -1,0 +1,581 @@
+{
+  "schemas": {
+    "AppendRows": {
+      "additionalProperties": false,
+      "description": "A bounded literal-value append based on an observed sheet revision.",
+      "properties": {
+        "sheet_id": {
+          "exclusiveMinimum": 0,
+          "title": "Sheet Id",
+          "type": "integer"
+        },
+        "expected_revision": {
+          "minimum": 0,
+          "title": "Expected Revision",
+          "type": "integer"
+        },
+        "idempotency_key": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Idempotency Key",
+          "type": "string"
+        },
+        "rows": {
+          "items": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "maxItems": 256,
+            "minItems": 1,
+            "type": "array"
+          },
+          "maxItems": 1000,
+          "minItems": 1,
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": [
+        "sheet_id",
+        "expected_revision",
+        "idempotency_key",
+        "rows"
+      ],
+      "title": "AppendRows",
+      "type": "object"
+    },
+    "TableAppendProposal": {
+      "additionalProperties": false,
+      "description": "Named records bound to server-observed table revisions before key assignment.",
+      "properties": {
+        "table_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Table Id",
+          "type": "string"
+        },
+        "expected_sheet_revision": {
+          "minimum": 0,
+          "title": "Expected Sheet Revision",
+          "type": "integer"
+        },
+        "expected_catalogue_revision": {
+          "exclusiveMinimum": 0,
+          "title": "Expected Catalogue Revision",
+          "type": "integer"
+        },
+        "records": {
+          "items": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "maxProperties": 256,
+            "minProperties": 1,
+            "propertyNames": {
+              "maxLength": 256,
+              "minLength": 1
+            },
+            "type": "object"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "title": "Records",
+          "type": "array"
+        }
+      },
+      "required": [
+        "table_id",
+        "expected_sheet_revision",
+        "expected_catalogue_revision",
+        "records"
+      ],
+      "title": "TableAppendProposal",
+      "type": "object"
+    },
+    "TableAppend": {
+      "additionalProperties": false,
+      "description": "An exact checked append carrying its execution retry identity.",
+      "properties": {
+        "table_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Table Id",
+          "type": "string"
+        },
+        "expected_sheet_revision": {
+          "minimum": 0,
+          "title": "Expected Sheet Revision",
+          "type": "integer"
+        },
+        "expected_catalogue_revision": {
+          "exclusiveMinimum": 0,
+          "title": "Expected Catalogue Revision",
+          "type": "integer"
+        },
+        "records": {
+          "items": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "maxProperties": 256,
+            "minProperties": 1,
+            "propertyNames": {
+              "maxLength": 256,
+              "minLength": 1
+            },
+            "type": "object"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "title": "Records",
+          "type": "array"
+        },
+        "idempotency_key": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Idempotency Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "table_id",
+        "expected_sheet_revision",
+        "expected_catalogue_revision",
+        "records",
+        "idempotency_key"
+      ],
+      "title": "TableAppend",
+      "type": "object"
+    },
+    "AuthoringProposal": {
+      "$defs": {
+        "TableRegistration": {
+          "additionalProperties": false,
+          "description": "Caller-provided meaning attached to headers from an observed sheet revision.",
+          "properties": {
+            "sheet_id": {
+              "exclusiveMinimum": 0,
+              "title": "Sheet Id",
+              "type": "integer"
+            },
+            "expected_sheet_revision": {
+              "minimum": 0,
+              "title": "Expected Sheet Revision",
+              "type": "integer"
+            },
+            "table_range": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Table Range",
+              "type": "string"
+            },
+            "name": {
+              "maxLength": 256,
+              "minLength": 1,
+              "title": "Name",
+              "type": "string"
+            },
+            "description": {
+              "default": "",
+              "maxLength": 2000,
+              "title": "Description",
+              "type": "string"
+            },
+            "grain": {
+              "default": "",
+              "maxLength": 512,
+              "title": "Grain",
+              "type": "string"
+            },
+            "aliases": {
+              "items": {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 20,
+              "title": "Aliases",
+              "type": "array"
+            },
+            "entity": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Entity"
+            },
+            "period_start": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Period Start"
+            },
+            "period_end": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Period End"
+            }
+          },
+          "required": [
+            "sheet_id",
+            "expected_sheet_revision",
+            "table_range",
+            "name"
+          ],
+          "title": "TableRegistration",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "One explicit table lifecycle change with observed revision preconditions.",
+      "properties": {
+        "action": {
+          "enum": [
+            "create_table",
+            "register_table",
+            "update_table",
+            "refresh_table",
+            "unregister_table"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "definition": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TableRegistration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "table_id": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Table Id"
+        },
+        "expected_catalogue_revision": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Catalogue Revision"
+        },
+        "expected_sheet_revision": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Sheet Revision"
+        },
+        "headers": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 256,
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Headers"
+        },
+        "column_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "maxLength": 256,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "maxItems": 256,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Column Ids"
+        }
+      },
+      "required": [
+        "action"
+      ],
+      "title": "AuthoringProposal",
+      "type": "object"
+    },
+    "PrepareTableAppend": {
+      "additionalProperties": false,
+      "description": "Model-selected records with no identity, revisions or retry key.",
+      "properties": {
+        "table_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Table Id",
+          "type": "string"
+        },
+        "records": {
+          "items": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "maxProperties": 256,
+            "minProperties": 1,
+            "propertyNames": {
+              "maxLength": 256,
+              "minLength": 1
+            },
+            "type": "object"
+          },
+          "maxItems": 100,
+          "minItems": 1,
+          "title": "Records",
+          "type": "array"
+        }
+      },
+      "required": [
+        "table_id",
+        "records"
+      ],
+      "title": "PrepareTableAppend",
+      "type": "object"
+    },
+    "ExecuteOperation": {
+      "additionalProperties": false,
+      "description": "Select a stored proposal without changing its checked request.",
+      "properties": {
+        "operation_ref": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Operation Ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation_ref"
+      ],
+      "title": "ExecuteOperation",
+      "type": "object"
+    }
+  },
+  "payloads": {
+    "AppendRows": {
+      "input": {
+        "sheet_id": 8,
+        "expected_revision": 2,
+        "idempotency_key": "request_1",
+        "rows": [
+          [
+            "00123",
+            185000,
+            0.25,
+            true,
+            null
+          ]
+        ]
+      },
+      "json": "{\"sheet_id\":8,\"expected_revision\":2,\"idempotency_key\":\"request_1\",\"rows\":[[\"00123\",185000,0.25,true,null]]}"
+    },
+    "TableAppendProposal": {
+      "input": {
+        "table_id": "tbl_claims",
+        "expected_sheet_revision": 2,
+        "expected_catalogue_revision": 3,
+        "records": [
+          {
+            "Claim": "00123",
+            "Amount": 185000,
+            "Rate": 0.25,
+            "Paid": true,
+            "Note": null
+          }
+        ]
+      },
+      "json": "{\"table_id\":\"tbl_claims\",\"expected_sheet_revision\":2,\"expected_catalogue_revision\":3,\"records\":[{\"Claim\":\"00123\",\"Amount\":185000,\"Rate\":0.25,\"Paid\":true,\"Note\":null}]}"
+    },
+    "TableAppend": {
+      "input": {
+        "table_id": "tbl_claims",
+        "expected_sheet_revision": 2,
+        "expected_catalogue_revision": 3,
+        "records": [
+          {
+            "Claim": "00123",
+            "Amount": 185000,
+            "Rate": 0.25,
+            "Paid": true,
+            "Note": null
+          }
+        ],
+        "idempotency_key": "prepared:original"
+      },
+      "json": "{\"table_id\":\"tbl_claims\",\"expected_sheet_revision\":2,\"expected_catalogue_revision\":3,\"records\":[{\"Claim\":\"00123\",\"Amount\":185000,\"Rate\":0.25,\"Paid\":true,\"Note\":null}],\"idempotency_key\":\"prepared:original\"}"
+    },
+    "AuthoringProposal": {
+      "input": {
+        "action": "create_table",
+        "definition": {
+          "sheet_id": 8,
+          "expected_sheet_revision": 2,
+          "table_range": "A1:B2",
+          "name": " Claims ",
+          "period_start": "2026-01-01",
+          "period_end": "2026-12-31"
+        },
+        "headers": [
+          "Claim",
+          "Amount"
+        ]
+      },
+      "json": "{\"action\":\"create_table\",\"definition\":{\"sheet_id\":8,\"expected_sheet_revision\":2,\"table_range\":\"A1:B2\",\"name\":\"Claims\",\"description\":\"\",\"grain\":\"\",\"aliases\":[],\"entity\":null,\"period_start\":\"2026-01-01\",\"period_end\":\"2026-12-31\"},\"table_id\":null,\"expected_catalogue_revision\":null,\"expected_sheet_revision\":null,\"headers\":[\"Claim\",\"Amount\"],\"column_ids\":null}"
+    },
+    "PrepareTableAppend": {
+      "input": {
+        "table_id": "tbl_claims",
+        "records": [
+          {
+            "Claim": "00123",
+            "Amount": 185000,
+            "Rate": 0.25,
+            "Paid": true,
+            "Note": null
+          }
+        ]
+      },
+      "json": "{\"table_id\":\"tbl_claims\",\"records\":[{\"Claim\":\"00123\",\"Amount\":185000,\"Rate\":0.25,\"Paid\":true,\"Note\":null}]}"
+    },
+    "ExecuteOperation": {
+      "input": {
+        "operation_ref": "prepared:original"
+      },
+      "json": "{\"operation_ref\":\"prepared:original\"}"
+    }
+  },
+  "append_storage_payload": "{\"expected_catalogue_revision\": 3, \"expected_sheet_revision\": 2, \"idempotency_key\": \"prepared:original\", \"records\": [{\"Amount\": 185000, \"Claim\": \"00123\", \"Note\": null, \"Paid\": true, \"Rate\": 0.25}], \"table_id\": \"tbl_claims\"}"
+}

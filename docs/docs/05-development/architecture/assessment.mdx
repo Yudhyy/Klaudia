@@ -12,6 +12,31 @@ Read the [current overview](overview.mdx) before the [target design](target.mdx)
 These findings and proposed follow-ups do not approve a package migration.
 No application code changed during this assessment.
 
+## Contract isolation follow-up
+
+The current source implements the proposal-contract separation recommended below:
+
+- `ledger.append_contracts` owns literal cell values, `AppendRows`,
+  `TableAppendProposal`, and `TableAppend`.
+- `ledger.authoring_contracts` owns `AuthoringProposal` and its validation.
+- Agent tools and query code import these contracts directly. The original
+  `ledger.operations`, `ledger.table_operations`, and `ledger.authoring` import
+  paths re-export the same types for compatibility.
+- The agent package declares its existing dependency on the `mcp-ledger`
+  workspace distribution. That distribution still includes storage and MCP;
+  this change isolates imports rather than splitting distribution packages.
+
+`tests/unit/test_architecture_imports.py` checks dependency direction and imports
+the contracts and main agent in fresh interpreters that reject database, MCP,
+HTTP, and application infrastructure imports. Contract tests compare schemas and
+serialized payloads with fixtures captured before the move. Existing execution
+and recovery tests continue to cover ownership, revisions, approvals and receipts.
+The unit checks run in the existing CircleCI unit-test job.
+
+The findings below remain a revision-labelled historical assessment. This
+follow-up does not implement the proposed package layout or refresh the other
+findings against current source.
+
 ## Findings and order of work
 
 | Order | Finding | Next work |

@@ -3,7 +3,7 @@
 import json
 import logging
 from dataclasses import asdict, dataclass, replace
-from ledger.authoring import AuthoringProposal
+from ledger.authoring_contracts import AuthoringProposal
 from ledger.typed_contracts import TypedEditProposal
 from klaudia.core.agent.authoring import AuthoringReader
 
@@ -27,7 +27,7 @@ from klaudia.core.agent.agent import (
 from klaudia.core.agent.context import TaskContext
 from klaudia.core.agent.tools import CatalogueReader
 from klaudia.core.agent.writes import OperationExecutor
-from ledger.table_operations import TableAppendProposal
+from ledger.append_contracts import TableAppendProposal
 from app.services.workflow.store import TaskStore, TaskSession
 
 logger = logging.getLogger(__name__)

@@ -9,8 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from klaudia.core.agent.tools import DiscoveryTools
 from ledger.evidence import bounded_evidence
 from ledger.errors import RevisionConflictError
-from ledger.table_operations import TableAppendProposal, TableRecord
-from ledger.authoring import AuthoringProposal
+from ledger.append_contracts import TableAppendProposal, TableRecord
+from ledger.authoring_contracts import AuthoringProposal
 from ledger.typed_contracts import TypedEditProposal, WorkbookInspection
 
 

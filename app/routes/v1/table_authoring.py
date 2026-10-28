@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from app.helpers.auth import get_current_user
 from app.helpers.ratelimit import chat_limit, limiter
 from app.services.catalogue.authoring import AuthoringService
-from ledger.authoring import AuthoringProposal
+from ledger.authoring_contracts import AuthoringProposal
 from ledger.errors import (
     ApprovalRequiredError,
     IdempotencyConflictError,
