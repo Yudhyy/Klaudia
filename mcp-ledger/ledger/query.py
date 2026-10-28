@@ -9,7 +9,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ledger import grid
-from ledger.operations import CellValue
+from ledger.append_contracts import CellValue
 
 MAX_QUERY_CELLS = 1_000_000
 DECIMAL_PRECISION = 64

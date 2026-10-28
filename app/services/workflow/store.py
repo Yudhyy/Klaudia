@@ -3,7 +3,9 @@
 from contextlib import asynccontextmanager
 import hashlib
 import json
-from ledger.authoring import AuthoringProposal, prepare_authoring
+from ledger.authoring import prepare_authoring
+from ledger.authoring_contracts import AuthoringProposal
+from ledger.append_contracts import TableAppendProposal
 from ledger.typed_cells import inspect_workbook, prepare_typed_edit
 from ledger.typed_contracts import TypedEditProposal
 
@@ -18,7 +20,6 @@ from ledger.resources import ResourceNotFoundError
 from ledger.errors import RevisionConflictError
 from ledger.approvals import approval_payload
 from ledger.table_operations import (
-    TableAppendProposal,
     prepare_table_append,
     execute_prepared_operation,
 )

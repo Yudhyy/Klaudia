@@ -24,7 +24,7 @@ from ledger.resources import (
     TableRegistration,
     TableUpdate,
 )
-from ledger.operations import AppendRows
+from ledger.append_contracts import AppendRows
 from ledger.query import AggregateQuery, aggregate_grid
 from ledger.store import (
     DEFAULT_WORKSPACE,

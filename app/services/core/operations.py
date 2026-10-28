@@ -1,6 +1,8 @@
 """Authenticated access to durable ledger append proposals and receipts."""
 
-from ledger.authoring import AuthoringProposal, prepare_authoring
+from ledger.authoring import prepare_authoring
+from ledger.authoring_contracts import AuthoringProposal
+from ledger.append_contracts import TableAppendProposal
 from ledger.typed_contracts import TypedEditProposal
 from ledger.typed_cells import inspect_workbook, prepare_typed_edit
 
@@ -8,7 +10,6 @@ from typing import Any
 
 from ledger.store import LedgerStore
 from ledger.table_operations import (
-    TableAppendProposal,
     prepare_table_append,
     execute_prepared_operation,
 )

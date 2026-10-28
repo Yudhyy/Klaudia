@@ -30,12 +30,12 @@ import asyncpg
 from ledger.connections import BorrowedConnection
 
 from ledger.errors import SheetNotFoundError
-from ledger.operations import AppendRows, execute_append
+from ledger.append_contracts import AppendRows, TableAppend
+from ledger.operations import execute_append
 from ledger.catalogue import CATALOGUE_SCHEMA
 from ledger.typed_schema import TYPED_SCHEMA
 from ledger.table_operations import (
     TABLE_OPERATION_SCHEMA,
-    TableAppend,
     execute_table_append,
 )
 

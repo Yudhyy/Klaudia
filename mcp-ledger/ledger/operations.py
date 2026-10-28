@@ -3,41 +3,21 @@
 import hashlib
 import json
 import uuid
-from typing import Annotated, Any
+from typing import Any
 
 import asyncpg
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    StrictBool,
-    StrictFloat,
-    StrictInt,
-    StrictStr,
-)
 
 from ledger import grid
+from ledger.append_contracts import (
+    AppendRow as AppendRow,
+    AppendRows as AppendRows,
+    CellValue as CellValue,
+)
 from ledger.errors import (
     IdempotencyConflictError,
     RevisionConflictError,
     SheetNotFoundError,
 )
-
-CellValue = StrictStr | StrictInt | StrictFloat | StrictBool | None
-AppendRow = Annotated[list[CellValue], Field(min_length=1, max_length=256)]
-
-
-class AppendRows(BaseModel):
-    """A bounded literal-value append based on an observed sheet revision."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
-
-    sheet_id: Annotated[StrictInt, Field(gt=0)]
-    expected_revision: Annotated[StrictInt, Field(ge=0)]
-    idempotency_key: Annotated[
-        StrictStr, Field(min_length=1, max_length=128, pattern=r"\S")
-    ]
-    rows: Annotated[list[AppendRow], Field(min_length=1, max_length=1000)]
 
 
 async def execute_append(

@@ -4,15 +4,20 @@ import hashlib
 from dataclasses import dataclass
 import json
 import uuid
-from typing import Annotated, Any, Mapping
+from typing import Any, Mapping
 
 import asyncpg
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 
 from ledger import grid
+from ledger.append_contracts import (
+    CellValue as CellValue,
+    RecordField as RecordField,
+    TableRecord as TableRecord,
+    TableAppendProposal as TableAppendProposal,
+    TableAppend as TableAppend,
+)
 from ledger.approvals import check_approval, prepare_approval
 from ledger.errors import IdempotencyConflictError, RevisionConflictError
-from ledger.operations import CellValue
 from ledger.resources import ResourceNotFoundError
 
 TABLE_OPERATION_SCHEMA = """
@@ -33,29 +38,6 @@ ALTER TABLE ledger_table_operation ADD COLUMN IF NOT EXISTS approval_expires_at 
 ALTER TABLE ledger_table_operation ADD COLUMN IF NOT EXISTS approved_fingerprint TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS ledger_table_approval_id ON ledger_table_operation(approval_id) WHERE approval_id IS NOT NULL;
 """
-
-RecordField = Annotated[StrictStr, Field(min_length=1, max_length=256)]
-TableRecord = Annotated[
-    dict[RecordField, CellValue], Field(min_length=1, max_length=256)
-]
-
-
-class TableAppendProposal(BaseModel):
-    """Named records bound to server-observed table revisions before key assignment."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
-    table_id: Annotated[StrictStr, Field(min_length=1, max_length=256)]
-    expected_sheet_revision: Annotated[StrictInt, Field(ge=0)]
-    expected_catalogue_revision: Annotated[StrictInt, Field(gt=0)]
-    records: Annotated[list[TableRecord], Field(min_length=1, max_length=100)]
-
-
-class TableAppend(TableAppendProposal):
-    """An exact checked append carrying its execution retry identity."""
-
-    idempotency_key: Annotated[
-        StrictStr, Field(min_length=1, max_length=128, pattern=r"\S")
-    ]
 
 
 async def prepare_table_append(
