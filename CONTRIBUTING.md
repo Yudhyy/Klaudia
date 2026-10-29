@@ -23,9 +23,10 @@ The backend uses Python 3.11 or later and a uv workspace:
 
 ```bash
 uv sync --all-packages --group dev
-uv run ruff check app/ klaudia/ config/ mcp-ledger/ tests/
-uv run ruff format --check app/ klaudia/ config/ mcp-ledger/ tests/
+uv run ruff check app/ klaudia/ config/ mcp-ledger/ packages/ tests/
+uv run ruff format --check app/ klaudia/ config/ mcp-ledger/ packages/ tests/
 uv run pytest tests/unit -q
+uv run pytest tests/packaging -q
 ```
 
 The mobile CI uses Node 24.12.0. Run these commands from `apps/mobile/`:

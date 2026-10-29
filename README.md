@@ -514,6 +514,7 @@ MOCK_KIE=true uv run pytest tests/e2e -q   # full evaluation
 app/            FastAPI routes, orchestrator, guardrails, extraction,
                 memory, verifier, approvals
 klaudia/        single main agent, checked tools, packaged skills
+packages/ledger-core/  pure ledger contracts, aggregation and exact native formulas
 mcp-ledger/     Postgres ledger MCP server (the default sheets backend)
 tests/e2e/      the sandbox: dataset, generators, runners, reports
 scripts/        migration, mirroring, tenancy and sandbox utilities

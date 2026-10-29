@@ -32,7 +32,8 @@ a PostgreSQL ledger, document extraction, and an Expo mobile client.
 | `app/services/catalogue/` | Resource discovery and table authoring |
 | `app/services/memory/` | Owner-scoped application context documents |
 | `klaudia/` | Main agent, bounded tools, and versioned runtime skills |
-| `mcp-ledger/ledger/` | Ledger storage, exact calculations, and MCP transport |
+| `packages/ledger-core/` | Pure ledger contracts, grid aggregation, and exact native formulas |
+| `mcp-ledger/ledger/` | Ledger storage, checked execution, MCP transport, and compatibility imports |
 | `config/settings.py` | Runtime configuration |
 | `apps/mobile/` | Expo and React Native client |
 | `tests/` | Unit, integration, and evaluation checks |
@@ -51,9 +52,10 @@ From the repo root:
 
 ```bash
 uv sync --all-packages --group dev
-uv run ruff check app/ klaudia/ config/ mcp-ledger/ tests/
-uv run ruff format --check app/ klaudia/ config/ mcp-ledger/ tests/
+uv run ruff check app/ klaudia/ config/ mcp-ledger/ packages/ tests/
+uv run ruff format --check app/ klaudia/ config/ mcp-ledger/ packages/ tests/
 uv run pytest tests/unit -q
+uv run pytest tests/packaging -q
 ```
 
 From `apps/mobile/`:
