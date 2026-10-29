@@ -7,21 +7,96 @@ import AppArchitecture from '../img/app-architecture.avif';
 
 # Proposed architecture
 
-Status: proposed design, not the current implementation or a migration approval.
-Read the [current architecture](overview.mdx) first. The trees and deployment
-sketches below describe a possible destination; they do not establish that each
-package, client, dependency, or service exists. Assess and migrate one boundary
-at a time under [issue #3](https://github.com/Yudhyy/Klaudia/issues/3).
+Status: proposed architecture and incremental migration plan under
+[issue #3](https://github.com/Yudhyy/Klaudia/issues/3). The
+[current architecture](overview.mdx) and [assessment](assessment.mdx) describe
+source at `5a33e394748c9a1c7863488402acfa8b96780bd7`, checked on 2026-10-29.
+The ownership and dependency rules below guide subsequent code PRs; the package
+tree is a destination sketch, not an implemented layout.
+
+Klaudia remains a modular monolith with one application release, a shared
+PostgreSQL database, and separate API, extraction-worker and MCP processes.
+The agent interprets requests and proposes actions. Deterministic backend code
+authorizes, validates, calculates and commits financial effects. Module
+interfaces and import checks should make that separation explicit.
 
 Design reference: [Domain-Driven Hexagon](https://github.com/Sairyss/domain-driven-hexagon).
+Use domain models where rules justify them, especially financial operations.
+Straightforward application functions and typed contracts are sufficient for
+simpler modules.
 
-hexagonal (ddd, clean) modular-monolith: one monorepo, one fastapi modular monolith, several pure domain packages, thin http/mcp/mobile/web adapters, and evals as a release gate.
+## Module ownership
 
-<img alt="Main Architecture" src={AppArchitecture} className="p-4 dark:bg-immich-dark-primary my-4" />
+| Module | Owns | Current implementation | Proposed package |
+| --- | --- | --- | --- |
+| Ledger | Exact financial calculations, catalogue/table rules, revisions, prepared operations, financial approval requirements and committed receipts | `mcp-ledger/ledger/`, with application catalogue/operation adapters | `ledger-core` |
+| Agent runtime | Model-driven steps, tool selection, run context and continuation payloads | `klaudia/core/agent/` and `klaudia/core/skills/` | `agent-core` and `agent-skills` |
+| Documents | Ingestion, extraction, expected pages, saved outcomes and document lifecycle | `app/services/extraction/` and archive reads | `document-intelligence` |
+| Identity | Accounts, credentials, authentication use cases and account access state | Auth routes/services and user methods in `AppDBClient` | `identity-core` |
+| Workflow | Durable task identity/status, checkpoint persistence, exclusive task execution, resume coordination and human-decision routing | `app/services/workflow/` and durable orchestration in `main_chat.py` | `workflow-core` |
+| Memory | Owner-scoped context documents, preferences, policy documents and their revisions | `app/services/memory/` | `memory-core` |
 
+Ownership describes rules and interfaces, not a requirement to create every
+package at once. The agent defines how to serialize and interpret its
+continuation. Workflow stores that continuation and coordinates resumption
+through a run capability supplied by composition. Memory policy documents
+supply context; ledger code validates their financial use and commits effects.
 
-## Repo Tree
-```
+HTTP, MCP, model clients, queues, storage clients and concrete persistence are
+adapters. `services/api` is the proposed home for their composition and process
+entrypoints. A future shared kernel contains only types with demonstrated
+cross-module ownership. Internal ledger request models belong to ledger-core;
+the separate `packages/contracts` sketch concerns generated client/transport
+contracts.
+
+### Approval and transaction responsibilities
+
+Workflow presents an exact pending proposal, receives an authenticated human
+decision, and routes it to ledger operations. Ledger binds the decision to the
+stored proposal and enforces applicable approval, expiry, ownership, revision
+and financial preconditions during execution. The agent can report or request
+a decision; it cannot grant consent or replace the stored payload.
+
+The current MCP interface exposes owned reads and denies mutations. Preserve
+that contract during module moves; application checked tools remain the write
+path. New transport entrypoints need their own authorization review.
+
+Preserve the connection holding the durable task lock for its checked ledger
+writes. Keep each effect and its receipt in one transaction, and reuse original
+operation references on recovery. These requirements constrain adapter design;
+a whole model run is not one database transaction. See the
+[transaction assessment](assessment.mdx#preserve-transaction-ownership).
+
+## Process composition
+
+A composition root is the startup code that chooses implementations and owns
+their lifecycle. Each process needs its own root, even when several processes
+run the same image or import common construction functions.
+
+| Process | Current startup | Proposed composition responsibility |
+| --- | --- | --- |
+| API | `app/main.py` and `KlaudiaContainer.create` | Build request services, agent/capability adapters, task/memory stores, model clients and the configured MCP client |
+| Extraction worker | Taskiq hooks in `app/services/extraction/queue/state.py` | Build worker-local database, queue/cache, object-store and extraction clients |
+| MCP host | `mcp-ledger/main.py` and `ledger.server.ledger_lifespan` | Configure transport/authentication, build the host-local ledger store and install the owned-read policy |
+
+Share configuration types and provider construction where useful. Each process
+creates and closes its own pools and clients. Core packages receive dependencies
+through interfaces; importing them does not start another process or open a
+connection. Recovery and scheduled entrypoints in the sketch remain future
+work until corresponding behavior is implemented.
+
+<img alt="Proposed application architecture" src={AppArchitecture} className="p-4 dark:bg-immich-dark-primary my-4" />
+
+## Repository sketch
+
+This tree retains longer-term options such as web/CLI clients, generated clients,
+IronCalc, an event outbox and model hosting. Those options require separate
+implementation scope and checks. The migration sequence below begins with the
+existing pure ledger modules; it does not require those options, an ORM change,
+or an event bus. The present asyncpg implementation and native decimal formulas
+remain the starting point.
+
+```text
 klaudia/
 ├── .circleci/
 │   ├── config.yml
@@ -136,7 +211,7 @@ klaudia/
 │       └── Cargo.toml                    # rust crate manifest
 │
 ├── services/
-│   └── api/                                  # the only python deployable for now
+│   └── api/                              # API, worker and MCP process entrypoints
 │       ├── src/klaudia_api/
 │       │   ├── __init__.py
 │       │   ├── main.py
@@ -181,6 +256,12 @@ klaudia/
 │       │   │
 │       │   ├── adapters/                    # outbound infrastructure adapters
 │       │   │   ├── __init__.py
+│       │   │   ├── capabilities/             # implement consumer-owned ports
+│       │   │   │   ├── agent_ledger.py
+│       │   │   │   ├── agent_documents.py
+│       │   │   │   ├── agent_memory.py
+│       │   │   │   ├── workflow_agent.py
+│       │   │   │   └── workflow_ledger.py
 │       │   │   ├── llm/
 │       │   │   │   ├── __init__.py
 │       │   │   │   ├── model_factory.py
@@ -188,6 +269,8 @@ klaudia/
 │       │   │   │   ├── gemini_vertex_adapter.py 
 │       │   │   │   ├── anthropic_adapter.py 
 │       │   │   │   └── fake_model_adapter.py
+│       │   │   ├── mcp_client/               # outbound MCP client
+│       │   │   │   └── tool_registry.py
 │       │   │   ├── events/
 │       │   │   │   ├── in_memory_event_publisher.py
 │       │   │   │   └── postgres_outbox_event_publisher.py
@@ -226,11 +309,13 @@ klaudia/
 │       │   │       ├── rule_guardrail_adapter.py
 │       │   │       └── llm_guardrail_adapter.py
 │       │   │
-│       │   ├── composition/              # the only composition root
+│       │   ├── composition/              # one root per process; shared providers
 │       │   │   ├── __init__.py
-│       │   │   ├── container.py
-│       │   │   ├── settings.py
-│       │   │   └── lifespan.py
+│       │   │   ├── api.py
+│       │   │   ├── extraction_worker.py
+│       │   │   ├── mcp.py
+│       │   │   ├── providers.py
+│       │   │   └── settings.py
 │       │   └── observability/            # cross-cutting application concern
 │       │       ├── __init__.py
 │       │       ├── logging.py            # structured json logs
@@ -320,7 +405,7 @@ klaudia/
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── agent_run.py
 │   │   │   │   ├── agent_step.py
-│   │   │   │   ├── task.py
+│   │   │   │   ├── run_context.py
 │   │   │   │   ├── message.py
 │   │   │   │   ├── attachment.py
 │   │   │   │   ├── tool_call.py
@@ -328,7 +413,7 @@ klaudia/
 │   │   │   │   ├── tool_spec.py
 │   │   │   │   ├── skill.py
 │   │   │   │   ├── guardrail.py
-│   │   │   │   ├── checkpoint.py
+│   │   │   │   ├── checkpoint.py             # agent continuation format
 │   │   │   │   ├── budget.py
 │   │   │   │   └── ports/
 │   │   │   │       ├── __init__.py
@@ -337,16 +422,13 @@ klaudia/
 │   │   │   │       ├── memory_port.py
 │   │   │   │       ├── document_port.py         # capability-level
 │   │   │   │       ├── ledger_port.py
-│   │   │   │       ├── approval_port.py         # agent asks: "is this action approved?"
+│   │   │   │       ├── approval_port.py         # report required human decision
 │   │   │   │       ├── checkpoint_port.py
 │   │   │   │       └── event_publisher_port.py  # publish agent lifecycle events
 │   │   │   ├── application/
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── start_chat_run.py
 │   │   │   │   ├── continue_chat_run.py
-│   │   │   │   ├── resume_task.py
-│   │   │   │   ├── approve_pending_operation.py
-│   │   │   │   ├── reject_pending_operation.py
 │   │   │   │   ├── verify_response.py
 │   │   │   │   └── rebuild_context.py
 │   │   │   └── tools/
@@ -409,7 +491,7 @@ klaudia/
 │   │   │   │   ├── formula.py
 │   │   │   │   ├── calculation.py
 │   │   │   │   ├── financial_record.py
-│   │   │   │   ├── accounting_policy.py
+│   │   │   │   ├── accounting_policy.py      # financial policy interpretation
 │   │   │   │   ├── operation.py
 │   │   │   │   ├── operation_status.py
 │   │   │   │   ├── receipt.py
@@ -425,7 +507,7 @@ klaudia/
 │   │   │   │   ├── prepare_table_authoring.py
 │   │   │   │   ├── approve_operation.py
 │   │   │   │   ├── execute_operation.py
-│   │   │   │   ├── recover_operation.py
+│   │   │   │   ├── recover_operation.py      # original ledger reference/receipt
 │   │   │   │   └── issue_receipt.py
 │   │   │   └── ports/
 │   │   │       ├── __init__.py
@@ -435,6 +517,36 @@ klaudia/
 │   │   │       ├── approval_repository.py
 │   │   │       ├── formula_engine_port.py
 │   │   │       └── event_publisher_port.py #publish ledger domain events
+│   │   ├── tests/
+│   │   └── pyproject.toml
+│   │
+│   ├── workflow-core/                    # durable task and decision coordination
+│   │   ├── src/workflow_core/
+│   │   │   ├── __init__.py
+│   │   │   ├── task.py
+│   │   │   ├── checkpoint.py             # stored continuation and revisions
+│   │   │   ├── application/
+│   │   │   │   ├── start_task.py
+│   │   │   │   ├── resume_task.py
+│   │   │   │   ├── approve_pending_operation.py
+│   │   │   │   └── reject_pending_operation.py
+│   │   │   └── ports/
+│   │   │       ├── task_store.py
+│   │   │       ├── agent_run.py
+│   │   │       └── operation_decisions.py
+│   │   ├── tests/
+│   │   └── pyproject.toml
+│   │
+│   ├── memory-core/                      # owner-scoped context and revisions
+│   │   ├── src/memory_core/
+│   │   │   ├── __init__.py
+│   │   │   ├── documents.py
+│   │   │   ├── policy.py                 # stored policy document contract
+│   │   │   ├── application/
+│   │   │   │   ├── read_document.py
+│   │   │   │   └── edit_document.py
+│   │   │   └── ports/
+│   │   │       └── document_repository.py
 │   │   ├── tests/
 │   │   └── pyproject.toml
 │   │
@@ -575,27 +687,105 @@ klaudia/
 └── turbo.json                            # optional js task orchestration
 ```
 
-## Dependency Rule
-```
-apps/web ────────┐
-apps/mobile ─────┼──> packages/contracts (TypeScript / REST)
-                 │
-apps/cli (rust) ─┼──> packages/contracts (Rust DTO / JSON-RPC & REST)
-                 │
-services/api ────┼──> packages/contracts (OpenAPI & JSON-RPC Spec)
-                 ├──> packages/shared-kernel
-                 ├──> packages/identity-core
-                 ├──> packages/agent-core
-                 ├──> packages/agent-skills
-                 ├──> packages/ledger-core
-                 └──> packages/document-intelligence
+## Dependency rules
 
-agent-core ──/──> ledger-core
-agent-core ──/──> document-intelligence
-agent-core ──/──> identity-core
+### Current implementation
+
+`app` composes agent protocols with concrete ledger, document, workflow and
+memory implementations. The agent core imports pure ledger contracts and uses
+LangChain model/tool types. Its distribution also contains the FastMCP client
+adapter and depends on the `mcp-ledger` distribution. The current
+[architecture checks](https://github.com/Yudhyy/Klaudia/blob/5a33e394748c9a1c7863488402acfa8b96780bd7/tests/unit/test_architecture_imports.py)
+enforce specific rules: ledger does not import app/agent/config, the agent does
+not import app/config, and agent core does not import ledger persistence.
+
+### First package extraction
+
+The first ledger-core slice contains pure contracts and deterministic
+calculations. During that step, these dependencies are allowed:
+
+```text
+agent runtime --------------------> ledger-core public contracts/helpers
+legacy ledger compatibility paths -> ledger-core canonical definitions
+ledger execution and storage -----> ledger-core
+application adapters -------------> agent protocols and ledger implementations
 ```
 
-# Klaudia Architecture
+The DTO/helper dependency is transitional. Core code must not import back into
+the old ledger package or depend on database, MCP, HTTP adapters or settings.
+Keep the existing `OperationExecutor`, `CatalogueReader` and
+`AuthoringReader` protocols; isolating their imported types does not require
+changing their behavior.
+
+This extraction makes ledger-core independently installable. The current agent
+distribution still contains an MCP client, so it does not become entirely
+infrastructure-free as a consequence.
+
+### Final module interfaces
+
+The intended final graph uses consumer-owned capability ports. Concrete
+adapters import those ports and the provider module, translate requests/results,
+and are supplied by process composition. In this diagram, arrows mean imports,
+not the direction of runtime calls.
+
+```mermaid
+flowchart LR
+    Composition["API / worker / MCP composition"] --> Agent["agent-core"]
+    Composition --> Workflow["workflow-core"]
+    Composition --> Adapters["Capability and infrastructure adapters"]
+    Agent --> Skills["agent-skills"]
+    Adapters --> Agent
+    Adapters --> Workflow
+    Adapters --> Ledger["ledger-core"]
+    Adapters --> Documents["document-intelligence"]
+    Adapters --> Identity["identity-core"]
+    Adapters --> Memory["memory-core"]
+```
+
+Agent core ultimately has no direct dependency on ledger, documents, identity,
+memory or workflow packages. Workflow invokes a supplied run capability and
+operation-decision capability rather than importing their implementations.
+Other core modules keep their own rules and receive infrastructure through
+their interfaces. Shared-kernel types are an allowed dependency when their
+ownership is actually shared; a universal DTO or repository package would hide
+the ownership decisions.
+
+Moving to this graph is a separate code slice after the pure extraction.
+Adapters preserve schemas, serialized continuation/operation payloads, error
+behavior and exact operation identities. They translate representations while
+ledger retains financial validation. Client apps consume generated transport
+contracts when those clients are implemented; internal Python domain models do
+not become client wire contracts by default.
+
+## Migration sequence
+
+| Stage | Deliverable | Completion evidence |
+| --- | --- | --- |
+| Implemented at the reviewed source | Scoped MCP reads, saved queued outcomes, isolated proposal imports and narrow dependency checks | Source and existing regression tests linked in the [assessment](assessment.mdx) |
+| Next code PR | Installable pure `packages/ledger-core` slice with compatibility re-exports | Fresh-environment wheel installation; unchanged schemas/payloads; calculation, execution and recovery checks; workspace/Docker/CI paths updated together |
+| Following slices | Consumer-owned capability contracts and composition adapters; agent runtime/skills separated from the MCP client adapter | Equivalent tool/error/continuation behavior and import enforcement for the interfaces actually extracted |
+| Module by module | Workflow, memory, documents and identity packages with their adapters | Owned entrypoints, durable/owner-isolation regressions and process startup checks for each moved module |
+| As consumers are ready | API/worker/MCP entrypoints and infrastructure relocated into the proposed service layout | Installed imports and startup for all three processes; Docker, CI, commands and contributor docs match the new paths |
+
+Use the [first-extraction scope and acceptance criteria](assessment.mdx#first-extraction-installable-ledger-core)
+for the next code PR. Its initial implementation keeps the existing pure module
+structure; the full domain/application tree above is a later design option.
+Identity/schema-changing work must define upgrade ownership before moving stores
+and remain coordinated with [issue #9](https://github.com/Yudhyy/Klaudia/issues/9).
+The ledger's standalone initialization remains supported.
+
+Each slice moves a working responsibility with its callers, metadata, tests and
+entrypoints. Preserve public behavior during package moves. Record deliberate
+behavior changes separately with their own acceptance criteria. Add remaining
+clients, event delivery, model hosting, evaluation gates and optional engines
+when their implementation is selected and independently verified.
+
+## Longer-term deployment sketch
+
+The following sketch illustrates possible capabilities. PostgreSQL schema names,
+Redis locks, a gateway, model hosting and IronCalc here are proposed, not claims
+about the reviewed runtime. The process table above describes the startup
+responsibilities to preserve during migration.
 
 ```text
                                     clients
