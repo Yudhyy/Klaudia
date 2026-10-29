@@ -20,6 +20,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY klaudia/pyproject.toml ./klaudia/pyproject.toml
 COPY mcp-ledger/pyproject.toml ./mcp-ledger/pyproject.toml
+COPY packages/ledger-core/pyproject.toml ./packages/ledger-core/pyproject.toml
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-workspace
@@ -28,7 +29,7 @@ COPY . /app
 
 # Install the workspace packages after their source files are available.
 # The root workspace project is intentionally not installed as a package;
-# FastAPI imports app/ from /app, while klaudia and mcp-ledger are workspace packages.
+# FastAPI imports app/ from /app; agent, ledger core and MCP are workspace packages.
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-install-project --no-editable
 

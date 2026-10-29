@@ -62,10 +62,10 @@ jobs:
       - install-deps
       - run:
           name: Ruff check
-          command: uv run ruff check app/ klaudia/ config/ mcp-ledger/ tests/
+          command: uv run ruff check app/ klaudia/ config/ mcp-ledger/ packages/ tests/
       - run:
           name: Ruff format check
-          command: uv run ruff format --check app/ klaudia/ config/ mcp-ledger/ tests/
+          command: uv run ruff format --check app/ klaudia/ config/ mcp-ledger/ packages/ tests/
 
   unit-test:
     executor: python
@@ -75,6 +75,9 @@ jobs:
       - run:
           name: Run unit tests
           command: uv run pytest tests/unit -q --junitxml=test-results/unit.xml
+      - run:
+          name: Verify standalone ledger-core wheel
+          command: uv run pytest tests/packaging -q --junitxml=test-results/packaging.xml
       - store_test_results:
           path: test-results
 
