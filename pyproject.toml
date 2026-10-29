@@ -21,6 +21,7 @@ dependencies = [
     "google-genai>=1.0.0",
     "python-multipart>=0.0.9",
     "klaudia",
+    "ledger-core",
     "mcp-ledger",
     "langfuse>=4.5.0",
     "blake3>=1.0.0",
@@ -38,12 +39,14 @@ dependencies = [
 
 [tool.uv.sources]
 klaudia = { workspace = true }
+ledger-core = { workspace = true }
 mcp-ledger = { workspace = true }
 
 [tool.uv.workspace]
 members = [
     "klaudia",
     "mcp-ledger",
+    "packages/ledger-core",
 ]
 
 [tool.uv]

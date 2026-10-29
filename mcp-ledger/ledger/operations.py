@@ -7,13 +7,13 @@ from typing import Any
 
 import asyncpg
 
-from ledger import grid
-from ledger.append_contracts import (
+from ledger_core import grid
+from ledger_core.append_contracts import (
     AppendRow as AppendRow,
     AppendRows as AppendRows,
     CellValue as CellValue,
 )
-from ledger.errors import (
+from ledger_core.errors import (
     IdempotencyConflictError,
     RevisionConflictError,
     SheetNotFoundError,

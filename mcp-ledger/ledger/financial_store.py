@@ -3,13 +3,13 @@
 import json
 from typing import Any
 
-from ledger import grid
-from ledger.calculations import decode_calculation_grid
+from ledger_core import grid
+from ledger_core.calculations import decode_calculation_grid
 from ledger.connections import ConnectionProvider
-from ledger.errors import RevisionConflictError
-from ledger.evidence import bounded_evidence
+from ledger_core.errors import RevisionConflictError
+from ledger_core.evidence import bounded_evidence
 from ledger.financial import execute_financial
-from ledger.financial_contracts import (
+from ledger_core.financial_contracts import (
     Aging,
     CheckedFinancialRequest,
     Comparison,
@@ -18,8 +18,8 @@ from ledger.financial_contracts import (
     Records,
     source_ids,
 )
-from ledger.query import MAX_QUERY_CELLS
-from ledger.resources import ResourceNotFoundError
+from ledger_core.query import MAX_QUERY_CELLS
+from ledger_core.resources import ResourceNotFoundError
 
 
 def source_columns(request: CheckedFinancialRequest) -> dict[str, set[str]]:

@@ -6,7 +6,7 @@ from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 
 from app.services.extraction.infra.db_client import AppDBClient
-from ledger.resources import ResourceNotFoundError
+from ledger_core.resources import ResourceNotFoundError
 
 
 class SearchDocuments(BaseModel):

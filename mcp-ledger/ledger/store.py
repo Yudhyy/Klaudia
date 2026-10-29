@@ -29,8 +29,8 @@ from typing import Any, Callable, Optional
 import asyncpg
 from ledger.connections import BorrowedConnection
 
-from ledger.errors import SheetNotFoundError
-from ledger.append_contracts import AppendRows, TableAppend
+from ledger_core.errors import SheetNotFoundError
+from ledger_core.append_contracts import AppendRows, TableAppend
 from ledger.operations import execute_append
 from ledger.catalogue import CATALOGUE_SCHEMA
 from ledger.typed_schema import TYPED_SCHEMA

@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from ledger.calculations import CalculationRequest, decode_calculation_grid
+from ledger_core.calculations import CalculationRequest, decode_calculation_grid
 
 
 @pytest.mark.parametrize(
@@ -23,7 +23,7 @@ def test_model_calculation_rejects_authority_and_location_fields(field):
 
 def test_grid_decoder_preserves_fractional_precision_for_sums():
     """Stored fractions retain their exact digits through labelled arithmetic."""
-    from ledger.query import AggregateQuery, aggregate_grid
+    from ledger_core.query import AggregateQuery, aggregate_grid
 
     values = decode_calculation_grid('[["Amount"], [0.123456789012345678901], [0.1]]')
     evidence = aggregate_grid(
@@ -37,7 +37,7 @@ def test_grid_decoder_preserves_fractional_precision_for_sums():
 
 def test_unused_columns_and_excluded_rows_do_not_block_calculation():
     """Precision limits apply to selected operands, not unrelated values."""
-    from ledger.query import AggregateQuery, aggregate_grid
+    from ledger_core.query import AggregateQuery, aggregate_grid
 
     values = decode_calculation_grid(
         '[["Amount", "Unused", "Status"], [10, 0.123456789012345678901, "keep"], [0.123456789012345678901234567890123456789012345678901234567890123456789, 0, "skip"]]'
@@ -55,7 +55,7 @@ def test_unused_columns_and_excluded_rows_do_not_block_calculation():
 
 def test_count_does_not_require_rounding_fractional_operands():
     """Nonblank counts do not coerce or sum their numeric values."""
-    from ledger.query import AggregateQuery, aggregate_grid
+    from ledger_core.query import AggregateQuery, aggregate_grid
 
     values = decode_calculation_grid('[["Amount"], [0.123456789012345678901]]')
     evidence = aggregate_grid(
@@ -69,7 +69,7 @@ def test_count_does_not_require_rounding_fractional_operands():
 
 def test_fractional_group_labels_never_silently_round():
     """The legacy JSON key format rejects labels it cannot encode exactly."""
-    from ledger.query import AggregateQuery, aggregate_grid
+    from ledger_core.query import AggregateQuery, aggregate_grid
 
     query = AggregateQuery(
         table_range="A1:A2",

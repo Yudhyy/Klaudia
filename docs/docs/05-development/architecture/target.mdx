@@ -11,8 +11,10 @@ Status: proposed architecture and incremental migration plan under
 [issue #3](https://github.com/Yudhyy/Klaudia/issues/3). The
 [current architecture](overview.mdx) and [assessment](assessment.mdx) describe
 source at `5a33e394748c9a1c7863488402acfa8b96780bd7`, checked on 2026-10-29.
-The ownership and dependency rules below guide subsequent code PRs; the package
-tree is a destination sketch, not an implemented layout.
+The ownership and dependency rules below guide subsequent code PRs. The first
+pure ledger-core package is now implemented; the rest of the package tree remains
+a destination sketch. The overview and assessment distinguish that follow-up
+from their recorded baseline source.
 
 Klaudia remains a modular monolith with one application release, a shared
 PostgreSQL database, and separate API, extraction-worker and MCP processes.
@@ -693,16 +695,19 @@ klaudia/
 
 `app` composes agent protocols with concrete ledger, document, workflow and
 memory implementations. The agent core imports pure ledger contracts and uses
-LangChain model/tool types. Its distribution also contains the FastMCP client
-adapter and depends on the `mcp-ledger` distribution. The current
+LangChain model/tool types. At the recorded baseline, its distribution also
+contains the FastMCP client adapter and depends on `mcp-ledger`. The recorded
 [architecture checks](https://github.com/Yudhyy/Klaudia/blob/5a33e394748c9a1c7863488402acfa8b96780bd7/tests/unit/test_architecture_imports.py)
 enforce specific rules: ledger does not import app/agent/config, the agent does
 not import app/config, and agent core does not import ledger persistence.
 
 ### First package extraction
 
-The first ledger-core slice contains pure contracts and deterministic
-calculations. During that step, these dependencies are allowed:
+The current source implements the first ledger-core slice with pure contracts
+and deterministic calculations in `packages/ledger-core`. The agent declares
+`ledger-core` and its existing FastMCP client dependency directly; its manifest
+no longer depends on `mcp-ledger`. These dependencies are allowed during this
+transitional stage:
 
 ```text
 agent runtime --------------------> ledger-core public contracts/helpers
@@ -762,14 +767,16 @@ not become client wire contracts by default.
 | Stage | Deliverable | Completion evidence |
 | --- | --- | --- |
 | Implemented at the reviewed source | Scoped MCP reads, saved queued outcomes, isolated proposal imports and narrow dependency checks | Source and existing regression tests linked in the [assessment](assessment.mdx) |
-| Next code PR | Installable pure `packages/ledger-core` slice with compatibility re-exports | Fresh-environment wheel installation; unchanged schemas/payloads; calculation, execution and recovery checks; workspace/Docker/CI paths updated together |
-| Following slices | Consumer-owned capability contracts and composition adapters; agent runtime/skills separated from the MCP client adapter | Equivalent tool/error/continuation behavior and import enforcement for the interfaces actually extracted |
+| Implemented first extraction | Installable pure `packages/ledger-core` slice with compatibility re-exports | `tests/packaging/test_ledger_core.py`, compatibility/import checks and existing calculation/execution/recovery suites; workspace/Docker/CI paths include the package |
+| Next slices | Consumer-owned capability contracts and composition adapters; agent runtime/skills separated from the MCP client adapter | Equivalent tool/error/continuation behavior and import enforcement for the interfaces actually extracted |
 | Module by module | Workflow, memory, documents and identity packages with their adapters | Owned entrypoints, durable/owner-isolation regressions and process startup checks for each moved module |
 | As consumers are ready | API/worker/MCP entrypoints and infrastructure relocated into the proposed service layout | Installed imports and startup for all three processes; Docker, CI, commands and contributor docs match the new paths |
 
 Use the [first-extraction scope and acceptance criteria](assessment.mdx#first-extraction-installable-ledger-core)
-for the next code PR. Its initial implementation keeps the existing pure module
-structure; the full domain/application tree above is a later design option.
+as the contract retained by the first code slice. Its implementation keeps the
+existing pure module structure; the full domain/application tree above is a
+later design option. Test commands/results belong to the code PR; the presence
+of CI configuration does not establish a remote pass.
 Identity/schema-changing work must define upgrade ownership before moving stores
 and remain coordinated with [issue #9](https://github.com/Yudhyy/Klaudia/issues/9).
 The ledger's standalone initialization remains supported.

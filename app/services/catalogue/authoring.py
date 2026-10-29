@@ -5,11 +5,11 @@ from typing import Any
 
 import asyncpg
 
-from ledger import grid
+from ledger_core import grid
 from ledger.authoring import prepare_authoring
-from ledger.authoring_contracts import AuthoringProposal
-from ledger.evidence import bounded_evidence
-from ledger.resources import ResourceNotFoundError
+from ledger_core.authoring_contracts import AuthoringProposal
+from ledger_core.evidence import bounded_evidence
+from ledger_core.resources import ResourceNotFoundError
 from ledger.table_operations import execute_prepared_operation
 
 

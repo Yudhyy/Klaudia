@@ -4,7 +4,7 @@ from decimal import Context, Decimal, DecimalException, Inexact, localcontext
 from fractions import Fraction
 from typing import Any
 
-from ledger.financial_contracts import (
+from ledger_core.financial_contracts import (
     Aging,
     Comparison,
     FinancialRequest,
@@ -25,7 +25,7 @@ from ledger.financial_records import (
     typed_value,
     unique_index,
 )
-from ledger.query import DECIMAL_PRECISION, _number
+from ledger_core.query import DECIMAL_PRECISION, _number
 
 __all__ = ["FinancialRequest", "execute_financial"]
 

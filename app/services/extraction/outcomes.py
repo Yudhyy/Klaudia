@@ -12,7 +12,7 @@ from typing import Any
 import asyncpg
 
 from app.services.extraction.infra.db_client import AppDBClient
-from ledger.resources import ResourceNotFoundError
+from ledger_core.resources import ResourceNotFoundError
 
 MAX_EXTRACTION_CHARACTERS = 262144
 MAX_ERROR_CHARACTERS = 1024

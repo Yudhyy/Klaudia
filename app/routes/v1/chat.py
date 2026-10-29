@@ -9,8 +9,8 @@ from app.helpers.auth import get_current_user
 from app.helpers.ratelimit import chat_limit, limiter
 from app.models.chat import KlaudiaRequest, KlaudiaResponse
 from ledger.store import SpreadsheetNotFoundError
-from ledger.resources import ResourceNotFoundError
-from ledger.errors import RevisionConflictError
+from ledger_core.resources import ResourceNotFoundError
+from ledger_core.errors import RevisionConflictError
 from app.services.workflow.store import TaskBusyError, TaskConflictError
 
 logger = logging.getLogger(__name__)

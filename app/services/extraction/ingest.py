@@ -574,7 +574,7 @@ class IngestService:
         from app.services.extraction.queue.tasks import extract_page_task
 
         if await self._db.get_session_owner(session_id) != user_id:
-            from ledger.resources import ResourceNotFoundError
+            from ledger_core.resources import ResourceNotFoundError
 
             raise ResourceNotFoundError("Extraction session not found")
         attachment = self._sanitize_and_verify(attachment)

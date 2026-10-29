@@ -3,7 +3,7 @@
 import pytest
 from decimal import localcontext
 
-from ledger.query import AggregateQuery, aggregate_grid
+from ledger_core.query import AggregateQuery, aggregate_grid
 from tests.e2e.synthetic import build_bulk_ledger
 from tests.e2e.synthetic_finance import build_journal_ledger
 

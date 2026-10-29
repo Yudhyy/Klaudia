@@ -10,6 +10,8 @@ import sys
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+CORE_IMPORT_ROOT = REPO_ROOT / "packages/ledger-core/src"
+CORE_ROOT = CORE_IMPORT_ROOT / "ledger_core"
 LEDGER_IMPLEMENTATIONS = (
     "ledger.operations",
     "ledger.table_operations",
@@ -29,6 +31,11 @@ PURE_MODULES = (
     "calculations",
     "financial_contracts",
     "typed_contracts",
+    "resources",
+    "errors",
+    "evidence",
+    "grid",
+    "formula_engine",
 )
 
 
@@ -49,7 +56,7 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
     [
         ("mcp-ledger/ledger", ("app", "klaudia", "config")),
         ("klaudia", ("app", "config")),
-        ("klaudia/core", ("asyncpg", *LEDGER_IMPLEMENTATIONS)),
+        ("klaudia/core", ("asyncpg", "ledger")),
         *[
             (
                 f"mcp-ledger/ledger/{module}.py",
@@ -75,6 +82,21 @@ def test_module_dependency_direction(directory, forbidden):
             ):
                 violations.append(
                     f"{source.relative_to(REPO_ROOT)}:{line}: forbidden import {imported}"
+                )
+    assert not violations, "\n".join(violations)
+
+
+def test_entire_core_package_has_only_pure_dependencies():
+    sources = sorted(CORE_ROOT.rglob("*.py"))
+    assert sources, "The independently installable core package must exist"
+    allowed = sys.stdlib_module_names | {"pydantic", "ledger_core"}
+    violations = []
+    for source in sources:
+        package = ".".join(source.parent.relative_to(CORE_IMPORT_ROOT).parts)
+        for line, imported in imported_modules(source.read_text(), package):
+            if imported.split(".")[0] not in allowed:
+                violations.append(
+                    f"{source.relative_to(REPO_ROOT)}:{line}: impure import {imported}"
                 )
     assert not violations, "\n".join(violations)
 
@@ -106,6 +128,7 @@ def test_relative_imports_resolve_to_their_owning_package(source, package, expec
 @pytest.mark.parametrize(
     "module",
     [
+        *[f"ledger_core.{module}" for module in PURE_MODULES],
         "ledger.append_contracts",
         "ledger.authoring_contracts",
         "klaudia.core.agent.agent",
@@ -121,7 +144,10 @@ sys.path[:0] = sys.argv[2:]
 
 class NoInfrastructure(MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        if fullname.split('.')[0] in {'asyncpg', 'fastmcp', 'mcp', 'fastapi', 'app', 'config'}:
+        blocked = {'asyncpg', 'fastmcp', 'mcp', 'fastapi', 'app', 'config'}
+        if sys.argv[1].startswith(('ledger_core.', 'klaudia.')):
+            blocked.add('ledger')
+        if fullname.split('.')[0] in blocked:
             raise ImportError(f'Infrastructure import: {fullname}')
 
 sys.meta_path.insert(0, NoInfrastructure())
@@ -136,6 +162,7 @@ importlib.import_module(sys.argv[1])
             module,
             str(REPO_ROOT),
             str(REPO_ROOT / "mcp-ledger"),
+            str(CORE_IMPORT_ROOT),
         ],
         capture_output=True,
         text=True,

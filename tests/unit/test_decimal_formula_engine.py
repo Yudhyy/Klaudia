@@ -2,7 +2,7 @@
 
 import pytest
 
-from ledger.formula_engine import Formula, evaluate_graph
+from ledger_core.formula_engine import Formula, evaluate_graph
 
 
 def formula(operation, *operands, **policy):

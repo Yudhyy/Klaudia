@@ -7,13 +7,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from app.helpers.auth import get_current_user
 from app.helpers.ratelimit import chat_limit, limiter
 from app.services.catalogue.authoring import AuthoringService
-from ledger.authoring_contracts import AuthoringProposal
-from ledger.errors import (
+from ledger_core.authoring_contracts import AuthoringProposal
+from ledger_core.errors import (
     ApprovalRequiredError,
     IdempotencyConflictError,
     RevisionConflictError,
 )
-from ledger.resources import ResourceExistsError, ResourceNotFoundError
+from ledger_core.resources import ResourceExistsError, ResourceNotFoundError
 
 router = APIRouter(prefix="/catalogue", tags=["catalogue"])
 

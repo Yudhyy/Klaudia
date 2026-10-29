@@ -3,10 +3,10 @@
 from typing import Any
 
 from ledger.catalogue import CatalogueStore
-from ledger.calculations import CheckedCalculation
-from ledger.financial_contracts import CheckedFinancialRequest
-from ledger.evidence import bounded_evidence, schema_page
-from ledger.resources import ResourceSearch, ResourceInspection
+from ledger_core.calculations import CheckedCalculation
+from ledger_core.financial_contracts import CheckedFinancialRequest
+from ledger_core.evidence import bounded_evidence, schema_page
+from ledger_core.resources import ResourceSearch, ResourceInspection
 
 
 class CatalogueService:

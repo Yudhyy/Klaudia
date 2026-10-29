@@ -31,8 +31,8 @@ from klaudia.core.agent.prompt import (
 from klaudia.core.agent.tools import CatalogueReader, DiscoveryTools
 from klaudia.core.agent.writes import OperationExecutor, WriteTools
 from klaudia.core.skills.registry import LoadSkill, SkillRegistry
-from ledger.resources import ResourceExistsError, ResourceNotFoundError
-from ledger.errors import RevisionConflictError, ApprovalRequiredError
+from ledger_core.resources import ResourceExistsError, ResourceNotFoundError
+from ledger_core.errors import RevisionConflictError, ApprovalRequiredError
 
 
 class RunLimits(BaseModel):

@@ -14,8 +14,8 @@ from pydantic import BaseModel, Field
 from app.helpers.auth import get_current_user
 from app.helpers.ratelimit import chat_limit, limiter
 from app.services.workflow.approvals import CheckedApprovals
-from ledger.resources import ResourceNotFoundError
-from ledger.errors import RevisionConflictError, IdempotencyConflictError
+from ledger_core.resources import ResourceNotFoundError
+from ledger_core.errors import RevisionConflictError, IdempotencyConflictError
 
 logger = logging.getLogger(__name__)
 

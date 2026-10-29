@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from ledger.typed_contracts import FormulaEdit, TypedValue
+from ledger_core.typed_contracts import FormulaEdit, TypedValue
 
 
 @pytest.mark.parametrize(

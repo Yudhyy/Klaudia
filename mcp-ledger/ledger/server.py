@@ -13,19 +13,19 @@ from fastmcp.server.auth.providers.jwt import JWTVerifier
 from fastmcp.server.context import Context
 from mcp.types import ToolAnnotations
 
-from ledger import grid as g
+from ledger_core import grid as g
 from ledger.authorization import LedgerAuthorization
 from ledger.catalogue import CatalogueStore
-from ledger.evidence import bounded_evidence as _bounded_evidence
-from ledger.evidence import schema_page
-from ledger.resources import (
+from ledger_core.evidence import bounded_evidence as _bounded_evidence
+from ledger_core.evidence import schema_page
+from ledger_core.resources import (
     ResourceInspection,
     ResourceSearch,
     TableRegistration,
     TableUpdate,
 )
-from ledger.append_contracts import AppendRows
-from ledger.query import AggregateQuery, aggregate_grid
+from ledger_core.append_contracts import AppendRows
+from ledger_core.query import AggregateQuery, aggregate_grid
 from ledger.store import (
     DEFAULT_WORKSPACE,
     LedgerStore,
