@@ -10,9 +10,9 @@ from app.services.memory.contracts import DocumentPath, MAX_EXPECTED_REVISION
 from app.services.memory.policy import PolicyLabel, ReconciliationPolicy
 from app.services.memory.store import MemoryDocumentStore
 from klaudia.core.agent.tools import CatalogueReader
-from ledger.errors import RevisionConflictError
-from ledger.evidence import bounded_evidence
-from ledger.financial_contracts import (
+from ledger_core.errors import RevisionConflictError
+from ledger_core.evidence import bounded_evidence
+from ledger_core.financial_contracts import (
     CheckedFinancialRequest,
     Keys,
     NumericPolicy,
@@ -21,8 +21,8 @@ from ledger.financial_contracts import (
     SourceRevision,
     TableId,
 )
-from ledger.query import ColumnName
-from ledger.resources import ResourceInspection
+from ledger_core.query import ColumnName
+from ledger_core.resources import ResourceInspection
 
 
 class PolicyReconciliation(Page):

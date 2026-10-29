@@ -1,11 +1,6 @@
 """Unit tests for the mcp-ledger A1-notation grid engine."""
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "mcp-ledger"))
-
-from ledger.grid import (  # noqa: E402
+from ledger_core.grid import (
     clear_range,
     col_to_index,
     index_to_col,

@@ -13,6 +13,7 @@ resolution-markers = [
 members = [
     "klaudia",
     "klaudia-protocol",
+    "ledger-core",
     "mcp-ledger",
 ]
 constraints = [{ name = "fastmcp-slim", specifier = "==4.0.0b3" }]
@@ -1590,12 +1591,13 @@ name = "klaudia"
 version = "0.1.0"
 source = { editable = "klaudia" }
 dependencies = [
+    { name = "fastmcp" },
     { name = "httpx" },
     { name = "langchain-core" },
     { name = "langchain-google-genai" },
     { name = "langchain-openai" },
+    { name = "ledger-core" },
     { name = "mcp", extra = ["cli"] },
-    { name = "mcp-ledger" },
     { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "toon-format" },
@@ -1604,12 +1606,13 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "fastmcp", specifier = "==4.0.0b3" },
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "langchain-core", specifier = ">=1.6.0,<2.0.0" },
     { name = "langchain-google-genai", specifier = ">=4.0.0" },
     { name = "langchain-openai", specifier = ">=0.3.0" },
+    { name = "ledger-core", editable = "packages/ledger-core" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.13.0" },
-    { name = "mcp-ledger", editable = "mcp-ledger" },
     { name = "pydantic", specifier = ">=2.11.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "toon-format", git = "https://github.com/toon-format/toon-python.git?rev=e475c82e9da03dfaf88c0b277dee6b5d17100b13" },
@@ -1633,6 +1636,7 @@ dependencies = [
     { name = "json-repair" },
     { name = "klaudia" },
     { name = "langfuse" },
+    { name = "ledger-core" },
     { name = "mcp-ledger" },
     { name = "openai" },
     { name = "pillow" },
@@ -1672,6 +1676,7 @@ requires-dist = [
     { name = "json-repair", specifier = ">=0.30.0" },
     { name = "klaudia", editable = "klaudia" },
     { name = "langfuse", specifier = ">=4.5.0" },
+    { name = "ledger-core", editable = "packages/ledger-core" },
     { name = "mcp-ledger", editable = "mcp-ledger" },
     { name = "openai", specifier = ">=1.54.0" },
     { name = "pillow", specifier = ">=10.0.0" },
@@ -1797,6 +1802,17 @@ wheels = [
 ]
 
 [[package]]
+name = "ledger-core"
+version = "0.1.0"
+source = { editable = "packages/ledger-core" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2.11.0" }]
+
+[[package]]
 name = "limits"
 version = "5.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1860,6 +1876,7 @@ source = { editable = "mcp-ledger" }
 dependencies = [
     { name = "asyncpg" },
     { name = "fastmcp" },
+    { name = "ledger-core" },
     { name = "pydantic" },
     { name = "python-dotenv" },
 ]
@@ -1868,6 +1885,7 @@ dependencies = [
 requires-dist = [
     { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "fastmcp", specifier = "==4.0.0b3" },
+    { name = "ledger-core", editable = "packages/ledger-core" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
 ]

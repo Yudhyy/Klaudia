@@ -8,11 +8,15 @@ from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import BaseModel, ConfigDict, Field
 
 from klaudia.core.agent.context import ResourceReference, TaskContext
-from ledger.evidence import bounded_evidence
-from ledger.resources import ResourceInspection, ResourceSearch, ResourceNotFoundError
-from ledger.calculations import CalculationRequest, CheckedCalculation
-from ledger.errors import RevisionConflictError
-from ledger.financial_contracts import (
+from ledger_core.evidence import bounded_evidence
+from ledger_core.resources import (
+    ResourceInspection,
+    ResourceSearch,
+    ResourceNotFoundError,
+)
+from ledger_core.calculations import CalculationRequest, CheckedCalculation
+from ledger_core.errors import RevisionConflictError
+from ledger_core.financial_contracts import (
     CheckedFinancialRequest,
     FinancialRequest,
     SourceRevision,

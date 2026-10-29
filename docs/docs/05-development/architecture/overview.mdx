@@ -14,6 +14,8 @@ This page describes code at
 [5a33e39](https://github.com/Yudhyy/Klaudia/tree/5a33e394748c9a1c7863488402acfa8b96780bd7),
 checked on 2026-10-29. It records source structure, not a fresh runtime test or a
 release qualification. The [proposed architecture](target.mdx) is separate.
+The [ledger-core follow-up](#ledger-core-extraction-follow-up) records the package
+extraction added after that revision; the earlier source links remain pinned.
 [Issue #3](https://github.com/Yudhyy/Klaudia/issues/3) tracks the assessment and
 gradual migration; [issue #4](https://github.com/Yudhyy/Klaudia/issues/4) tracks
 the documentation-site setup.
@@ -251,6 +253,32 @@ the ledger distribution still declares PostgreSQL and MCP dependencies, and
 `klaudia/interfaces/tool_registry.py` still imports FastMCP. These modules have
 not yet become the independent packages in the target tree.
 
+## Ledger-core extraction follow-up
+
+The current source adds `packages/ledger-core/src/ledger_core/` as an installable
+workspace package. It owns the eleven pure contract, resource/error, evidence,
+grid/query and native decimal formula modules described in the
+[assessment](assessment.mdx#first-extraction-installable-ledger-core). Pydantic
+is its only runtime dependency. Existing `ledger.*` paths re-export the same
+definitions, including proposal types imported from the old execution modules.
+
+Application, agent and ledger consumers import the canonical core directly.
+The agent distribution now declares `ledger-core` and FastMCP directly rather
+than installing `mcp-ledger` to obtain its request types and MCP client library.
+The MCP client adapter still lives in `klaudia/interfaces/`; this is a pure-ledger
+package extraction, not complete agent infrastructure isolation.
+
+`tests/packaging/test_ledger_core.py` builds the wheel and installs it into a fresh
+environment outside the checkout, without the legacy ledger, PostgreSQL or MCP
+libraries. It exercises installed imports, contract JSON/schema fixtures, exact
+aggregation and formula rounding. Import-policy checks cover the entire core;
+compatibility tests check canonical/legacy identity. The unit CI job also runs
+the packaging checks, and core-path changes select backend CI.
+
+Checked execution, ownership, approvals, original operation references and
+task-lock connection ownership retain their existing implementation. The
+broader ownership migration remains in the [target](target.mdx#migration-sequence).
+
 ## Verification and next work
 
 The repo has unit, real-service integration, and opt-in live-model evaluation
@@ -263,8 +291,9 @@ Historical benchmarks do not qualify a new architecture or release.
 
 The [architecture assessment](assessment.mdx) records remaining coupling,
 transaction constraints, and acceptance criteria for the first installable
-ledger-core slice. The [target](target.mdx#module-ownership) assigns module
+ledger-core slice, with its implemented follow-up distinguished from the baseline
+review. The [target](target.mdx#module-ownership) assigns module
 ownership and distinguishes current, transitional and final dependencies.
 Documentation-site setup remains separate work under #4; this checkout has no
 Docusaurus package manifest or documentation build command. This page is a source
-review, not a new application test, CI result, or package migration.
+review and implementation map; test results belong to the corresponding code PR.

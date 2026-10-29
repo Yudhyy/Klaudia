@@ -5,8 +5,8 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from ledger.financial_contracts import Join, Lookup, Matching, Records
-from ledger.query import _cell, _identity, _number
+from ledger_core.financial_contracts import Join, Lookup, Matching, Records
+from ledger_core.query import _cell, _identity, _number
 
 MAX_FINANCIAL_ROWS = 10_000
 

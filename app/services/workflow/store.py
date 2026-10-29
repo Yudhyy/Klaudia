@@ -4,10 +4,10 @@ from contextlib import asynccontextmanager
 import hashlib
 import json
 from ledger.authoring import prepare_authoring
-from ledger.authoring_contracts import AuthoringProposal
-from ledger.append_contracts import TableAppendProposal
+from ledger_core.authoring_contracts import AuthoringProposal
+from ledger_core.append_contracts import TableAppendProposal
 from ledger.typed_cells import inspect_workbook, prepare_typed_edit
-from ledger.typed_contracts import TypedEditProposal
+from ledger_core.typed_contracts import TypedEditProposal
 
 from typing import Any, AsyncIterator
 from uuid import uuid4
@@ -16,8 +16,8 @@ import asyncpg
 from pydantic import ValidationError
 from klaudia.core.agent.writes import ExecuteOperation
 
-from ledger.resources import ResourceNotFoundError
-from ledger.errors import RevisionConflictError
+from ledger_core.resources import ResourceNotFoundError
+from ledger_core.errors import RevisionConflictError
 from ledger.approvals import approval_payload
 from ledger.table_operations import (
     prepare_table_append,

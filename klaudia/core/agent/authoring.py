@@ -5,7 +5,7 @@ from typing import Annotated, Any, Protocol
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
-from ledger.authoring_contracts import AuthoringProposal
+from ledger_core.authoring_contracts import AuthoringProposal
 from klaudia.core.agent.writes import WriteTools
 
 

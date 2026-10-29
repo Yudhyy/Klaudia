@@ -6,8 +6,8 @@ from app.helpers.auth import get_current_user
 from app.helpers.ratelimit import chat_limit, limiter
 from app.models.chat import KlaudiaResponse
 from app.services.workflow.store import TaskBusyError, TaskStore
-from ledger.resources import ResourceNotFoundError
-from ledger.errors import RevisionConflictError
+from ledger_core.resources import ResourceNotFoundError
+from ledger_core.errors import RevisionConflictError
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 

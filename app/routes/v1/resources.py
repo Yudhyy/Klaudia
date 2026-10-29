@@ -7,7 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Query, Response
 from app.helpers.auth import get_current_user
 from app.helpers.ratelimit import chat_limit, limiter
 from app.services.catalogue.service import CatalogueService
-from ledger.resources import ResourceInspection, ResourceNotFoundError, ResourceSearch
+from ledger_core.resources import (
+    ResourceInspection,
+    ResourceNotFoundError,
+    ResourceSearch,
+)
 
 router = APIRouter(prefix="/resources", tags=["resources"])
 

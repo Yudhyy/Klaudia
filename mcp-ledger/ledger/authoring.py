@@ -8,12 +8,12 @@ from uuid import uuid4
 
 import asyncpg
 
-from ledger import grid
+from ledger_core import grid
 from ledger.approvals import check_approval, prepare_approval
-from ledger.authoring_contracts import AuthoringProposal as AuthoringProposal
+from ledger_core.authoring_contracts import AuthoringProposal as AuthoringProposal
 from ledger.catalogue import CatalogueStore
-from ledger.errors import IdempotencyConflictError, RevisionConflictError
-from ledger.resources import ResourceNotFoundError, TableRegistration, TableUpdate
+from ledger_core.errors import IdempotencyConflictError, RevisionConflictError
+from ledger_core.resources import ResourceNotFoundError, TableRegistration, TableUpdate
 from ledger.table_operations import _write_records
 
 

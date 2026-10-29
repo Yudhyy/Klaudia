@@ -7,11 +7,11 @@ from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 
 from klaudia.core.agent.tools import DiscoveryTools
-from ledger.evidence import bounded_evidence
-from ledger.errors import RevisionConflictError
-from ledger.append_contracts import TableAppendProposal, TableRecord
-from ledger.authoring_contracts import AuthoringProposal
-from ledger.typed_contracts import TypedEditProposal, WorkbookInspection
+from ledger_core.evidence import bounded_evidence
+from ledger_core.errors import RevisionConflictError
+from ledger_core.append_contracts import TableAppendProposal, TableRecord
+from ledger_core.authoring_contracts import AuthoringProposal
+from ledger_core.typed_contracts import TypedEditProposal, WorkbookInspection
 
 
 class OperationExecutor(Protocol):

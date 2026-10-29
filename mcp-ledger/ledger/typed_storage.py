@@ -6,8 +6,8 @@ from typing import Any
 
 import asyncpg
 
-from ledger.formula_engine import MAX_TYPED_CELLS
-from ledger.resources import ResourceNotFoundError
+from ledger_core.formula_engine import MAX_TYPED_CELLS
+from ledger_core.resources import ResourceNotFoundError
 
 MAX_WORKBOOK_BYTES = 1_048_576
 

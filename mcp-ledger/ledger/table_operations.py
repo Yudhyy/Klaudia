@@ -8,8 +8,8 @@ from typing import Any, Mapping
 
 import asyncpg
 
-from ledger import grid
-from ledger.append_contracts import (
+from ledger_core import grid
+from ledger_core.append_contracts import (
     CellValue as CellValue,
     RecordField as RecordField,
     TableRecord as TableRecord,
@@ -17,8 +17,8 @@ from ledger.append_contracts import (
     TableAppend as TableAppend,
 )
 from ledger.approvals import check_approval, prepare_approval
-from ledger.errors import IdempotencyConflictError, RevisionConflictError
-from ledger.resources import ResourceNotFoundError
+from ledger_core.errors import IdempotencyConflictError, RevisionConflictError
+from ledger_core.resources import ResourceNotFoundError
 
 TABLE_OPERATION_SCHEMA = """
 CREATE TABLE IF NOT EXISTS ledger_table_operation (

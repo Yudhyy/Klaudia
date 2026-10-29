@@ -7,10 +7,10 @@ from typing import Any
 
 import asyncpg
 
-from ledger.errors import ApprovalRequiredError, IdempotencyConflictError
-from ledger.append_contracts import TableAppend
-from ledger.authoring_contracts import AuthoringProposal
-from ledger.resources import ResourceNotFoundError
+from ledger_core.errors import ApprovalRequiredError, IdempotencyConflictError
+from ledger_core.append_contracts import TableAppend
+from ledger_core.authoring_contracts import AuthoringProposal
+from ledger_core.resources import ResourceNotFoundError
 
 
 def approval_payload(operation: asyncpg.Record) -> dict[str, Any]:
@@ -125,7 +125,7 @@ async def decide_approval(
             if approve:
                 if operation["idempotency_key"].startswith("typed:"):
                     from ledger.typed_cells import validate_snapshot
-                    from ledger.typed_contracts import TypedEditProposal
+                    from ledger_core.typed_contracts import TypedEditProposal
 
                     await validate_snapshot(
                         connection,

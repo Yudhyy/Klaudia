@@ -9,13 +9,49 @@ Source review at
 [5a33e39](https://github.com/Yudhyy/Klaudia/tree/5a33e394748c9a1c7863488402acfa8b96780bd7),
 checked on 2026-10-29 under [issue #3](https://github.com/Yudhyy/Klaudia/issues/3).
 Read the [current overview](overview.mdx) for execution paths and the
-[target](target.mdx) for module ownership and the migration sequence. Package
-extraction below is planned work; this review changes documentation only.
+[target](target.mdx) for module ownership and the migration sequence. The
+extraction follow-up below records the code added after this review; the other
+findings and source links remain tied to the recorded revision.
 
 The earlier assessment in [PR #18](https://github.com/Yudhyy/Klaudia/pull/18)
 described source at `150469f`. Its observations and probe results belong to that
 revision. The status below reflects the later source, without carrying forward
 historical test counts as fresh results.
+
+## Ledger-core extraction follow-up
+
+The current source implements the first extraction scoped below. The eleven
+pure modules now live in `packages/ledger-core/src/ledger_core/`, with one
+canonical definition and explicit `ledger.*` compatibility re-exports. Their
+definitions retain the baseline behavior; internal and production consumer
+imports use `ledger_core`.
+
+The core distribution declares only Pydantic. Root application, agent and
+legacy ledger manifests declare their direct core dependency. The agent
+replaces its ledger distribution dependency with `ledger-core` and an explicit
+FastMCP dependency for its existing MCP client adapter. That adapter remains
+in place, so the entire agent distribution is not infrastructure-free.
+
+`tests/packaging/test_ledger_core.py` builds and installs the wheel outside the
+workspace, then exercises imports, schema/JSON fixtures and exact calculations
+with isolated Python and no legacy ledger, database or MCP libraries installed.
+The architecture checks cover every core module; compatibility checks compare
+the canonical and legacy exported objects. Docker workspace copies, backend CI
+path selection, lint commands and the unit CI job include the new package and
+packaging suite.
+
+Installed-only verification also exposed the agent wheel's earlier missing
+`klaudia/` namespace. Its build mapping now preserves that namespace and packaged
+runtime skills while retaining the existing editable source layout. A focused
+wheel-content check prevents the source checkout from masking that failure.
+
+Execution/storage functions retain their implementation, including approval
+enforcement, ownership/revision checks, original operation references and
+caller-held task-lock connections. Existing schema/checkpoint, calculation,
+API, ledger and process-recovery checks remain the regression surface. Exact
+commands and results belong to the code PR; this follow-up does not claim a
+remote CI result. The baseline assessment and acceptance criteria below are
+retained to explain the scope and remaining module work.
 
 ## Completed work and remaining limits
 
@@ -54,12 +90,12 @@ A package move must account for both rather than declaring the entire existing
 
 ## First extraction: installable ledger core
 
-The concrete remaining problem is distribution coupling. The
+At the recorded baseline, the next problem was distribution coupling. The
 [agent manifest](https://github.com/Yudhyy/Klaudia/blob/5a33e394748c9a1c7863488402acfa8b96780bd7/klaudia/pyproject.toml)
 declares `mcp-ledger`, whose
 [manifest](https://github.com/Yudhyy/Klaudia/blob/5a33e394748c9a1c7863488402acfa8b96780bd7/mcp-ledger/pyproject.toml)
 includes asyncpg and FastMCP even when a caller only needs proposal validation or
-deterministic calculations. The first extraction should put that pure code in
+deterministic calculations. The extraction scope puts that pure code in
 `packages/ledger-core/src/ledger_core/`.
 
 The initial scope is the existing pure import closure:
@@ -193,8 +229,8 @@ rules and their
 [integration tests](https://github.com/Yudhyy/Klaudia/blob/5a33e394748c9a1c7863488402acfa8b96780bd7/tests/integration/extraction/test_outcomes.py)
 when separating document application logic from its database/queue adapters.
 
-The [migration sequence](target.mdx#migration-sequence) starts with the pure
-ledger slice, then establishes the remaining capability adapters and moves
+The [migration sequence](target.mdx#migration-sequence) follows the pure
+ledger slice with the remaining capability adapters and moves
 functioning modules with their startup and checks. Documentation-site work under
 #4 and object-store naming under #5 remain independent. Each code slice needs its
 own review and regression evidence; this assessment does not establish a
