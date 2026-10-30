@@ -1,0 +1,23 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Klaudia",
+  "colors": {
+    "primary": "#CEF86D",
+    "light": "#486200",
+    "dark": "#CEF86D"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Development",
+        "pages": [
+          "05-development/architecture/overview",
+          "05-development/architecture/assessment",
+          "05-development/architecture/target",
+          "05-development/contributing/issue-workflow"
+        ]
+      }
+    ]
+  }
+}
