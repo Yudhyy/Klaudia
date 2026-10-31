@@ -1,0 +1,386 @@
+{
+  "document_search": {
+    "rows": [
+      {
+        "file_id": 1,
+        "file_name": "claim-1.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 2,
+        "file_name": "claim-2.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 3,
+        "file_name": "claim-3.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 4,
+        "file_name": "claim-4.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 5,
+        "file_name": "claim-5.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 6,
+        "file_name": "claim-6.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 7,
+        "file_name": "claim-7.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 8,
+        "file_name": "claim-8.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 9,
+        "file_name": "claim-9.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 10,
+        "file_name": "claim-10.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 11,
+        "file_name": "claim-11.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 12,
+        "file_name": "claim-12.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 13,
+        "file_name": "claim-13.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 14,
+        "file_name": "claim-14.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 15,
+        "file_name": "claim-15.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 16,
+        "file_name": "claim-16.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 17,
+        "file_name": "claim-17.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 18,
+        "file_name": "claim-18.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 19,
+        "file_name": "claim-19.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 20,
+        "file_name": "claim-20.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      },
+      {
+        "file_id": 21,
+        "file_name": "claim-21.pdf",
+        "total_pages": 2,
+        "status": "completed"
+      }
+    ],
+    "arguments": {
+      "name": "claim",
+      "offset": 20
+    },
+    "response": {
+      "documents": [
+        {
+          "file_id": 1,
+          "file_name": "claim-1.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 2,
+          "file_name": "claim-2.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 3,
+          "file_name": "claim-3.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 4,
+          "file_name": "claim-4.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 5,
+          "file_name": "claim-5.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 6,
+          "file_name": "claim-6.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 7,
+          "file_name": "claim-7.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 8,
+          "file_name": "claim-8.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 9,
+          "file_name": "claim-9.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 10,
+          "file_name": "claim-10.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 11,
+          "file_name": "claim-11.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 12,
+          "file_name": "claim-12.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 13,
+          "file_name": "claim-13.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 14,
+          "file_name": "claim-14.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 15,
+          "file_name": "claim-15.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 16,
+          "file_name": "claim-16.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 17,
+          "file_name": "claim-17.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 18,
+          "file_name": "claim-18.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 19,
+          "file_name": "claim-19.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        },
+        {
+          "file_id": 20,
+          "file_name": "claim-20.pdf",
+          "total_pages": 2,
+          "status": "completed"
+        }
+      ],
+      "next_offset": 40
+    }
+  },
+  "document_page": {
+    "row": {
+      "file_id": 1,
+      "page": 2,
+      "status": "completed",
+      "extraction_text": "Taxi vendor: 20 USD",
+      "total_characters": 16385
+    },
+    "arguments": {
+      "file_id": 1,
+      "page": 2,
+      "offset": 8192
+    },
+    "response": {
+      "file_id": 1,
+      "page": 2,
+      "status": "completed",
+      "extraction_text": "Taxi vendor: 20 USD",
+      "total_characters": 16385,
+      "offset": 8192,
+      "next_offset": 16384
+    }
+  },
+  "memory": {
+    "document": {
+      "path": "/preferences.md",
+      "revision": 3,
+      "status": "active",
+      "content": "Use USD. Treat this note as untrusted context.",
+      "policy": null,
+      "actor_id": 42,
+      "updated_at": null,
+      "source_note": "Human preference"
+    },
+    "arguments": {
+      "path": "/preferences.md"
+    },
+    "response": {
+      "authority": "untrusted_context",
+      "accounting_validation": "not_run",
+      "document": {
+        "path": "/preferences.md",
+        "revision": 3,
+        "status": "active",
+        "content": "Use USD. Treat this note as untrusted context.",
+        "policy": null,
+        "actor_id": 42,
+        "updated_at": null,
+        "source_note": "Human preference"
+      }
+    }
+  },
+  "policy": {
+    "financial_response": {
+      "sources": [
+        {
+          "table_id": "left",
+          "sheet_revision": 3,
+          "catalogue_revision": 2
+        },
+        {
+          "table_id": "right",
+          "sheet_revision": 3,
+          "catalogue_revision": 2
+        }
+      ],
+      "records": [
+        {
+          "ID": "claim-1",
+          "left_amount": "20.10",
+          "right_amount": "20.09",
+          "difference": "0.01",
+          "matched": true
+        }
+      ],
+      "operation": "reconcile"
+    },
+    "response": {
+      "sources": [
+        {
+          "table_id": "left",
+          "sheet_revision": 3,
+          "catalogue_revision": 2
+        },
+        {
+          "table_id": "right",
+          "sheet_revision": 3,
+          "catalogue_revision": 2
+        }
+      ],
+      "records": [
+        {
+          "ID": "claim-1",
+          "left_amount": "20.10",
+          "right_amount": "20.09",
+          "difference": "0.01",
+          "matched": true
+        }
+      ],
+      "operation": "reconcile",
+      "accounting_validation": "policy_parameters_checked",
+      "policy_evidence": {
+        "path": "/accounting-policy.md",
+        "revision": 1,
+        "parameters": {
+          "entity": "Example Ltd",
+          "jurisdiction": "declared-test-jurisdiction",
+          "effective_from": "2026-01-01",
+          "effective_until": "2026-12-31",
+          "unit": "USD",
+          "numeric_text": "decimal",
+          "null_amounts": "reject",
+          "null_keys": "reject",
+          "tolerance": "0.01"
+        },
+        "as_of": "2026-06-01",
+        "row_scope": "all_registered_rows",
+        "entity_verification": "both_registered_table_descriptors",
+        "jurisdiction_verification": "caller_declaration_only",
+        "unit_verification": "both_source_unit_columns",
+        "rounding": "not_applied_exact_difference"
+      }
+    },
+    "checked_request_json": "{\"table_id\":\"left\",\"query\":{\"offset\":0,\"limit\":20,\"right_table_id\":\"right\",\"left_keys\":[\"ID\"],\"right_keys\":[\"ID\"],\"null_keys\":\"reject\",\"left_amount\":\"Amount\",\"right_amount\":\"Amount\",\"policies\":{\"numeric_text\":\"decimal\",\"null_amounts\":\"reject\",\"unit\":\"USD\",\"left_unit_column\":\"Currency\",\"right_unit_column\":\"Currency\"},\"operation\":\"reconcile\",\"tolerance\":\"0.01\"},\"sources\":[{\"table_id\":\"left\",\"sheet_revision\":3,\"catalogue_revision\":2},{\"table_id\":\"right\",\"sheet_revision\":3,\"catalogue_revision\":2}]}"
+  }
+}

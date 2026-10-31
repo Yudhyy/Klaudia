@@ -1,0 +1,42 @@
+[
+  {
+    "name": "policy-reconciliation",
+    "version": "3",
+    "description": "Reconcile owned tables under saved structured accounting policy, with checked entity, dates, unit columns and revision-bound evidence."
+  },
+  {
+    "name": "decimal-formulas",
+    "version": "4",
+    "description": "Declare typed inputs and native exact-decimal formulas, inspect same-workbook dependencies, choose explicit financial rounding and verify recalculation receipts."
+  },
+  {
+    "name": "financial-execution",
+    "version": "2",
+    "description": "Read bounded records, sort, look up, join, age balances and calculate variance with explicit numeric policies and labelled evidence."
+  },
+  {
+    "name": "table-authoring",
+    "version": "1",
+    "description": "Create or register table regions, maintain names and column identities, refresh metadata and request approval to unregister tables when authoring tools are enabled."
+  },
+  {
+    "name": "table-append",
+    "version": "2",
+    "description": "Prepare and execute complete literal records when optional append tools are enabled; retry stored references and report committed receipts."
+  },
+  {
+    "name": "table-calculation",
+    "version": "2",
+    "description": "Calculate exact sums and counts from inspected tables with explicit units and source revisions."
+  },
+  {
+    "name": "resource-discovery",
+    "version": "2",
+    "description": "Find tables from business intent and resolve ambiguity using evidence."
+  },
+  {
+    "name": "schema-inspection",
+    "version": "1",
+    "description": "Inspect registered schemas, paginate columns and interpret freshness."
+  }
+]
