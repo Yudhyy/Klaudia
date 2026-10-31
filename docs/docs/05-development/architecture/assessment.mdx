@@ -27,10 +27,10 @@ definitions retain the baseline behavior; internal and production consumer
 imports use `ledger_core`.
 
 The core distribution declares only Pydantic. Root application, agent and
-legacy ledger manifests declare their direct core dependency. The agent
-replaces its ledger distribution dependency with `ledger-core` and an explicit
-FastMCP dependency for its existing MCP client adapter. That adapter remains
-in place, so the entire agent distribution is not infrastructure-free.
+legacy ledger manifests declare their direct core dependency. At extraction,
+the agent replaced its ledger distribution dependency with `ledger-core` and
+an explicit FastMCP dependency for its existing MCP client adapter. The separate
+client move below removes that adapter from the agent distribution.
 
 `tests/packaging/test_ledger_core.py` builds and installs the wheel outside the
 workspace, then exercises imports, schema/JSON fixtures and exact calculations
@@ -52,6 +52,22 @@ API, ledger and process-recovery checks remain the regression surface. Exact
 commands and results belong to the code PR; this follow-up does not claim a
 remote CI result. The baseline assessment and acceptance criteria below are
 retained to explain the scope and remaining module work.
+
+## MCP client separation follow-up
+
+The application owns the outbound client at
+`app/adapters/mcp_client/tool_registry.py`. Container and sheet-route callers use
+that path; the old `klaudia.interfaces` client exports are removed. The root
+manifest declares FastMCP directly, and the agent manifest drops FastMCP and MCP.
+The wheel no longer includes the client package. Import checks prohibit MCP
+imports throughout the agent package.
+
+The packaging suite installs the agent and core wheels with their declared
+dependencies outside the checkout. It checks that MCP and application libraries
+are absent, loads every installed skill and completes a scripted agent run.
+Client transport, authorization and error regressions retain their existing
+tests. These checks cover transport separation; ledger contracts, LangChain
+and provider construction remain agent dependencies for later migration.
 
 ## Completed work and remaining limits
 

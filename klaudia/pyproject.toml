@@ -6,8 +6,6 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "ledger-core",
-    "fastmcp==4.0.0b3",
-    "mcp[cli]>=1.13.0",
     "langchain-core>=1.6.0,<2.0.0",
     "langchain-google-genai>=4.0.0",
     "pydantic>=2.11.0",
@@ -32,5 +30,5 @@ allow-direct-references = true
 dev-mode-dirs = [".."]
 
 [tool.hatch.build.targets.wheel]
-only-include = ["__init__.py", "core", "interfaces"]
+only-include = ["__init__.py", "core"]
 sources = { "" = "klaudia" }

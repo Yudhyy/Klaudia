@@ -9,8 +9,8 @@ from langchain_core.callbacks import BaseCallbackHandler
 
 import pytest
 
-from klaudia.interfaces.tool_registry import MCPToolRegistry
-from klaudia.interfaces import tool_registry
+from app.adapters.mcp_client.tool_registry import MCPToolRegistry
+from app.adapters.mcp_client import tool_registry
 
 
 def _write_server(tmp_path):

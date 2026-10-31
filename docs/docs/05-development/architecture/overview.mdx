@@ -263,10 +263,10 @@ is its only runtime dependency. Existing `ledger.*` paths re-export the same
 definitions, including proposal types imported from the old execution modules.
 
 Application, agent and ledger consumers import the canonical core directly.
-The agent distribution now declares `ledger-core` and FastMCP directly rather
+At extraction, the agent declared `ledger-core` and FastMCP directly rather
 than installing `mcp-ledger` to obtain its request types and MCP client library.
-The MCP client adapter still lives in `klaudia/interfaces/`; this is a pure-ledger
-package extraction, not complete agent infrastructure isolation.
+The MCP client adapter remained in `klaudia/interfaces/` until the separate
+client move described below.
 
 `tests/packaging/test_ledger_core.py` builds the wheel and installs it into a fresh
 environment outside the checkout, without the legacy ledger, PostgreSQL or MCP
@@ -278,6 +278,23 @@ the packaging checks, and core-path changes select backend CI.
 Checked execution, ownership, approvals, original operation references and
 task-lock connection ownership retain their existing implementation. The
 broader ownership migration remains in the [target](target.mdx#migration-sequence).
+
+## MCP client separation follow-up
+
+The outbound client now lives in `app/adapters/mcp_client/tool_registry.py`.
+Application composition and sheet routes import it there. The old
+`klaudia.interfaces.MCPToolRegistry` and `klaudia.interfaces.tool_registry`
+imports are removed; no compatibility shim imports application code into the
+agent. The root application declares FastMCP directly. The agent wheel excludes
+the client and no longer declares FastMCP or MCP dependencies.
+
+The client retains stdio, Streamable HTTP, signed owner forwarding, tool schema
+normalization and failure/shutdown behavior. The MCP host and checked financial
+write path retain their implementations. Packaging checks install the agent and
+ledger-core wheels outside the checkout, run a scripted agent and load every
+skill with application, legacy ledger, database and MCP libraries absent.
+Agent runtime still uses ledger-core contracts, LangChain and provider libraries;
+capability adapters and runtime/skills extraction remain later work.
 
 ## Verification and next work
 

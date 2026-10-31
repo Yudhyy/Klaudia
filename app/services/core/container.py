@@ -16,7 +16,7 @@ from app.services.extraction.ingest import IngestService
 from app.services.extraction.agents.base import ExtractionAgent
 from app.services.core.spreadsheets import SpreadsheetService
 from app.services.guardrails import GuardrailsAgent, GuardrailsConfig
-from klaudia.interfaces.tool_registry import MCPToolRegistry
+from app.adapters.mcp_client.tool_registry import MCPToolRegistry
 from ledger.store import LedgerStore
 from ledger.catalogue import CatalogueStore
 from app.services.catalogue.service import CatalogueService
