@@ -21,7 +21,7 @@ from ledger.catalogue import CatalogueStore
 from ledger.resources import TableRegistration
 from ledger.store import LedgerStore
 from tests.integration.postgres import POSTGRES_TEST_URL
-from klaudia.interfaces.tool_registry import MCPToolRegistry
+from app.adapters.mcp_client.tool_registry import MCPToolRegistry
 
 SERVER_DIR = Path(__file__).resolve().parents[3] / "mcp-ledger"
 TRANSPORT_SECRET = "transport-fixture-secret-with-at-least-32-bytes"

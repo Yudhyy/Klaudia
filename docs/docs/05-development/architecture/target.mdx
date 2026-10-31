@@ -13,7 +13,8 @@ Status: proposed architecture and incremental migration plan under
 source at `5a33e394748c9a1c7863488402acfa8b96780bd7`, checked on 2026-10-29.
 The ownership and dependency rules below guide subsequent code PRs. The first
 pure ledger-core package is now implemented; the rest of the package tree remains
-a destination sketch. The overview and assessment distinguish that follow-up
+a destination sketch. The outbound MCP client now belongs to application adapters.
+The overview and assessment distinguish these follow-ups
 from their recorded baseline source.
 
 Klaudia remains a modular monolith with one application release, a shared
@@ -701,9 +702,9 @@ not import app/config, and agent core does not import ledger persistence.
 ### First package extraction
 
 The current source implements the first ledger-core slice with pure contracts
-and deterministic calculations in `packages/ledger-core`. The agent declares
-`ledger-core` and its existing FastMCP client dependency directly; its manifest
-no longer depends on `mcp-ledger`. These dependencies are allowed during this
+and deterministic calculations in `packages/ledger-core`. At that extraction,
+the agent declared `ledger-core` and FastMCP directly instead of depending on
+`mcp-ledger`. These dependencies are allowed during this
 transitional stage:
 
 ```text
@@ -719,9 +720,19 @@ Keep the existing `OperationExecutor`, `CatalogueReader` and
 `AuthoringReader` protocols; isolating their imported types does not require
 changing their behavior.
 
-This extraction makes ledger-core independently installable. The current agent
-distribution still contains an MCP client, so it does not become entirely
-infrastructure-free as a consequence.
+This extraction makes ledger-core independently installable. Separating the
+agent's remaining infrastructure is independent work.
+
+### MCP client separation
+
+The current outbound client lives in `app/adapters/mcp_client/tool_registry.py`.
+The application declares FastMCP directly; the agent no longer declares FastMCP
+or MCP and its wheel excludes the client. The old `klaudia.interfaces` client
+imports are removed. Client authorization, supported transports and errors
+retain their behavior. The agent still depends on ledger-core, LangChain and
+provider libraries. Independent agent-wheel tests check installed execution and
+all packaged skills with MCP absent; runtime/skills package extraction remains
+later work.
 
 ### Final module interfaces
 
@@ -765,6 +776,7 @@ not become client wire contracts by default.
 | --- | --- | --- |
 | Implemented at the reviewed source | Scoped MCP reads, saved queued outcomes, isolated proposal imports and narrow dependency checks | Source and existing regression tests linked in the [assessment](assessment.mdx) |
 | Implemented first extraction | Installable pure `packages/ledger-core` slice with compatibility re-exports | `tests/packaging/test_ledger_core.py`, compatibility/import checks and existing calculation/execution/recovery suites; workspace/Docker/CI paths include the package |
+| Implemented transport separation | Outbound MCP client in application adapters; agent distribution drops MCP dependencies | Independent installed-agent/skill check, package-wide import rule and existing client/authorization regressions |
 | Next slices | Consumer-owned capability contracts and composition adapters; agent runtime/skills separated from the MCP client adapter | Equivalent tool/error/continuation behavior and import enforcement for the interfaces actually extracted |
 | Module by module | Workflow, memory, documents and identity packages with their adapters | Owned entrypoints, durable/owner-isolation regressions and process startup checks for each moved module |
 | As consumers are ready | API/worker/MCP entrypoints and infrastructure relocated into the proposed service layout | Installed imports and startup for all three processes; Docker, CI, commands and contributor docs match the new paths |

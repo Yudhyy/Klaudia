@@ -5,6 +5,7 @@ from importlib.metadata import version
 from pathlib import Path
 import subprocess
 import sys
+import tomllib
 from zipfile import ZipFile
 
 import pytest
@@ -78,6 +79,61 @@ def installed_core(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return python
 
 
+@pytest.fixture(scope="module")
+def installed_agent(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Install agent wheels with declared dependencies outside the checkout.
+
+    Args:
+        tmp_path_factory: Factory for an isolated build and installation directory.
+
+    Returns:
+        Python executable in the fresh agent environment.
+    """
+    directory = tmp_path_factory.mktemp("installed-agent")
+    wheels = directory / "wheels"
+    for package in ("packages/ledger-core", "klaudia"):
+        run_command(
+            [
+                "uv",
+                "build",
+                str(REPO_ROOT / package),
+                "--wheel",
+                "--no-sources",
+                "--offline",
+                "--out-dir",
+                str(wheels),
+            ],
+            directory,
+        )
+    environment = directory / "environment"
+    run_command(["uv", "venv", "--python", sys.executable, str(environment)], directory)
+    python = environment / "bin/python"
+    constraints = directory / "constraints.txt"
+    packages = tomllib.loads((REPO_ROOT / "uv.lock").read_text())["package"]
+    constraints.write_text(
+        "\n".join(
+            f"{package['name']}=={package['version']}"
+            for package in packages
+            if "registry" in package["source"]
+        )
+        + "\n"
+    )
+    run_command(
+        [
+            "uv",
+            "pip",
+            "install",
+            "--python",
+            str(python),
+            "--constraint",
+            str(constraints),
+            *map(str, sorted(wheels.glob("*.whl"))),
+        ],
+        directory,
+    )
+    return python
+
+
 def probe(python: Path, source: str) -> str:
     return run_command([str(python), "-I", "-c", source], python.parents[2])
 
@@ -102,9 +158,54 @@ def test_agent_wheel_preserves_namespace_and_runtime_skills(tmp_path: Path) -> N
         "klaudia/core/agent/agent.py",
         "klaudia/core/skills/registry.py",
         "klaudia/core/skills/table-append.md",
-        "klaudia/interfaces/tool_registry.py",
     }
     assert required <= paths
+    assert not any(path.startswith("klaudia/interfaces/") for path in paths)
+
+
+def test_installed_agent_runs_without_mcp(installed_agent: Path) -> None:
+    """Run the installed agent and load each skill with MCP absent."""
+    result = probe(
+        installed_agent,
+        '''
+import asyncio
+from importlib.util import find_spec
+from pathlib import Path
+import sys
+
+import klaudia
+import ledger_core
+from klaudia.core.agent.agent import MainAgent
+from klaudia.core.agent.context import TaskContext
+from klaudia.core.skills.registry import SkillRegistry
+from langchain_core.language_models.fake_chat_models import FakeListChatModel
+
+for name in ('app', 'config', 'ledger', 'asyncpg', 'fastapi', 'fastmcp', 'mcp'):
+    assert find_spec(name) is None, name
+assert find_spec('klaudia.interfaces') is None
+for module in (klaudia, ledger_core):
+    assert Path(module.__file__).resolve().is_relative_to(Path(sys.prefix))
+
+registry = SkillRegistry()
+assert registry.descriptions
+for skill in registry.descriptions:
+    loaded = registry.load(skill.name)
+    assert loaded['version'] == skill.version and loaded['content']
+
+class ToolModel(FakeListChatModel):
+    """Accept tool binding for a scripted response without provider calls."""
+
+    def bind_tools(self, tools, **kwargs):
+        """Keep the scripted model when the agent supplies its tools."""
+        return self
+
+agent = MainAgent(ToolModel(responses=['Ready']), catalogue=object())
+outcome = asyncio.run(agent.run('Hello', TaskContext(user_id=42)))
+assert outcome.status == 'answered' and outcome.content == 'Ready'
+print('isolated')
+''',
+    )
+    assert result == "isolated"
 
 
 def test_wheel_installs_without_legacy_or_infrastructure(installed_core: Path) -> None:

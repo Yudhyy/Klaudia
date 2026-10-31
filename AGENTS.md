@@ -26,6 +26,7 @@ a PostgreSQL ledger, document extraction, and an Expo mobile client.
 | --- | --- |
 | `app/main.py` | FastAPI startup and route registration |
 | `app/routes/` | HTTP adapters |
+| `app/adapters/` | Concrete infrastructure adapters, including the outbound MCP client |
 | `app/services/core/` | Service composition, chat orchestration, checked operations |
 | `app/services/workflow/` | Durable tasks, checkpoints, and approvals |
 | `app/services/extraction/` | Document ingestion, extraction, queue, and archive storage |

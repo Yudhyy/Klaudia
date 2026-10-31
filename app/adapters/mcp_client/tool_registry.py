@@ -1,3 +1,5 @@
+"""Connect application read routes to MCP tools through LangChain wrappers."""
+
 import asyncio
 import logging
 from contextlib import suppress
@@ -59,8 +61,7 @@ class MCPToolRegistry:
     """Connect to an MCP server and expose its tools as LangChain tools.
 
     Remote URLs use Streamable HTTP. Use ``from_stdio`` for a child process
-    owned by Klaudia. The public ``tools`` property stays stable
-    so the agent layer does not depend on an MCP client implementation.
+    owned by the application. Routes use the discovered ``tools`` after startup.
     """
 
     def __init__(
@@ -179,7 +180,7 @@ class MCPToolRegistry:
         """Wrap an MCP tool as a LangChain StructuredTool with a real args schema."""
         tool_name = tool_info.name
         input_schema = tool_info.input_schema or {}
-        # Pass the MCP JSON schema directly — langchain ArgsSchema accepts dict.
+        # LangChain accepts the MCP JSON schema directly as its ArgsSchema.
         # This preserves nested `items` that Pydantic drops for bare `list`.
         args_schema = _normalize_schema(input_schema)
 
@@ -229,6 +230,7 @@ class MCPToolRegistry:
 
     @property
     def tools(self) -> list[BaseTool]:
+        """Return the tools discovered by the connected registry."""
         return self._tools
 
     async def disconnect(self) -> None:

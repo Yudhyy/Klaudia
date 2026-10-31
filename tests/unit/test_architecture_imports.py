@@ -55,7 +55,7 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
     ("directory", "forbidden"),
     [
         ("mcp-ledger/ledger", ("app", "klaudia", "config")),
-        ("klaudia", ("app", "config")),
+        ("klaudia", ("app", "config", "fastmcp", "mcp")),
         ("klaudia/core", ("asyncpg", "ledger")),
         *[
             (
