@@ -1,0 +1,258 @@
+[
+  {
+    "tool": "search_resources",
+    "input": {
+      "intent": "Claims",
+      "concepts": [
+        "expenses"
+      ],
+      "entity": "Example Ltd",
+      "on_date": "2026-06-01"
+    },
+    "json": "{\"intent\":\"Claims\",\"concepts\":[\"expenses\"],\"required_columns\":[],\"entity\":\"Example Ltd\",\"on_date\":\"2026-06-01\",\"limit\":5}"
+  },
+  {
+    "tool": "inspect_resource",
+    "input": {
+      "table_id": "tbl_claims"
+    },
+    "json": "{\"table_id\":\"tbl_claims\",\"column_offset\":0,\"column_limit\":32}"
+  },
+  {
+    "tool": "release_resource",
+    "input": {
+      "table_id": "tbl_claims"
+    },
+    "json": "{\"table_id\":\"tbl_claims\"}"
+  },
+  {
+    "tool": "calculate",
+    "input": {
+      "table_id": "tbl_claims",
+      "metrics": [
+        {
+          "column": "Amount",
+          "operation": "sum"
+        }
+      ],
+      "unit_column": "Currency",
+      "numeric_text": "decimal"
+    },
+    "json": "{\"metrics\":[{\"column\":\"Amount\",\"operation\":\"sum\"}],\"filters\":[],\"group_by\":[],\"unit_column\":\"Currency\",\"numeric_text\":\"decimal\",\"max_groups\":20,\"table_id\":\"tbl_claims\"}"
+  },
+  {
+    "tool": "financial_query",
+    "input": {
+      "table_id": "tbl_claims",
+      "query": {
+        "operation": "records",
+        "columns": [
+          "Merchant",
+          "Amount"
+        ],
+        "sort": [
+          {
+            "column": "Amount",
+            "kind": "number",
+            "direction": "desc",
+            "nulls": "last"
+          }
+        ]
+      }
+    },
+    "json": "{\"table_id\":\"tbl_claims\",\"query\":{\"offset\":0,\"limit\":20,\"columns\":[\"Merchant\",\"Amount\"],\"filters\":[],\"operation\":\"records\",\"sort\":[{\"column\":\"Amount\",\"kind\":\"number\",\"direction\":\"desc\",\"nulls\":\"last\"}],\"numeric_text\":\"reject\"}}"
+  },
+  {
+    "tool": "load_skill",
+    "input": {
+      "name": "table-append"
+    },
+    "json": "{\"name\":\"table-append\"}"
+  },
+  {
+    "tool": "inspect_typed_workbook",
+    "input": {
+      "workbook_id": "wb_claims"
+    },
+    "json": "{\"workbook_id\":\"wb_claims\"}"
+  },
+  {
+    "tool": "prepare_typed_edit",
+    "input": {
+      "workbook_id": "wb_claims",
+      "snapshot": "0000000000000000000000000000000000000000000000000000000000000000",
+      "edits": [
+        {
+          "action": "set_input",
+          "sheet_id": 8,
+          "row": 2,
+          "column": 1,
+          "input": {
+            "kind": "decimal",
+            "value": "+001.2300",
+            "unit": "USD"
+          }
+        },
+        {
+          "action": "set_formula",
+          "sheet_id": 8,
+          "row": 2,
+          "column": 2,
+          "formula": {
+            "operation": "sum",
+            "operands": [
+              {
+                "literal": "1.005"
+              }
+            ],
+            "rounding": {
+              "places": 2,
+              "mode": "ROUND_HALF_EVEN"
+            }
+          }
+        }
+      ]
+    },
+    "json": "{\"workbook_id\":\"wb_claims\",\"action\":\"edit_typed_cells\",\"snapshot\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"edits\":[{\"sheet_id\":8,\"row\":2,\"column\":1,\"action\":\"set_input\",\"input\":{\"kind\":\"decimal\",\"value\":\"+001.2300\",\"unit\":\"USD\",\"display_format\":null}},{\"sheet_id\":8,\"row\":2,\"column\":2,\"action\":\"set_formula\",\"formula\":{\"operation\":\"sum\",\"operands\":[{\"literal\":\"1.005\"}],\"rounding\":{\"places\":2,\"mode\":\"ROUND_HALF_EVEN\"}},\"unit\":null,\"display_format\":null}]}"
+  },
+  {
+    "tool": "prepare_table_append",
+    "input": {
+      "table_id": "tbl_claims",
+      "records": [
+        {
+          "Merchant": "Taxi vendor",
+          "Amount": 20
+        }
+      ]
+    },
+    "json": "{\"table_id\":\"tbl_claims\",\"records\":[{\"Merchant\":\"Taxi vendor\",\"Amount\":20}]}"
+  },
+  {
+    "tool": "execute_operation",
+    "input": {
+      "operation_ref": "prepared:original"
+    },
+    "json": "{\"operation_ref\":\"prepared:original\"}"
+  },
+  {
+    "tool": "list_authoring_sheets",
+    "input": {},
+    "json": "{\"workbook_id\":null,\"offset\":0}"
+  },
+  {
+    "tool": "inspect_sheet_region",
+    "input": {
+      "sheet_id": 8,
+      "table_range": "A1:B2"
+    },
+    "json": "{\"sheet_id\":8,\"table_range\":\"A1:B2\"}"
+  },
+  {
+    "tool": "prepare_table_authoring",
+    "input": {
+      "action": "create_table",
+      "definition": {
+        "sheet_id": 8,
+        "table_range": "A1:B2",
+        "expected_sheet_revision": 1,
+        "name": "Claims"
+      },
+      "headers": [
+        "Merchant",
+        "Amount"
+      ]
+    },
+    "json": "{\"action\":\"create_table\",\"definition\":{\"sheet_id\":8,\"expected_sheet_revision\":1,\"table_range\":\"A1:B2\",\"name\":\"Claims\",\"description\":\"\",\"grain\":\"\",\"aliases\":[],\"entity\":null,\"period_start\":null,\"period_end\":null},\"table_id\":null,\"expected_catalogue_revision\":null,\"expected_sheet_revision\":null,\"headers\":[\"Merchant\",\"Amount\"],\"column_ids\":null}"
+  },
+  {
+    "tool": "search_documents",
+    "input": {},
+    "json": "{\"name\":\"\",\"offset\":0}"
+  },
+  {
+    "tool": "read_document_page",
+    "input": {
+      "file_id": 1,
+      "page": 2
+    },
+    "json": "{\"file_id\":1,\"page\":2,\"offset\":0}"
+  },
+  {
+    "tool": "read_memory_document",
+    "input": {
+      "path": "/accounting-policy.md"
+    },
+    "json": "{\"path\":\"/accounting-policy.md\"}"
+  },
+  {
+    "tool": "reconcile_with_policy",
+    "input": {
+      "table_id": "left",
+      "right_table_id": "right",
+      "left_keys": [
+        "ID"
+      ],
+      "right_keys": [
+        "ID"
+      ],
+      "left_amount": "Amount",
+      "right_amount": "Amount",
+      "left_unit_column": "Currency",
+      "right_unit_column": "Currency",
+      "entity": "Example Ltd",
+      "jurisdiction": "declared-test-jurisdiction",
+      "as_of": "2026-06-01",
+      "policy_revision": 1
+    },
+    "json": "{\"offset\":0,\"limit\":20,\"table_id\":\"left\",\"right_table_id\":\"right\",\"left_keys\":[\"ID\"],\"right_keys\":[\"ID\"],\"left_amount\":\"Amount\",\"right_amount\":\"Amount\",\"left_unit_column\":\"Currency\",\"right_unit_column\":\"Currency\",\"entity\":\"Example Ltd\",\"jurisdiction\":\"declared-test-jurisdiction\",\"as_of\":\"2026-06-01\",\"policy_revision\":1}"
+  },
+  {
+    "tool": "prepare_table_authoring",
+    "input": {
+      "action": "register_table",
+      "definition": {
+        "sheet_id": 8,
+        "table_range": "A1:B2",
+        "expected_sheet_revision": 1,
+        "name": "Claims"
+      }
+    },
+    "json": "{\"action\":\"register_table\",\"definition\":{\"sheet_id\":8,\"expected_sheet_revision\":1,\"table_range\":\"A1:B2\",\"name\":\"Claims\",\"description\":\"\",\"grain\":\"\",\"aliases\":[],\"entity\":null,\"period_start\":null,\"period_end\":null},\"table_id\":null,\"expected_catalogue_revision\":null,\"expected_sheet_revision\":null,\"headers\":null,\"column_ids\":null}"
+  },
+  {
+    "tool": "prepare_table_authoring",
+    "input": {
+      "action": "update_table",
+      "definition": {
+        "sheet_id": 8,
+        "table_range": "A1:B2",
+        "expected_sheet_revision": 1,
+        "name": "Claims"
+      },
+      "table_id": "tbl_claims",
+      "expected_catalogue_revision": 1
+    },
+    "json": "{\"action\":\"update_table\",\"definition\":{\"sheet_id\":8,\"expected_sheet_revision\":1,\"table_range\":\"A1:B2\",\"name\":\"Claims\",\"description\":\"\",\"grain\":\"\",\"aliases\":[],\"entity\":null,\"period_start\":null,\"period_end\":null},\"table_id\":\"tbl_claims\",\"expected_catalogue_revision\":1,\"expected_sheet_revision\":null,\"headers\":null,\"column_ids\":null}"
+  },
+  {
+    "tool": "prepare_table_authoring",
+    "input": {
+      "action": "refresh_table",
+      "expected_sheet_revision": 1,
+      "table_id": "tbl_claims",
+      "expected_catalogue_revision": 1
+    },
+    "json": "{\"action\":\"refresh_table\",\"definition\":null,\"table_id\":\"tbl_claims\",\"expected_catalogue_revision\":1,\"expected_sheet_revision\":1,\"headers\":null,\"column_ids\":null}"
+  },
+  {
+    "tool": "prepare_table_authoring",
+    "input": {
+      "action": "unregister_table",
+      "expected_sheet_revision": 1,
+      "table_id": "tbl_claims",
+      "expected_catalogue_revision": 1
+    },
+    "json": "{\"action\":\"unregister_table\",\"definition\":null,\"table_id\":\"tbl_claims\",\"expected_catalogue_revision\":1,\"expected_sheet_revision\":1,\"headers\":null,\"column_ids\":null}"
+  }
+]

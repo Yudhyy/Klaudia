@@ -1,0 +1,128 @@
+{
+  "overlap": {
+    "tool": "inspect_resource",
+    "arguments": {
+      "table_id": "tbl_claims"
+    },
+    "response": {
+      "content": "{\"error\": \"Another registered table overlaps this region; inspect current placement and choose a non-overlapping region or clarify the intended existing table.\"}",
+      "status": "error",
+      "name": "inspect_resource"
+    },
+    "failure": {
+      "type": "ResourceExistsError",
+      "message": "Region overlaps"
+    }
+  },
+  "missing": {
+    "tool": "inspect_resource",
+    "arguments": {
+      "table_id": "tbl_claims"
+    },
+    "response": {
+      "content": "{\"error\": \"Table or operation not found\"}",
+      "status": "error",
+      "name": "inspect_resource"
+    },
+    "failure": {
+      "type": "ResourceNotFoundError",
+      "message": "Foreign table"
+    }
+  },
+  "revision": {
+    "tool": "inspect_resource",
+    "arguments": {
+      "table_id": "tbl_claims"
+    },
+    "response": {
+      "content": "{\"error\": \"Source or catalogue changed; inspect again and refresh stale metadata before proposing new work. Retry existing operations only by their stored reference.\"}",
+      "status": "error",
+      "name": "inspect_resource"
+    },
+    "failure": {
+      "type": "RevisionConflictError",
+      "message": "Source changed"
+    }
+  },
+  "policy_revision": {
+    "tool": "reconcile_with_policy",
+    "arguments": {
+      "table_id": "left",
+      "right_table_id": "right",
+      "left_keys": [
+        "ID"
+      ],
+      "right_keys": [
+        "ID"
+      ],
+      "left_amount": "Amount",
+      "right_amount": "Amount",
+      "left_unit_column": "Currency",
+      "right_unit_column": "Currency",
+      "entity": "Example Ltd",
+      "jurisdiction": "declared-test-jurisdiction",
+      "as_of": "2026-06-01",
+      "policy_revision": 1
+    },
+    "response": {
+      "content": "{\"error\": \"Policy or source changed. Use read_memory_document to reread /accounting-policy.md, inspect sources and refresh stale catalogue metadata before retrying reconciliation.\"}",
+      "status": "error",
+      "name": "reconcile_with_policy"
+    },
+    "failure": {
+      "type": "RevisionConflictError",
+      "message": "Source changed"
+    }
+  },
+  "value": {
+    "tool": "inspect_resource",
+    "arguments": {
+      "table_id": "tbl_claims"
+    },
+    "response": {
+      "content": "{\"error\": \"Invalid business request\"}",
+      "status": "error",
+      "name": "inspect_resource"
+    },
+    "failure": {
+      "type": "ValueError",
+      "message": "Invalid business request"
+    }
+  },
+  "long_value": {
+    "tool": "inspect_resource",
+    "arguments": {
+      "table_id": "tbl_claims"
+    },
+    "response": {
+      "content": "{\"error\": \"Invalid xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}",
+      "status": "error",
+      "name": "inspect_resource"
+    },
+    "failure": {
+      "type": "ValueError",
+      "message": "Invalid xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  "invalid_arguments": {
+    "tool": "inspect_resource",
+    "arguments": {
+      "table_id": "tbl_claims",
+      "user_id": 99
+    },
+    "response": {
+      "content": "{\"error\": \"Invalid tool arguments; follow the declared schema and omit authority fields\"}",
+      "status": "error",
+      "name": "inspect_resource"
+    }
+  },
+  "unknown_tool": {
+    "tool": "write_cells",
+    "arguments": {},
+    "response": {
+      "content": "{\"error\": \"Unknown tool; choose an available capability\"}",
+      "status": "error",
+      "name": "write_cells"
+    }
+  }
+}
