@@ -37,9 +37,9 @@ venv.bak/
 
 # Coding agents (dev-specific)
 .claude/
-CLAUDE.md
 .agents/
 .codex/
+AGENTS.override.md
 /.local/
 
 # Test artifacts
