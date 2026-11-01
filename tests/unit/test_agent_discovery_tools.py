@@ -10,7 +10,7 @@ from klaudia.core.agent.context import TaskContext
 from klaudia.core.agent.tools import DiscoveryTools
 from klaudia.core.agent.authoring import AuthoringTools
 from klaudia.core.agent.writes import WriteTools
-from ledger.resources import ResourceNotFoundError
+from klaudia.core.agent.ports.errors import ResourceNotFoundError
 
 
 def descriptor(table_id: str = "tbl_claims", revision: int = 1) -> dict:
@@ -198,7 +198,7 @@ async def test_calculate_requires_inspection_and_binds_observed_revisions():
 
 async def test_calculation_conflict_discards_reference():
     """A changed source cannot leave a selected reference ready for another attempt."""
-    from ledger.errors import RevisionConflictError
+    from klaudia.core.agent.ports.errors import RevisionConflictError
 
     service = AsyncMock()
     session = DiscoveryTools(service, TaskContext(user_id=42))

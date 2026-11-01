@@ -1,8 +1,8 @@
 """Bounded single-agent loop with optional checked appends."""
 
 import asyncio
-import json
 import hashlib
+import json
 from dataclasses import asdict, dataclass, replace
 from typing import Any, Literal
 
@@ -20,19 +20,24 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, ValidationError
 
-from klaudia.core.agent.context import ResourceReference, TaskContext
-from klaudia.core.agent.checkpoints import CheckpointStore
 from klaudia.core.agent.authoring import AuthoringReader, AuthoringTools
+from klaudia.core.agent.checkpoints import CheckpointStore
+from klaudia.core.agent.context import ResourceReference, TaskContext
+from klaudia.core.agent.ports.catalogue import CatalogueReader
+from klaudia.core.agent.ports.errors import (
+    ApprovalRequiredError,
+    ResourceExistsError,
+    ResourceNotFoundError,
+    RevisionConflictError,
+)
 from klaudia.core.agent.prompt import (
     APPEND_CONTRACT,
     READ_CONTRACT,
     build_system_prompt,
 )
-from klaudia.core.agent.tools import CatalogueReader, DiscoveryTools
+from klaudia.core.agent.tools import DiscoveryTools
 from klaudia.core.agent.writes import OperationExecutor, WriteTools
 from klaudia.core.skills.registry import LoadSkill, SkillRegistry
-from ledger_core.resources import ResourceExistsError, ResourceNotFoundError
-from ledger_core.errors import RevisionConflictError, ApprovalRequiredError
 
 
 class RunLimits(BaseModel):

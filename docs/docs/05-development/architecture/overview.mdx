@@ -290,11 +290,11 @@ the client and no longer declares FastMCP or MCP dependencies.
 
 The client retains stdio, Streamable HTTP, signed owner forwarding, tool schema
 normalization and failure/shutdown behavior. The MCP host and checked financial
-write path retain their implementations. Packaging checks install the agent and
-ledger-core wheels outside the checkout, run a scripted agent and load every
-skill with application, legacy ledger, database and MCP libraries absent.
-Agent runtime still uses ledger-core contracts, LangChain and provider libraries.
-Ledger representation changes and runtime/skills extraction remain later work.
+write path retain their implementations. Packaging checks install the agent
+wheel outside the checkout, run a scripted agent and load every skill with
+application, ledger, database and MCP libraries absent. The ledger capability
+split below removes the agent's remaining ledger-core dependency. LangChain,
+provider construction and runtime/skills extraction remain later work.
 
 ## Document, memory and policy capability adapters
 
@@ -304,7 +304,7 @@ Its [consumer interfaces](https://github.com/Yudhyy/Klaudia/tree/development/kla
 accept document reads, context reads and typed reconciliation intent. These
 interfaces do not import application stores or saved policy models. The memory
 tool has its own path enum; the backend converts it to its stored document path.
-Policy intent still uses the accepted ledger-core field types during migration.
+Policy intent now uses agent-owned field types from the ledger capability split.
 
 [MainChatService](https://github.com/Yudhyy/Klaudia/blob/development/app/services/core/main_chat.py)
 binds each backend to the authenticated turn owner, then supplies the agent-owned
@@ -328,6 +328,36 @@ in these three adapters. Packaging checks run the four read tools from an
 installed wheel with application, database and MCP modules absent. Ledger
 execution, approvals, task connections and continuation storage retain their
 existing implementations.
+
+## Ledger capability contracts
+
+The agent owns its catalogue, calculation, financial-read, append, authoring and
+typed-edit request shapes under `klaudia/core/agent/ports/`. It also owns the
+expected missing-resource, overlap, revision and approval failures. Tool schemas
+retain their release descriptions, defaults and nested definitions, including
+the native formula request shape. The agent does not include formula evaluation,
+grid arithmetic, receipt storage or ledger approval rules.
+
+[Application adapters](https://github.com/Yudhyy/Klaudia/tree/development/app/adapters/agent)
+translate those requests into canonical ledger models and map only the expected
+failures. Backend validation still checks authoring actions, decimal bounds,
+formula arity, typed values and required rounding before persistence. Unknown
+and infrastructure failures propagate. HTTP services keep their ledger models,
+methods and error types. Policy reconciliation keeps its saved-policy and exact
+calculation rules; its adapter maps failures for the agent.
+
+`MainChatService` wraps the executor selected for the current run. Durable tasks
+still use `TaskSession` and its lock-holding `TaskConnection`; standalone runs
+still use `OperationService`. The adapter opens no pool and does not replace
+the original operation reference, approval payload or committed receipt.
+Session journaling and task checkpoints retain their existing write order.
+
+The agent manifest no longer declares ledger-core. Import checks reject ledger
+and ledger-core throughout the agent package. Installed-wheel checks run read,
+append, authoring and typed-edit tools through fake consumer capabilities with
+both ledger distributions absent. Frozen release fixtures still cover all 32
+capability combinations and old continuations. Separate agent runtime/skills
+packages and provider construction remain the next migration step.
 
 ## Verification and next work
 

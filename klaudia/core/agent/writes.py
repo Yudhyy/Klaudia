@@ -1,87 +1,18 @@
 """Optional append tools retaining server-checked proposals and commit evidence."""
 
 from copy import deepcopy
-from typing import Annotated, Any, Protocol
+from typing import Annotated, Any
 
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 
+from klaudia.core.agent.evidence import bounded_evidence
+from klaudia.core.agent.ports.append import TableAppendProposal, TableRecord
+from klaudia.core.agent.ports.authoring import AuthoringProposal
+from klaudia.core.agent.ports.errors import RevisionConflictError
+from klaudia.core.agent.ports.operations import OperationExecutor
+from klaudia.core.agent.ports.typed import TypedEditProposal, WorkbookInspection
 from klaudia.core.agent.tools import DiscoveryTools
-from ledger_core.evidence import bounded_evidence
-from ledger_core.errors import RevisionConflictError
-from ledger_core.append_contracts import TableAppendProposal, TableRecord
-from ledger_core.authoring_contracts import AuthoringProposal
-from ledger_core.typed_contracts import TypedEditProposal, WorkbookInspection
-
-
-class OperationExecutor(Protocol):
-    """Application boundary enforcing current ownership for proposals and execution."""
-
-    async def prepare(
-        self, user_id: int, request: TableAppendProposal
-    ) -> dict[str, str]:
-        """Persist checked records under authenticated ownership.
-
-        Args:
-            user_id: Server-authenticated identity.
-            request: Records and inspected revisions before key assignment.
-
-        Returns:
-            Stored proposal reference without claiming a committed write.
-        """
-        ...
-
-    async def prepare_authoring(
-        self, user_id: int, request: AuthoringProposal
-    ) -> dict[str, Any]:
-        """Persist an owned table-authoring proposal before execution.
-
-        Args:
-            user_id: Server-authenticated task owner.
-            request: Exact authoring action and observed revisions.
-
-        Returns:
-            Original stored reference with optional approval identity.
-        """
-        ...
-
-    async def inspect_typed(self, user_id: int, workbook_id: str) -> dict[str, Any]:
-        """Read typed cells from one owned snapshot.
-
-        Args:
-            user_id: Authenticated owner.
-            workbook_id: Selected workbook.
-
-        Returns:
-            Bounded typed evidence and source fingerprint.
-        """
-        ...
-
-    async def prepare_typed(
-        self, user_id: int, request: TypedEditProposal
-    ) -> dict[str, Any]:
-        """Store checked typed edits without changing financial cells.
-
-        Args:
-            user_id: Authenticated owner.
-            request: Exact batch and observed fingerprint.
-
-        Returns:
-            Original proposal reference.
-        """
-        ...
-
-    async def execute(self, user_id: int, operation_ref: str) -> dict[str, Any]:
-        """Execute the exact stored request under current ownership.
-
-        Args:
-            user_id: Server-authenticated identity.
-            operation_ref: Stored proposal reference.
-
-        Returns:
-            Committed operation receipt, including exact replay.
-        """
-        ...
 
 
 class PrepareTableAppend(BaseModel):

@@ -26,11 +26,13 @@ canonical definition and explicit `ledger.*` compatibility re-exports. Their
 definitions retain the baseline behavior; internal and production consumer
 imports use `ledger_core`.
 
-The core distribution declares only Pydantic. Root application, agent and
-legacy ledger manifests declare their direct core dependency. At extraction,
+The core distribution declares only Pydantic. Root application and legacy ledger
+manifests declare their direct core dependency. At extraction,
 the agent replaced its ledger distribution dependency with `ledger-core` and
 an explicit FastMCP dependency for its existing MCP client adapter. The separate
-client move below removes that adapter from the agent distribution.
+client move below removes that adapter from the agent distribution. The later
+[capability split](overview.mdx#ledger-capability-contracts) also removes the
+agent's ledger-core dependency through consumer-owned request and error types.
 
 `tests/packaging/test_ledger_core.py` builds and installs the wheel outside the
 workspace, then exercises imports, schema/JSON fixtures and exact calculations
@@ -139,7 +141,9 @@ The agent-owned `OperationExecutor`, `CatalogueReader` and `AuthoringReader`
 interfaces already exist. Preserve them and their behavior. Their ledger DTO
 dependency is an explicit transitional rule in the
 [target](target.mdx#dependency-rules); translating consumer-owned requests in
-composition adapters is later work. Keep financial validation in ledger code.
+composition adapters was later work at that revision. The
+[capability split](overview.mdx#ledger-capability-contracts) now implements that
+translation while keeping financial validation in ledger code.
 
 ### Acceptance criteria
 

@@ -1,5 +1,7 @@
 """Policy-dependent reads must fail closed before returning financial evidence."""
 
+from app.adapters.agent.reconciliation import ReconciliationAdapter
+
 from unittest.mock import AsyncMock
 
 import pytest
@@ -8,7 +10,7 @@ from pydantic import ValidationError
 from app.services.memory.contracts import DocumentPath, MemoryDocument
 from app.services.memory.reconciliation import PolicyReconciler
 from klaudia.core.agent.reconciliation import PolicyReconciliationTools
-from ledger.errors import RevisionConflictError
+from klaudia.core.agent.ports.errors import RevisionConflictError
 from tests.unit.test_accounting_policy import policy_fields
 
 
@@ -61,7 +63,9 @@ def setup_tools():
     return (
         documents,
         catalogue,
-        PolicyReconciliationTools(PolicyReconciler(documents, catalogue, 42)).tool,
+        PolicyReconciliationTools(
+            ReconciliationAdapter(PolicyReconciler(documents, catalogue, 42))
+        ).tool,
     )
 
 

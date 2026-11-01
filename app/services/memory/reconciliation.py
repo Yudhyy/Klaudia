@@ -2,10 +2,6 @@
 
 from typing import Any
 
-from app.services.memory.contracts import DocumentPath
-from app.services.memory.store import MemoryDocumentStore
-from klaudia.core.agent.ports.reconciliation import PolicyReconciliation
-from klaudia.core.agent.tools import CatalogueReader
 from ledger_core.errors import RevisionConflictError
 from ledger_core.evidence import bounded_evidence
 from ledger_core.financial_contracts import (
@@ -16,12 +12,17 @@ from ledger_core.financial_contracts import (
 )
 from ledger_core.resources import ResourceInspection
 
+from app.services.catalogue.service import CatalogueService
+from app.services.memory.contracts import DocumentPath
+from app.services.memory.store import MemoryDocumentStore
+from klaudia.core.agent.ports.reconciliation import PolicyReconciliation
+
 
 class PolicyReconciler:
     """Bind exact reads to authenticated identity and stored policy revisions."""
 
     def __init__(
-        self, documents: MemoryDocumentStore, catalogue: CatalogueReader, user_id: int
+        self, documents: MemoryDocumentStore, catalogue: CatalogueService, user_id: int
     ) -> None:
         """Connect existing context and financial readers for one owner.
 

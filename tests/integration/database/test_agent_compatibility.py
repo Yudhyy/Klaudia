@@ -1,5 +1,9 @@
 """Load fixed task and ledger records and recover through the real task store."""
 
+from app.adapters.agent.operations import OperationAdapter
+
+from app.adapters.agent.catalogue import CatalogueAdapter
+
 import json
 
 import pytest
@@ -86,7 +90,9 @@ async def test_release_task_approval_and_receipt_recovery(release_task) -> None:
         model = ScriptedModel([])
         async with tasks.open(context.user_id, task_id) as task:
             outcome = await MainAgent(
-                model, CatalogueService(CatalogueStore(store.pool)), operations=task
+                model,
+                CatalogueAdapter(CatalogueService(CatalogueStore(store.pool))),
+                operations=OperationAdapter(task),
             ).run(saved["message"], context, checkpoint=task)
         assert outcome.status == "awaiting_approval"
         assert outcome.pending_approvals == (saved["approval"],)
@@ -124,7 +130,9 @@ async def test_release_task_approval_and_receipt_recovery(release_task) -> None:
     model = ScriptedModel([AIMessage(content="Original append confirmed.")])
     async with tasks.open(context.user_id, task_id) as task:
         outcome = await MainAgent(
-            model, CatalogueService(CatalogueStore(store.pool)), operations=task
+            model,
+            CatalogueAdapter(CatalogueService(CatalogueStore(store.pool))),
+            operations=OperationAdapter(task),
         ).run(saved["message"], context, checkpoint=task)
     assert outcome.status == "answered"
     assert outcome.operation_references == (saved["operation_ref"],)

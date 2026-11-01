@@ -14,6 +14,8 @@ source at `5a33e394748c9a1c7863488402acfa8b96780bd7`, checked on 2026-10-29.
 The ownership and dependency rules below guide subsequent code PRs. The first
 pure ledger-core package is now implemented; the rest of the package tree remains
 a destination sketch. The outbound MCP client now belongs to application adapters.
+Agent-owned capability requests and application translation adapters now remove
+the agent's direct ledger dependency. Runtime and skills package extraction is next.
 The overview and assessment distinguish these follow-ups
 from their recorded baseline source.
 
@@ -674,6 +676,8 @@ klaudia/
 │
 ├── .env.template
 ├── .gitignore
+├── .gitattributes
+├── .gitmessage
 ├── .dockerignore
 ├── .python-version
 ├── pnpm-workspace.yaml
@@ -683,6 +687,12 @@ klaudia/
 ├── uv.lock
 ├── README.md
 ├── AGENTS.md
+├── CONTRIBUTING.md
+├── CODE_OF_CONDUCT.md
+├── COMPLIANCE.md
+├── SECURITY.md
+├── THIRD_PARTY_NOTICES.md
+├── LICENSE
 ├── Makefile
 └── turbo.json                            # optional js task orchestration
 ```
@@ -692,7 +702,7 @@ klaudia/
 ### Current implementation
 
 `app` composes agent protocols with concrete ledger, document, workflow and
-memory implementations. The agent core imports pure ledger contracts and uses
+memory implementations. The agent uses its own capability request shapes and
 LangChain model/tool types. At the recorded baseline, its distribution also
 contains the FastMCP client adapter and depends on `mcp-ledger`. The recorded
 [architecture checks](https://github.com/Yudhyy/Klaudia/blob/5a33e394748c9a1c7863488402acfa8b96780bd7/tests/unit/test_architecture_imports.py)
@@ -704,8 +714,7 @@ not import app/config, and agent core does not import ledger persistence.
 The current source implements the first ledger-core slice with pure contracts
 and deterministic calculations in `packages/ledger-core`. At that extraction,
 the agent declared `ledger-core` and FastMCP directly instead of depending on
-`mcp-ledger`. These dependencies are allowed during this
-transitional stage:
+`mcp-ledger`. The dependency graph at that extraction was:
 
 ```text
 agent runtime --------------------> ledger-core public contracts/helpers
@@ -714,7 +723,7 @@ ledger execution and storage -----> ledger-core
 application adapters -------------> agent protocols and ledger implementations
 ```
 
-The DTO/helper dependency is transitional. Core code must not import back into
+The DTO/helper dependency was transitional. Core code must not import back into
 the old ledger package or depend on database, MCP, HTTP adapters or settings.
 Keep the existing `OperationExecutor`, `CatalogueReader` and
 `AuthoringReader` protocols; isolating their imported types does not require
@@ -729,10 +738,26 @@ The current outbound client lives in `app/adapters/mcp_client/tool_registry.py`.
 The application declares FastMCP directly; the agent no longer declares FastMCP
 or MCP and its wheel excludes the client. The old `klaudia.interfaces` client
 imports are removed. Client authorization, supported transports and errors
-retain their behavior. The agent still depends on ledger-core, LangChain and
-provider libraries. Independent agent-wheel tests check installed execution and
-all packaged skills with MCP absent; runtime/skills package extraction remains
-later work.
+retain their behavior. The agent retains LangChain and provider libraries.
+Independent agent-wheel tests check installed execution and all packaged skills
+with MCP absent; runtime/skills package extraction remains later work.
+
+### Capability contract separation
+
+Agent-owned requests and expected failures now live under
+`klaudia/core/agent/ports/`. Application adapters under `app/adapters/agent/`
+translate catalogue reads, append/authoring/typed proposals and expected failures
+to and from canonical ledger contracts. Backend code keeps financial validation,
+exact calculations, ownership, approval and receipt rules. The operation adapter
+uses the executor supplied for the run, including the existing durable task
+connection. HTTP services retain their canonical ledger request and error types.
+
+Agent code and its manifest no longer import or declare ledger or ledger-core.
+Import checks enforce that rule; installed-wheel checks run all ledger tool
+families and load skills with both ledger distributions absent. Complete frozen
+tool/continuation fixtures protect release compatibility. This settles the
+agent-to-ledger boundary; it does not extract workflow, document, memory or
+identity packages or remove model-provider construction from the agent.
 
 ### Final module interfaces
 
@@ -777,7 +802,8 @@ not become client wire contracts by default.
 | Implemented at the reviewed source | Scoped MCP reads, saved queued outcomes, isolated proposal imports and narrow dependency checks | Source and existing regression tests linked in the [assessment](assessment.mdx) |
 | Implemented first extraction | Installable pure `packages/ledger-core` slice with compatibility re-exports | `tests/packaging/test_ledger_core.py`, compatibility/import checks and existing calculation/execution/recovery suites; workspace/Docker/CI paths include the package |
 | Implemented transport separation | Outbound MCP client in application adapters; agent distribution drops MCP dependencies | Independent installed-agent/skill check, package-wide import rule and existing client/authorization regressions |
-| Next slices | Consumer-owned capability contracts and composition adapters; agent runtime/skills separated from the MCP client adapter | Equivalent tool/error/continuation behavior and import enforcement for the interfaces actually extracted |
+| Implemented capability separation | Agent-owned document, memory, policy and ledger contracts with application adapters | Frozen tool/error/continuation contracts, independent installed tools, import checks and execution/recovery regressions |
+| Next slice | Agent runtime/skills packages and application-owned provider construction | Installed runtime and skills with application, ledger and provider libraries absent; process startup, Docker and CI checks |
 | Module by module | Workflow, memory, documents and identity packages with their adapters | Owned entrypoints, durable/owner-isolation regressions and process startup checks for each moved module |
 | As consumers are ready | API/worker/MCP entrypoints and infrastructure relocated into the proposed service layout | Installed imports and startup for all three processes; Docker, CI, commands and contributor docs match the new paths |
 

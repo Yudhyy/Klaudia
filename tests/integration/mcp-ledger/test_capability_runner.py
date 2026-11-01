@@ -1,5 +1,9 @@
 """The shared sandbox runner grades real catalogue, calculation and write evidence."""
 
+from app.adapters.agent.operations import OperationAdapter
+
+from app.adapters.agent.catalogue import CatalogueAdapter
+
 import json
 
 import pytest
@@ -101,8 +105,8 @@ async def test_shared_runner_grades_real_financial_evidence(scenario):
         async with seeded_capability_case(store, scenario) as fixture:
             agent = MainAgent(
                 CapabilityModel(scenario),
-                CatalogueService(CatalogueStore(store.pool)),
-                operations=OperationService(store),
+                CatalogueAdapter(CatalogueService(CatalogueStore(store.pool))),
+                operations=OperationAdapter(OperationService(store)),
             )
             records = await run_case_inprocess(
                 None,
@@ -129,8 +133,8 @@ async def test_append_diagnostics_locate_literal_mismatch_before_persistence(mer
         async with seeded_capability_case(store, "append") as fixture:
             agent = MainAgent(
                 CapabilityModel("append", merchant),
-                CatalogueService(CatalogueStore(store.pool)),
-                operations=OperationService(store),
+                CatalogueAdapter(CatalogueService(CatalogueStore(store.pool))),
+                operations=OperationAdapter(OperationService(store)),
             )
             records = await run_case_inprocess(
                 None,

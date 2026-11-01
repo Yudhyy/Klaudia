@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 import pytest
 from langchain_core.messages import AIMessage
 
+from app.adapters.agent.catalogue import CatalogueAdapter
 from app.services.memory.contracts import MemoryDocument
 from app.services.memory.tools import MemoryReader
 from app.services.core.archive_tools import ArchiveReader
@@ -74,7 +75,9 @@ async def test_saved_domain_error_is_still_model_visible(case: str) -> None:
     model = ScriptedModel(
         [call(saved["tool"], saved["arguments"]), AIMessage(content="Observed error.")]
     )
-    await MainAgent(model, catalogue, **options).run("Inspect", TaskContext(user_id=42))
+    await MainAgent(model, CatalogueAdapter(catalogue), **options).run(
+        "Inspect", TaskContext(user_id=42)
+    )
     observed = model.inputs[1][-1]
     assert {
         "content": observed.content,

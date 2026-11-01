@@ -55,8 +55,10 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
     ("directory", "forbidden"),
     [
         ("mcp-ledger/ledger", ("app", "klaudia", "config")),
-        ("klaudia", ("app", "config", "fastmcp", "mcp")),
-        ("klaudia/core", ("asyncpg", "ledger")),
+        ("klaudia", ("app", "config", "fastmcp", "mcp", "ledger", "ledger_core")),
+        ("klaudia/core", ("asyncpg", "ledger", "ledger_core")),
+        ("klaudia/core/agent/tools.py", ("ledger", "ledger_core")),
+        ("klaudia/core/agent/ports", ("ledger", "ledger_core")),
         ("app/services/core/archive_tools.py", ("langchain_core",)),
         ("app/services/memory/tools.py", ("langchain_core",)),
         ("app/services/memory/reconciliation.py", ("langchain_core",)),
@@ -141,6 +143,10 @@ def test_relative_imports_resolve_to_their_owning_package(source, package, expec
         "klaudia.core.agent.ports.documents",
         "klaudia.core.agent.ports.memory",
         "klaudia.core.agent.ports.reconciliation",
+        "klaudia.core.agent.ports.catalogue",
+        "klaudia.core.agent.ports.operations",
+        "klaudia.core.agent.ports.authoring",
+        "klaudia.core.agent.ports.typed",
     ],
 )
 def test_contracts_and_agent_import_without_infrastructure(module):
@@ -156,6 +162,8 @@ class NoInfrastructure(MetaPathFinder):
         blocked = {'asyncpg', 'fastmcp', 'mcp', 'fastapi', 'app', 'config'}
         if sys.argv[1].startswith(('ledger_core.', 'klaudia.')):
             blocked.add('ledger')
+        if sys.argv[1].startswith('klaudia.'):
+            blocked.add('ledger_core')
         if fullname.split('.')[0] in blocked:
             raise ImportError(f'Infrastructure import: {fullname}')
 

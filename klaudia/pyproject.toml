@@ -5,7 +5,6 @@ description = "Klaudia single accounting agent"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "ledger-core",
     "langchain-core>=1.6.0,<2.0.0",
     "langchain-google-genai>=4.0.0",
     "pydantic>=2.11.0",
@@ -15,9 +14,6 @@ dependencies = [
     "langchain-openai>=0.3.0",
     "toon-format @ git+https://github.com/toon-format/toon-python.git@e475c82e9da03dfaf88c0b277dee6b5d17100b13",
 ]
-
-[tool.uv.sources]
-ledger-core = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

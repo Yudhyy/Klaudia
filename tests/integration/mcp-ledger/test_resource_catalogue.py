@@ -1,5 +1,7 @@
 """Resource identity, freshness and discovery within a bound workbook."""
 
+from app.adapters.agent.catalogue import CatalogueAdapter
+
 import asyncio
 import uuid
 from datetime import date
@@ -344,10 +346,11 @@ async def test_agent_discovery_tools_recheck_real_ownership(catalogue_setup):
     from app.services.catalogue.service import CatalogueService
     from klaudia.core.agent.context import TaskContext
     from klaudia.core.agent.tools import DiscoveryTools
+    from klaudia.core.agent.ports.errors import ResourceNotFoundError
 
     store, catalogue, workspace, sheet_id = catalogue_setup
     registered = await catalogue.register(workspace, registration(sheet_id))
-    service = CatalogueService(catalogue)
+    service = CatalogueAdapter(CatalogueService(catalogue))
     owner = DiscoveryTools(
         service, TaskContext(user_id=90201, active_workbook_id="untrusted-ui-hint")
     )
@@ -420,7 +423,9 @@ async def test_main_agent_discovers_and_inspects_real_catalogue(catalogue_setup)
 
     _, catalogue, workspace, sheet_id = catalogue_setup
     registered = await catalogue.register(workspace, registration(sheet_id))
-    outcome = await MainAgent(DiscoveryModel(), CatalogueService(catalogue)).run(
+    outcome = await MainAgent(
+        DiscoveryModel(), CatalogueAdapter(CatalogueService(catalogue))
+    ).run(
         "Find the taxi claims table and sum its Amount column",
         TaskContext(user_id=90201),
     )
