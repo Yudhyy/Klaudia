@@ -236,7 +236,7 @@ async def test_archived_document_is_retrievable_outside_history_with_owner_check
 ):
     """Bounded archive tools retrieve older pages without leaking foreign metadata."""
     from app.services.core.archive_tools import ArchiveReader
-    from ledger.resources import ResourceNotFoundError
+    from klaudia.core.agent.ports.errors import ResourceNotFoundError
 
     fixture = main_chat_client
     database = fixture.container.db_client

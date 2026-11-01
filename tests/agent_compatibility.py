@@ -1,5 +1,7 @@
 """Build current runtimes for checks against fixed release fixtures."""
 
+from app.adapters.agent.reconciliation import ReconciliationAdapter
+
 import json
 from itertools import product
 from pathlib import Path
@@ -62,7 +64,9 @@ def agent_options(
         if capabilities["memory"]
         else None,
         "reconciliation_tool": PolicyReconciliationTools(
-            PolicyReconciler(AsyncMock(), AsyncMock(), context.user_id)
+            ReconciliationAdapter(
+                PolicyReconciler(AsyncMock(), AsyncMock(), context.user_id)
+            )
         ).tool
         if capabilities["reconciliation"]
         else None,

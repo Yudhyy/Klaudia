@@ -2,21 +2,21 @@
 
 import asyncio
 from dataclasses import asdict
-from typing import Any, Protocol
+from typing import Any
 
 from langchain_core.tools import BaseTool, StructuredTool
 from pydantic import BaseModel, ConfigDict, Field
 
 from klaudia.core.agent.context import ResourceReference, TaskContext
-from ledger_core.evidence import bounded_evidence
-from ledger_core.resources import (
+from klaudia.core.agent.evidence import bounded_evidence
+from klaudia.core.agent.ports.calculations import CalculationRequest, CheckedCalculation
+from klaudia.core.agent.ports.catalogue import (
+    CatalogueReader,
     ResourceInspection,
     ResourceSearch,
-    ResourceNotFoundError,
 )
-from ledger_core.calculations import CalculationRequest, CheckedCalculation
-from ledger_core.errors import RevisionConflictError
-from ledger_core.financial_contracts import (
+from klaudia.core.agent.ports.errors import ResourceNotFoundError, RevisionConflictError
+from klaudia.core.agent.ports.financial import (
     CheckedFinancialRequest,
     FinancialRequest,
     SourceRevision,
@@ -24,72 +24,6 @@ from ledger_core.financial_contracts import (
 )
 
 MAX_WORKING_RESOURCES = 20
-
-
-class CatalogueReader(Protocol):
-    """Application reads that enforce current ownership and output budgets."""
-
-    async def search(self, user_id: int, query: ResourceSearch) -> dict[str, Any]:
-        """Search metadata owned by the server-supplied user.
-
-        Args:
-            user_id: Authenticated identity.
-            query: Validated model intent and filters.
-
-        Returns:
-            Bounded candidates with ownership checked during the read.
-        """
-        ...
-
-    async def inspect(self, user_id: int, query: ResourceInspection) -> dict[str, Any]:
-        """Inspect metadata while rechecking current ownership.
-
-        Args:
-            user_id: Authenticated identity.
-            query: Requested resource and schema page.
-
-        Returns:
-            Bounded metadata, schema page and revision evidence.
-        """
-        ...
-
-    async def calculate(
-        self, user_id: int, query: CheckedCalculation
-    ) -> dict[str, Any]:
-        """Calculate owned metrics against inspected source revisions.
-
-        Args:
-            user_id: Authenticated identity.
-            query: Requested metrics and trusted observed revisions.
-
-        Returns:
-            Exact labelled metrics from one ownership-checked source snapshot.
-
-        Raises:
-            ResourceNotFoundError: Source is absent or foreign.
-            RevisionConflictError: Data or metadata changed since inspection.
-            ValueError: Inputs or evidence exceed calculation budgets.
-        """
-        ...
-
-    async def financial_query(
-        self, user_id: int, query: CheckedFinancialRequest
-    ) -> dict[str, Any]:
-        """Read financial evidence while rechecking every source.
-
-        Args:
-            user_id: Authenticated identity.
-            query: Financial intent with observed revisions.
-
-        Returns:
-            Bounded labelled evidence from one owned snapshot.
-
-        Raises:
-            ResourceNotFoundError: Any source is absent or foreign.
-            RevisionConflictError: Source or metadata observations changed.
-            ValueError: Inputs or evidence exceed execution limits.
-        """
-        ...
 
 
 class ReleaseResource(BaseModel):

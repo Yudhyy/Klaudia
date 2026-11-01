@@ -8,7 +8,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 
 from klaudia.core.agent.agent import MainAgent
 from klaudia.core.agent.context import TaskContext
-from ledger_core.errors import ApprovalRequiredError
+from klaudia.core.agent.ports.errors import ApprovalRequiredError
 from tests.agent_compatibility import read_fixture
 from tests.unit.test_agent_checkpoints import MemoryCheckpoint
 from tests.unit.test_main_agent import ScriptedModel

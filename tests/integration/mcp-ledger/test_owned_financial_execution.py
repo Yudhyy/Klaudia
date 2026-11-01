@@ -1,5 +1,7 @@
 """Financial reads use one owned snapshot and retain revision-labelled evidence."""
 
+from app.adapters.agent.catalogue import CatalogueAdapter
+
 import uuid
 
 import pytest
@@ -142,8 +144,12 @@ async def test_financial_tool_requires_both_inspections_and_invalidates_stale_re
     financial_setup,
 ):
     """The task supplies revisions; the model supplies only identities and intent."""
+    from klaudia.core.agent.ports.errors import RevisionConflictError
+
     store, catalogue, _, tables = financial_setup
-    discovery = DiscoveryTools(CatalogueService(catalogue), TaskContext(user_id=90211))
+    discovery = DiscoveryTools(
+        CatalogueAdapter(CatalogueService(catalogue)), TaskContext(user_id=90211)
+    )
     tools = {tool.name: tool for tool in discovery.tools}
     arguments = variance_arguments(tables)
     await tools["inspect_resource"].ainvoke({"table_id": tables[0]["table_id"]})
@@ -264,7 +270,7 @@ async def test_scripted_main_agent_retains_financial_evidence(financial_setup):
             AIMessage(content="The amount difference is 0.023456789012345678901 USD."),
         ]
     )
-    outcome = await MainAgent(model, CatalogueService(catalogue)).run(
+    outcome = await MainAgent(model, CatalogueAdapter(CatalogueService(catalogue))).run(
         "Compare the amounts", TaskContext(user_id=90211)
     )
     assert outcome.status == "answered"

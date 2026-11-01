@@ -5,8 +5,8 @@ from typing import Annotated, Any, Protocol
 
 from pydantic import Field, field_validator
 
-from ledger_core.financial_contracts import Keys, Page, TableId
-from ledger_core.query import ColumnName
+from klaudia.core.agent.ports.calculations import ColumnName
+from klaudia.core.agent.ports.financial import Keys, Page, TableId
 
 PolicyLabel = Annotated[str, Field(min_length=1, max_length=160)]
 MAX_POLICY_REVISION = 2**63 - 2

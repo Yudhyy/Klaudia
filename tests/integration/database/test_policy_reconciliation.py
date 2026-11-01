@@ -1,5 +1,7 @@
 """Policy-backed reconciliation against real owned PostgreSQL tables."""
 
+from app.adapters.agent.reconciliation import ReconciliationAdapter
+
 import json
 from uuid import uuid4
 
@@ -12,6 +14,12 @@ from klaudia.core.agent.reconciliation import PolicyReconciliationTools
 from app.services.memory.store import MemoryDocumentStore
 from ledger.catalogue import CatalogueStore
 from ledger.errors import RevisionConflictError
+from klaudia.core.agent.ports.errors import (
+    RevisionConflictError as CapabilityRevisionConflict,
+)
+from klaudia.core.agent.ports.errors import (
+    ResourceNotFoundError as CapabilityResourceNotFound,
+)
 from ledger.resources import ResourceNotFoundError, TableRegistration
 from ledger.store import LedgerStore
 from tests.integration.postgres import POSTGRES_TEST_URL
@@ -82,7 +90,9 @@ async def test_policy_reconciliation_exact_evidence_and_no_writes(policy_setup):
         "SELECT sheet_id, grid::text FROM ledger_sheet WHERE sheet_id = ANY($1::int[])",
         [table["sheet_id"] for table in tables],
     )
-    tool = PolicyReconciliationTools(PolicyReconciler(documents, catalogue, 1)).tool
+    tool = PolicyReconciliationTools(
+        ReconciliationAdapter(PolicyReconciler(documents, catalogue, 1))
+    ).tool
     evidence = await tool.ainvoke(request_for(tables))
     assert evidence["records"][0]["difference"] == "0.023456789012345678901"
     assert evidence["records"][0]["status"] == "different"
@@ -106,7 +116,7 @@ async def test_policy_rejects_unmatched_table_entity(policy_setup, column, value
     )
     with pytest.raises(ValueError, match="entity"):
         await PolicyReconciliationTools(
-            PolicyReconciler(documents, catalogue, 1)
+            ReconciliationAdapter(PolicyReconciler(documents, catalogue, 1))
         ).tool.ainvoke(request_for(tables))
 
 
@@ -123,7 +133,7 @@ async def test_policy_requires_actual_source_units(policy_setup):
     )
     with pytest.raises(ValueError, match="unit"):
         await PolicyReconciliationTools(
-            PolicyReconciler(documents, catalogue, 1)
+            ReconciliationAdapter(PolicyReconciler(documents, catalogue, 1))
         ).tool.ainvoke(request_for(tables))
 
 
@@ -134,9 +144,9 @@ async def test_policy_scope_rechecks_current_source_ownership(policy_setup):
         "UPDATE ledger_spreadsheet SET user_id = 999 WHERE spreadsheet_id = $1",
         workbooks[1],
     )
-    with pytest.raises(ResourceNotFoundError):
+    with pytest.raises(CapabilityResourceNotFound):
         await PolicyReconciliationTools(
-            PolicyReconciler(documents, catalogue, 1)
+            ReconciliationAdapter(PolicyReconciler(documents, catalogue, 1))
         ).tool.ainvoke(request_for(tables))
 
 
@@ -154,9 +164,9 @@ async def test_changed_policy_during_calculation_discards_results(
         return evidence
 
     monkeypatch.setattr(catalogue, "financial_query", delete_during_read)
-    with pytest.raises(RevisionConflictError, match="Policy changed"):
+    with pytest.raises(CapabilityRevisionConflict, match="Policy changed"):
         await PolicyReconciliationTools(
-            PolicyReconciler(documents, catalogue, 1)
+            ReconciliationAdapter(PolicyReconciler(documents, catalogue, 1))
         ).tool.ainvoke(request_for(tables))
 
 
@@ -176,9 +186,9 @@ async def test_changed_entity_after_inspection_cannot_mix_revisions(
         return await execute(owner, query)
 
     monkeypatch.setattr(catalogue, "financial_query", change_entity_before_read)
-    with pytest.raises(RevisionConflictError):
+    with pytest.raises(CapabilityRevisionConflict):
         await PolicyReconciliationTools(
-            PolicyReconciler(documents, catalogue, 1)
+            ReconciliationAdapter(PolicyReconciler(documents, catalogue, 1))
         ).tool.ainvoke(request_for(tables))
 
 

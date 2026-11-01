@@ -1,5 +1,9 @@
 """Scripted boundary checks for exact field values, not live-model interpretation."""
 
+from app.adapters.agent.operations import OperationAdapter
+
+from app.adapters.agent.catalogue import CatalogueAdapter
+
 from copy import deepcopy
 import json
 
@@ -134,8 +138,8 @@ async def test_field_values_survive_proposal_commit_and_replay(
             operations = OperationService(store)
             agent = MainAgent(
                 RecordAppendModel(submitted_record),
-                CatalogueService(CatalogueStore(store.pool)),
-                operations=operations,
+                CatalogueAdapter(CatalogueService(CatalogueStore(store.pool))),
+                operations=OperationAdapter(operations),
             )
             records = await run_case_inprocess(
                 None,

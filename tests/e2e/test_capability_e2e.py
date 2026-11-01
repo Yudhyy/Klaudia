@@ -1,5 +1,7 @@
 """Opt-in live candidate checks; historical benchmark reports remain separate."""
 
+from app.adapters.agent.operations import OperationAdapter
+
 from datetime import datetime, timezone
 import os
 from pathlib import Path
@@ -78,6 +80,7 @@ def capability_report():
 )
 async def test_main_agent_capability(scenario, container, capability_report):
     """Grade live model behavior using the same runner as scripted integration tests."""
+    from app.adapters.agent.catalogue import CatalogueAdapter
     from app.services.core.operations import OperationService
     from klaudia.core.agent.agent import MainAgent
     from klaudia.core.agent.llm import build_chat_llm
@@ -100,7 +103,9 @@ async def test_main_agent_capability(scenario, container, capability_report):
         disable_thinking=settings.llm_disable_thinking,
     )
     agent = MainAgent(
-        model, container.catalogue, operations=OperationService(container.ledger_store)
+        model,
+        CatalogueAdapter(container.catalogue),
+        operations=OperationAdapter(OperationService(container.ledger_store)),
     )
     async with seeded_capability_case(container.ledger_store, scenario) as fixture:
         records = await run_case_inprocess(

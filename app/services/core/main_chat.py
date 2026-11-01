@@ -3,24 +3,25 @@
 import json
 import logging
 from dataclasses import asdict, dataclass, replace
-from ledger_core.authoring_contracts import AuthoringProposal
-from ledger_core.typed_contracts import TypedEditProposal
-from klaudia.core.agent.authoring import AuthoringReader
-
 from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
+from app.adapters.agent.authoring import AuthoringAdapter
+from app.adapters.agent.catalogue import CatalogueAdapter
+from app.adapters.agent.operations import OperationAdapter
+from app.adapters.agent.reconciliation import ReconciliationAdapter
 from app.models.chat import ChatMetadata
+from app.services.catalogue.authoring import AuthoringService
+from app.services.catalogue.service import CatalogueService
 from app.services.core.archive_tools import ArchiveReader
+from app.services.core.observability import LangfuseService
+from app.services.core.operations import OperationService
+from app.services.extraction.infra.db_client import AppDBClient
+from app.services.memory.reconciliation import PolicyReconciler
 from app.services.memory.store import MemoryDocumentStore
 from app.services.memory.tools import MemoryReader
-from app.services.memory.reconciliation import PolicyReconciler
-from klaudia.core.agent.documents import DocumentTools
-from klaudia.core.agent.memory import MemoryTools
-from klaudia.core.agent.reconciliation import PolicyReconciliationTools
-from app.services.core.observability import LangfuseService
-from app.services.extraction.infra.db_client import AppDBClient
+from app.services.workflow.store import TaskSession, TaskStore
 from klaudia.core.agent.agent import (
     AgentExecutionError,
     AgentRunCancelled,
@@ -28,10 +29,13 @@ from klaudia.core.agent.agent import (
     RunOutcome,
 )
 from klaudia.core.agent.context import TaskContext
-from klaudia.core.agent.tools import CatalogueReader
+from klaudia.core.agent.documents import DocumentTools
+from klaudia.core.agent.memory import MemoryTools
+from klaudia.core.agent.ports.append import TableAppendProposal
+from klaudia.core.agent.ports.authoring import AuthoringProposal
+from klaudia.core.agent.ports.typed import TypedEditProposal
+from klaudia.core.agent.reconciliation import PolicyReconciliationTools
 from klaudia.core.agent.writes import OperationExecutor
-from ledger_core.append_contracts import TableAppendProposal
-from app.services.workflow.store import TaskStore, TaskSession
 
 logger = logging.getLogger(__name__)
 _CONTEXT_BYTES = 8192
@@ -237,13 +241,13 @@ class MainChatService:
     def __init__(
         self,
         model: BaseChatModel,
-        catalogue: CatalogueReader,
+        catalogue: CatalogueService,
         database: AppDBClient,
         *,
-        operations: OperationExecutor | None = None,
+        operations: OperationService | None = None,
         langfuse: LangfuseService | None = None,
         tasks: TaskStore | None = None,
-        authoring: AuthoringReader | None = None,
+        authoring: AuthoringService | None = None,
         memory_documents: MemoryDocumentStore | None = None,
     ) -> None:
         """Share immutable dependencies while each turn creates local execution state.
@@ -395,22 +399,28 @@ class MainChatService:
                     turn.session_id, turn.user_id, "user", content
                 )
         executor = (
-            _SessionOperations(task or self._operations, self._database, turn)
+            _SessionOperations(
+                OperationAdapter(task or self._operations), self._database, turn
+            )
             if self._operations is not None
             else None
         )
         agent = MainAgent(
             self._model,
-            self._catalogue,
+            CatalogueAdapter(self._catalogue),
             operations=executor,
             archive_tools=DocumentTools(
                 ArchiveReader(self._database, turn.user_id)
             ).tools,
-            authoring=self._authoring,
+            authoring=AuthoringAdapter(self._authoring)
+            if self._authoring is not None
+            else None,
             reconciliation_tool=(
                 PolicyReconciliationTools(
-                    PolicyReconciler(
-                        self._memory_documents, self._catalogue, turn.user_id
+                    ReconciliationAdapter(
+                        PolicyReconciler(
+                            self._memory_documents, self._catalogue, turn.user_id
+                        )
                     )
                 ).tool
                 if self._memory_documents is not None

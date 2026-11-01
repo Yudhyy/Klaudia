@@ -1,5 +1,9 @@
 """Owned table appends preserve neighbouring regions and replay committed receipts."""
 
+from app.adapters.agent.operations import OperationAdapter
+
+from app.adapters.agent.catalogue import CatalogueAdapter
+
 import asyncio
 import uuid
 
@@ -485,7 +489,9 @@ async def test_main_agent_prepares_executes_and_retries_real_append(append_setup
             )
 
     outcome = await MainAgent(
-        AppendModel(), CatalogueService(catalogue), operations=OperationService(store)
+        AppendModel(),
+        CatalogueAdapter(CatalogueService(catalogue)),
+        operations=OperationAdapter(OperationService(store)),
     ).run("Add C's claim of 20", TaskContext(user_id=90401))
     assert outcome.status == "answered"
     assert len(outcome.operation_receipts) == 1
@@ -520,7 +526,9 @@ async def test_lost_commit_response_recovers_through_operation_service(append_se
     )
     with pytest.raises(AgentExecutionError) as failure:
         await MainAgent(
-            model, CatalogueService(catalogue), operations=LostReceiptService(store)
+            model,
+            CatalogueAdapter(CatalogueService(catalogue)),
+            operations=OperationAdapter(LostReceiptService(store)),
         ).run("Execute saved append", TaskContext(user_id=90401))
     reference = failure.value.outcome.operation_references[0]
     assert failure.value.outcome.operation_receipts == ()

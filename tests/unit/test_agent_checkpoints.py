@@ -81,7 +81,7 @@ async def test_checkpoint_rejects_different_identity_or_request():
 
 async def test_overlap_is_repairable_and_does_not_trap_checkpoint_resume():
     """A raced table registration becomes tool evidence rather than a stuck task."""
-    from ledger.resources import ResourceExistsError
+    from klaudia.core.agent.ports.errors import ResourceExistsError
 
     checkpoint = MemoryCheckpoint()
     operations = AsyncMock()

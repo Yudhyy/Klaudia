@@ -91,20 +91,19 @@ def installed_agent(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """
     directory = tmp_path_factory.mktemp("installed-agent")
     wheels = directory / "wheels"
-    for package in ("packages/ledger-core", "klaudia"):
-        run_command(
-            [
-                "uv",
-                "build",
-                str(REPO_ROOT / package),
-                "--wheel",
-                "--no-sources",
-                "--offline",
-                "--out-dir",
-                str(wheels),
-            ],
-            directory,
-        )
+    run_command(
+        [
+            "uv",
+            "build",
+            str(REPO_ROOT / "klaudia"),
+            "--wheel",
+            "--no-sources",
+            "--offline",
+            "--out-dir",
+            str(wheels),
+        ],
+        directory,
+    )
     environment = directory / "environment"
     run_command(["uv", "venv", "--python", sys.executable, str(environment)], directory)
     python = environment / "bin/python"
@@ -162,6 +161,14 @@ def test_agent_wheel_preserves_namespace_and_runtime_skills(tmp_path: Path) -> N
         "klaudia/core/agent/ports/documents.py",
         "klaudia/core/agent/ports/memory.py",
         "klaudia/core/agent/ports/reconciliation.py",
+        "klaudia/core/agent/ports/catalogue.py",
+        "klaudia/core/agent/ports/calculations.py",
+        "klaudia/core/agent/ports/financial.py",
+        "klaudia/core/agent/ports/append.py",
+        "klaudia/core/agent/ports/authoring.py",
+        "klaudia/core/agent/ports/operations.py",
+        "klaudia/core/agent/ports/typed.py",
+        "klaudia/core/agent/ports/errors.py",
         "klaudia/core/skills/registry.py",
         "klaudia/core/skills/table-append.md",
     }
@@ -180,17 +187,15 @@ from pathlib import Path
 import sys
 
 import klaudia
-import ledger_core
 from klaudia.core.agent.agent import MainAgent
 from klaudia.core.agent.context import TaskContext
 from klaudia.core.skills.registry import SkillRegistry
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
-for name in ('app', 'config', 'ledger', 'asyncpg', 'fastapi', 'fastmcp', 'mcp'):
+for name in ('app', 'config', 'ledger', 'ledger_core', 'asyncpg', 'fastapi', 'fastmcp', 'mcp'):
     assert find_spec(name) is None, name
 assert find_spec('klaudia.interfaces') is None
-for module in (klaudia, ledger_core):
-    assert Path(module.__file__).resolve().is_relative_to(Path(sys.prefix))
+assert Path(klaudia.__file__).resolve().is_relative_to(Path(sys.prefix))
 
 registry = SkillRegistry()
 assert registry.descriptions
@@ -294,6 +299,90 @@ print('isolated-capabilities')
 ''',
     )
     assert output == "isolated-capabilities"
+
+
+def test_installed_ledger_tools_run_without_ledger(installed_agent: Path) -> None:
+    """Run read and write tools with only fake consumer capabilities installed.
+
+    Args:
+        installed_agent: Python executable in the isolated wheel environment.
+    """
+    saved = json.loads(
+        (REPO_ROOT / "tests/fixtures/agent_compatibility/v1/requests.json").read_text()
+    )
+    requests = {request["tool"]: request["input"] for request in saved}
+    output = probe(
+        installed_agent,
+        f"requests = {requests!r}\n"
+        + '''
+import asyncio
+import json
+from importlib.util import find_spec
+from unittest.mock import AsyncMock
+
+from klaudia.core.agent.agent import MainAgent
+from klaudia.core.agent.authoring import AuthoringReader
+from klaudia.core.agent.context import TaskContext
+from klaudia.core.agent.ports.catalogue import CatalogueReader
+from klaudia.core.agent.ports.operations import OperationExecutor
+from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
+from langchain_core.messages import AIMessage
+
+for name in ('app', 'config', 'ledger', 'ledger_core', 'asyncpg', 'fastapi', 'fastmcp', 'mcp'):
+    assert find_spec(name) is None, name
+
+class ToolModel(FakeMessagesListChatModel):
+    """Use saved requests and fake capabilities without provider calls."""
+
+    def bind_tools(self, tools, **kwargs):
+        """Check that every schema belongs to the consumer package."""
+        assert all(tool.args_schema.__module__.startswith('klaudia.') for tool in tools)
+        return self
+
+catalogue = AsyncMock(spec=CatalogueReader)
+operations = AsyncMock(spec=OperationExecutor)
+authoring = AsyncMock(spec=AuthoringReader)
+catalogue.search.return_value = {'candidates': []}
+catalogue.inspect.return_value = {
+    'table_id': 'tbl_claims', 'spreadsheet_id': 'wb_claims', 'sheet_id': 8,
+    'range': 'A1:B2', 'catalogue_revision': 1, 'source_revision': 1,
+    'current_sheet_revision': 1, 'freshness': 'current', 'columns': [],
+}
+catalogue.calculate.return_value = {'groups': [{'value': '0.123456789012345678901'}]}
+catalogue.financial_query.return_value = {'records': []}
+operations.inspect_typed.return_value = {'snapshot': '0' * 64}
+for method in (operations.prepare, operations.prepare_authoring, operations.prepare_typed):
+    method.return_value = {'operation_ref': 'prepared:original'}
+receipt = {'status': 'committed', 'operation_id': 'op_original', 'target': {'sheet_id': 8}}
+operations.execute.return_value = receipt
+authoring.sheets.return_value = {'sheets': [], 'next_offset': None}
+authoring.inspect.return_value = {'sheet_revision': 1}
+names = (
+    'search_resources', 'inspect_resource', 'calculate', 'financial_query',
+    'inspect_typed_workbook', 'prepare_typed_edit', 'prepare_table_append',
+    'list_authoring_sheets', 'inspect_sheet_region', 'prepare_table_authoring',
+    'execute_operation',
+)
+model = ToolModel(responses=[
+    *[AIMessage(content='', tool_calls=[{'name': name, 'args': requests[name], 'id': name}]) for name in names],
+    AIMessage(content='Original operation confirmed.'),
+])
+agent = MainAgent(model, catalogue, operations=operations, authoring=authoring)
+outcome = asyncio.run(agent.run('Use supplied capabilities', TaskContext(user_id=42)))
+assert outcome.status == 'answered'
+assert outcome.tools_called == names
+assert outcome.operation_references == ('prepared:original',)
+assert outcome.operation_receipts == (receipt,)
+assert outcome.working_set == ()
+for method in (catalogue.search, catalogue.inspect, catalogue.calculate, catalogue.financial_query,
+               operations.prepare, operations.prepare_authoring, operations.prepare_typed):
+    owner, request = method.await_args.args
+    assert owner == 42 and type(request).__module__.startswith('klaudia.')
+operations.execute.assert_awaited_once_with(42, 'prepared:original')
+print('isolated-ledger-capabilities')
+''',
+    )
+    assert output == "isolated-ledger-capabilities"
 
 
 def test_wheel_installs_without_legacy_or_infrastructure(installed_core: Path) -> None:
