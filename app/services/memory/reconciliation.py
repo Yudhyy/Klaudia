@@ -15,7 +15,7 @@ from ledger_core.resources import ResourceInspection
 from app.services.catalogue.service import CatalogueService
 from app.services.memory.contracts import DocumentPath
 from app.services.memory.store import MemoryDocumentStore
-from klaudia.core.agent.ports.reconciliation import PolicyReconciliation
+from agent_core.agent.ports.reconciliation import PolicyReconciliation
 
 
 class PolicyReconciler:

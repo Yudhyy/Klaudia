@@ -4,7 +4,7 @@ from typing import Any
 
 from app.adapters.agent.errors import ledger_failures
 from app.services.memory.reconciliation import PolicyReconciler
-from klaudia.core.agent.ports.reconciliation import PolicyReconciliation
+from agent_core.agent.ports.reconciliation import PolicyReconciliation
 
 
 class ReconciliationAdapter:

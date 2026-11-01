@@ -14,7 +14,7 @@ from uuid import uuid4
 
 import asyncpg
 from pydantic import ValidationError
-from klaudia.core.agent.writes import ExecuteOperation
+from agent_core.agent.writes import ExecuteOperation
 
 from ledger_core.resources import ResourceNotFoundError
 from ledger_core.errors import RevisionConflictError

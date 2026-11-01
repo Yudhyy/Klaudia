@@ -58,9 +58,7 @@ def test_skill_metadata_and_exact_content_bytes_match_release() -> None:
     for skill in saved:
         name = skill["name"]
         content = (FIXTURES / "skills" / f"{name}.md").read_bytes()
-        assert (
-            files("klaudia.core.skills").joinpath(f"{name}.md").read_bytes() == content
-        )
+        assert files("agent_skills").joinpath(f"{name}.md").read_bytes() == content
         assert registry.load(name) == {
             "name": name,
             "version": skill["version"],

@@ -15,7 +15,8 @@ The ownership and dependency rules below guide subsequent code PRs. The first
 pure ledger-core package is now implemented; the rest of the package tree remains
 a destination sketch. The outbound MCP client now belongs to application adapters.
 Agent-owned capability requests and application translation adapters now remove
-the agent's direct ledger dependency. Runtime and skills package extraction is next.
+the agent's direct ledger dependency. The runtime and skills now have canonical
+packages; application adapters own model-provider construction.
 The overview and assessment distinguish these follow-ups
 from their recorded baseline source.
 
@@ -35,7 +36,7 @@ simpler modules.
 | Module | Owns | Current implementation | Proposed package |
 | --- | --- | --- | --- |
 | Ledger | Exact financial calculations, catalogue/table rules, revisions, prepared operations, financial approval requirements and committed receipts | `mcp-ledger/ledger/`, with application catalogue/operation adapters | `ledger-core` |
-| Agent runtime | Model-driven steps, tool selection, run context and continuation payloads | `klaudia/core/agent/` and `klaudia/core/skills/` | `agent-core` and `agent-skills` |
+| Agent runtime | Model-driven steps, tool selection, run context and continuation payloads | `packages/agent-core/src/agent_core/agent/` and `packages/agent-skills/src/agent_skills/`; `klaudia/core/` keeps compatibility imports | `agent-core` and `agent-skills` (implemented) |
 | Documents | Ingestion, extraction, expected pages, saved outcomes and document lifecycle | `app/services/extraction/` and archive reads | `document-intelligence` |
 | Identity | Accounts, credentials, authentication use cases and account access state | Auth routes/services and user methods in `AppDBClient` | `identity-core` |
 | Workflow | Durable task identity/status, checkpoint persistence, exclusive task execution, resume coordination and human-decision routing | `app/services/workflow/` and durable orchestration in `main_chat.py` | `workflow-core` |
@@ -738,14 +739,15 @@ The current outbound client lives in `app/adapters/mcp_client/tool_registry.py`.
 The application declares FastMCP directly; the agent no longer declares FastMCP
 or MCP and its wheel excludes the client. The old `klaudia.interfaces` client
 imports are removed. Client authorization, supported transports and errors
-retain their behavior. The agent retains LangChain and provider libraries.
+retain their behavior. At that stage, the agent retained LangChain and provider
+libraries. The runtime/skills extraction below moves provider construction.
 Independent agent-wheel tests check installed execution and all packaged skills
-with MCP absent; runtime/skills package extraction remains later work.
+with MCP absent.
 
 ### Capability contract separation
 
 Agent-owned requests and expected failures now live under
-`klaudia/core/agent/ports/`. Application adapters under `app/adapters/agent/`
+`packages/agent-core/src/agent_core/agent/ports/`. Application adapters under `app/adapters/agent/`
 translate catalogue reads, append/authoring/typed proposals and expected failures
 to and from canonical ledger contracts. Backend code keeps financial validation,
 exact calculations, ownership, approval and receipt rules. The operation adapter
@@ -757,7 +759,28 @@ Import checks enforce that rule; installed-wheel checks run all ledger tool
 families and load skills with both ledger distributions absent. Complete frozen
 tool/continuation fixtures protect release compatibility. This settles the
 agent-to-ledger boundary; it does not extract workflow, document, memory or
-identity packages or remove model-provider construction from the agent.
+identity packages. The next extraction moves model-provider construction.
+
+### Runtime, skills and provider separation
+
+`packages/agent-core` owns the existing agent module structure under
+`agent_core.agent`. `packages/agent-skills` owns the registry and the single copy
+of each versioned procedure under `agent_skills`. The runtime retains its prompt
+and injected LangChain model/tool contract. Application callers import these
+canonical packages. Legacy runtime and registry imports under `klaudia.core`
+re-export the same definitions.
+
+The provider factory moved to `app/adapters/llm/model_factory.py`; its aliases,
+endpoint/key checks, thinking settings and construction failures stay unchanged.
+The old `klaudia.core.agent.llm` path is removed. The root application declares
+provider libraries and its existing TOON context encoder dependency. Neither
+canonical agent package imports application code, ledger, MCP, database clients
+or concrete model providers. The skills package also has no runtime dependency.
+
+Installed-wheel checks exercise scripted agent tools and load exact skill bytes
+with those dependencies absent. The compatibility wheel checks object identity.
+Workspace membership, Docker manifest copies and backend CI selection include
+both packages. This step does not move process entrypoints or storage modules.
 
 ### Final module interfaces
 
@@ -803,7 +826,7 @@ not become client wire contracts by default.
 | Implemented first extraction | Installable pure `packages/ledger-core` slice with compatibility re-exports | `tests/packaging/test_ledger_core.py`, compatibility/import checks and existing calculation/execution/recovery suites; workspace/Docker/CI paths include the package |
 | Implemented transport separation | Outbound MCP client in application adapters; agent distribution drops MCP dependencies | Independent installed-agent/skill check, package-wide import rule and existing client/authorization regressions |
 | Implemented capability separation | Agent-owned document, memory, policy and ledger contracts with application adapters | Frozen tool/error/continuation contracts, independent installed tools, import checks and execution/recovery regressions |
-| Next slice | Agent runtime/skills packages and application-owned provider construction | Installed runtime and skills with application, ledger and provider libraries absent; process startup, Docker and CI checks |
+| Implemented runtime separation | Agent runtime/skills packages and application-owned provider construction | Independent runtime, skills and compatibility wheel checks; frozen schemas/continuations; process startup, Docker and CI selection checks |
 | Module by module | Workflow, memory, documents and identity packages with their adapters | Owned entrypoints, durable/owner-isolation regressions and process startup checks for each moved module |
 | As consumers are ready | API/worker/MCP entrypoints and infrastructure relocated into the proposed service layout | Installed imports and startup for all three processes; Docker, CI, commands and contributor docs match the new paths |
 

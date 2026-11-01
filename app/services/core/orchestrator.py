@@ -13,7 +13,7 @@ from app.models.chat import (
 )
 from app.services.core.container import KlaudiaContainer
 from app.services.core.main_chat import MainChatTurn
-from klaudia.core.agent.agent import RunOutcome
+from agent_core.agent.agent import RunOutcome
 from app.services.core.verifier import verify_reply
 from app.services.extraction.infra.normalizer import is_pdf, is_supported_image
 from app.services.core.context import (

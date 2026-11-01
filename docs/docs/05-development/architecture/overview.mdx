@@ -229,15 +229,16 @@ They are separate from financial facts and developer-agent notes.
 | Change area | Start here |
 | --- | --- |
 | HTTP contract or mobile caller | `app/routes/v1/`, `app/models/`, `apps/mobile/services/` |
-| Startup wiring, configured providers | `app/services/core/container.py`, `config/settings.py`, `klaudia/core/agent/llm.py` |
-| Agent steps, tool context, runtime skill procedures | `klaudia/core/agent/`, `klaudia/core/skills/` |
+| Startup wiring, configured providers | `app/services/core/container.py`, `config/settings.py`, `app/adapters/llm/model_factory.py` |
+| Agent steps, tool context, runtime skill procedures | `packages/agent-core/src/agent_core/agent/`, `packages/agent-skills/src/agent_skills/` |
 | Catalogue, authoring, memory policy | `app/services/catalogue/`, `app/services/memory/`, associated ledger modules |
 | Checked financial effects and deterministic calculations | `mcp-ledger/ledger/` |
 | Task recovery and human decisions | `app/services/workflow/`, `app/services/core/main_chat.py` |
 | Document ingestion and background work | `app/services/extraction/` |
 
-This map records current dependencies. `klaudia/` uses LangChain model/tool types
-and ledger contracts. Application services import ledger implementations directly.
+This map points to current paths. At the recorded baseline, `klaudia/` used
+LangChain model/tool types and ledger contracts. The follow-ups below describe
+the later package and contract changes. Application services import ledger implementations directly.
 The extraction database client also owns identity and conversation tables.
 [PR #25](https://github.com/Yudhyy/Klaudia/pull/25) separated append and authoring
 proposal definitions from persistence. Agent tools import pure ledger contracts;
@@ -294,13 +295,14 @@ write path retain their implementations. Packaging checks install the agent
 wheel outside the checkout, run a scripted agent and load every skill with
 application, ledger, database and MCP libraries absent. The ledger capability
 split below removes the agent's remaining ledger-core dependency. LangChain,
-provider construction and runtime/skills extraction remain later work.
+provider construction and runtime/skills extraction followed in the package
+extraction below.
 
 ## Document, memory and policy capability adapters
 
 The agent now owns document, memory and policy tool schemas and binding in
-`klaudia/core/agent/documents.py`, `memory.py` and `reconciliation.py`.
-Its [consumer interfaces](https://github.com/Yudhyy/Klaudia/tree/development/klaudia/core/agent/ports)
+`packages/agent-core/src/agent_core/agent/documents.py`, `memory.py` and `reconciliation.py`.
+Its [consumer interfaces](https://github.com/Yudhyy/Klaudia/tree/development/packages/agent-core/src/agent_core/agent/ports)
 accept document reads, context reads and typed reconciliation intent. These
 interfaces do not import application stores or saved policy models. The memory
 tool has its own path enum; the backend converts it to its stored document path.
@@ -332,7 +334,7 @@ existing implementations.
 ## Ledger capability contracts
 
 The agent owns its catalogue, calculation, financial-read, append, authoring and
-typed-edit request shapes under `klaudia/core/agent/ports/`. It also owns the
+typed-edit request shapes under `packages/agent-core/src/agent_core/agent/ports/`. It also owns the
 expected missing-resource, overlap, revision and approval failures. Tool schemas
 retain their release descriptions, defaults and nested definitions, including
 the native formula request shape. The agent does not include formula evaluation,
@@ -356,8 +358,34 @@ The agent manifest no longer declares ledger-core. Import checks reject ledger
 and ledger-core throughout the agent package. Installed-wheel checks run read,
 append, authoring and typed-edit tools through fake consumer capabilities with
 both ledger distributions absent. Frozen release fixtures still cover all 32
-capability combinations and old continuations. Separate agent runtime/skills
-packages and provider construction remain the next migration step.
+capability combinations and old continuations. The next follow-up extracts the
+runtime/skills packages and moves provider construction.
+
+## Runtime and skills package extraction
+
+The canonical agent now lives in `packages/agent-core/src/agent_core/agent/`.
+`packages/agent-skills/src/agent_skills/` owns the registry and all procedure
+files. The runtime retains its prompt, model/tool types and internal structure.
+The earlier `klaudia/core/agent/` and `klaudia/core/skills/registry.py` paths above
+now re-export the same canonical definitions. The procedures have one copy;
+their names, versions, descriptions and exact bytes stay unchanged.
+
+Application composition and capability adapters import `agent_core.agent` and
+`agent_skills`. Model construction now belongs to
+`app/adapters/llm/model_factory.py`. The old `klaudia.core.agent.llm` path is
+removed; it cannot re-export application code into the compatibility package.
+The root application owns the provider libraries and its TOON context encoder
+dependency. The runtime depends on LangChain core, Pydantic and agent-skills;
+the skills package depends on Pydantic alone.
+
+The packaging suite installs the skills alone, the canonical runtime with
+skills, and the compatibility distribution in separate environments outside
+the checkout. These checks load every skill, compare saved procedure bytes and
+exercise scripted tools with application, ledger, database, MCP and concrete
+model-provider libraries absent. Legacy imports keep class and error identity.
+Frozen tool schemas, prompts and saved continuation identities remain the
+compatibility tests. Workflow, memory, documents and identity extraction remain
+under issue #3.
 
 ## Verification and next work
 

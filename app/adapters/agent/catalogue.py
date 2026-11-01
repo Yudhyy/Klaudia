@@ -15,12 +15,12 @@ from ledger_core.resources import (
 
 from app.adapters.agent.errors import ledger_failures
 from app.services.catalogue.service import CatalogueService
-from klaudia.core.agent.ports.calculations import CheckedCalculation
-from klaudia.core.agent.ports.catalogue import (
+from agent_core.agent.ports.calculations import CheckedCalculation
+from agent_core.agent.ports.catalogue import (
     ResourceInspection,
     ResourceSearch,
 )
-from klaudia.core.agent.ports.financial import CheckedFinancialRequest
+from agent_core.agent.ports.financial import CheckedFinancialRequest
 
 
 class CatalogueAdapter:

@@ -1,4 +1,4 @@
-"""Exercise the ledger-core wheel outside the workspace and legacy ledger."""
+"""Exercise core, skill and compatibility wheels outside the checkout."""
 
 import json
 from importlib.metadata import version
@@ -79,31 +79,31 @@ def installed_core(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return python
 
 
-@pytest.fixture(scope="module")
-def installed_agent(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """Install agent wheels with declared dependencies outside the checkout.
+def install_agent_packages(directory: Path, distributions: tuple[str, ...]) -> Path:
+    """Build and install selected agent wheels with locked third-party versions.
 
     Args:
-        tmp_path_factory: Factory for an isolated build and installation directory.
+        directory: Build and environment directory outside the checkout.
+        distributions: Workspace package directories to build.
 
     Returns:
-        Python executable in the fresh agent environment.
+        Python executable in the fresh environment.
     """
-    directory = tmp_path_factory.mktemp("installed-agent")
     wheels = directory / "wheels"
-    run_command(
-        [
-            "uv",
-            "build",
-            str(REPO_ROOT / "klaudia"),
-            "--wheel",
-            "--no-sources",
-            "--offline",
-            "--out-dir",
-            str(wheels),
-        ],
-        directory,
-    )
+    for distribution in distributions:
+        run_command(
+            [
+                "uv",
+                "build",
+                str(REPO_ROOT / distribution),
+                "--wheel",
+                "--no-sources",
+                "--offline",
+                "--out-dir",
+                str(wheels),
+            ],
+            directory,
+        )
     environment = directory / "environment"
     run_command(["uv", "venv", "--python", sys.executable, str(environment)], directory)
     python = environment / "bin/python"
@@ -133,8 +133,114 @@ def installed_agent(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return python
 
 
+@pytest.fixture(scope="module")
+def installed_agent(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Install the canonical runtime and skills without the legacy distribution."""
+    return install_agent_packages(
+        tmp_path_factory.mktemp("installed-agent"),
+        ("packages/agent-skills", "packages/agent-core"),
+    )
+
+
+@pytest.fixture(scope="module")
+def installed_skills(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Install skills without the runtime or model libraries."""
+    return install_agent_packages(
+        tmp_path_factory.mktemp("installed-skills"),
+        ("packages/agent-skills",),
+    )
+
+
+@pytest.fixture(scope="module")
+def installed_compatibility(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Install legacy imports and canonical wheels in one fresh environment."""
+    return install_agent_packages(
+        tmp_path_factory.mktemp("installed-agent-compatibility"),
+        ("packages/agent-skills", "packages/agent-core", "klaudia"),
+    )
+
+
 def probe(python: Path, source: str) -> str:
     return run_command([str(python), "-I", "-c", source], python.parents[2])
+
+
+def test_installed_skills_match_release_without_runtime(installed_skills: Path) -> None:
+    """Load every procedure from the skills wheel with no runtime installed."""
+    saved = json.loads(
+        (REPO_ROOT / "tests/fixtures/agent_compatibility/v1/skills.json").read_text()
+    )
+    procedures = {
+        skill["name"]: (
+            REPO_ROOT
+            / "tests/fixtures/agent_compatibility/v1/skills"
+            / f"{skill['name']}.md"
+        ).read_bytes()
+        for skill in saved
+    }
+    output = probe(
+        installed_skills,
+        f"saved = {saved!r}\nprocedures = {procedures!r}\n"
+        + """
+from dataclasses import asdict
+from importlib.metadata import distributions
+from importlib.resources import files
+from pathlib import Path
+import sys
+
+from agent_skills.registry import SkillRegistry
+import agent_skills
+
+assert {package.metadata['Name'].lower().replace('_', '-') for package in distributions()} == {
+    'agent-skills', 'pydantic', 'pydantic-core', 'annotated-types',
+    'typing-extensions', 'typing-inspection',
+}
+assert Path(agent_skills.__file__).resolve().is_relative_to(Path(sys.prefix))
+registry = SkillRegistry()
+assert [asdict(skill) for skill in registry.descriptions] == saved
+for skill in saved:
+    name = skill['name']
+    assert files('agent_skills').joinpath(f'{name}.md').read_bytes() == procedures[name]
+    assert registry.load(name) == {
+        'name': name, 'version': skill['version'], 'content': procedures[name].decode(),
+    }
+print('isolated-skills')
+""",
+    )
+    assert output == "isolated-skills"
+
+
+def test_installed_legacy_imports_share_canonical_classes(
+    installed_compatibility: Path,
+) -> None:
+    """Keep runtime and registry identity when callers install legacy imports."""
+    output = probe(
+        installed_compatibility,
+        """
+from importlib import import_module
+from importlib.util import find_spec
+from pathlib import Path
+import sys
+import klaudia
+
+assert Path(klaudia.__file__).resolve().is_relative_to(Path(sys.prefix))
+assert find_spec('klaudia.core.agent.llm') is None
+assert find_spec('app') is None
+for name in ('agent', 'context', 'documents', 'memory', 'reconciliation', 'writes',
+             'authoring', 'tools', 'checkpoints', 'ports.errors', 'ports.catalogue',
+             'ports.operations', 'ports.append', 'ports.authoring', 'ports.typed'):
+    legacy = import_module(f'klaudia.core.agent.{name}')
+    canonical = import_module(f'agent_core.agent.{name}')
+    for symbol, value in vars(legacy).items():
+        if not symbol.startswith('_'):
+            assert value is getattr(canonical, symbol), (name, symbol)
+from klaudia.core.skills.registry import SkillRegistry as LegacyRegistry
+from agent_skills.registry import SkillRegistry
+assert LegacyRegistry is SkillRegistry
+assert all(LegacyRegistry().load(skill.name)['content'] for skill in SkillRegistry().descriptions)
+print('compatible-imports')
+""",
+    )
+    assert output == "compatible-imports"
 
 
 def test_agent_wheel_preserves_namespace_and_runtime_skills(tmp_path: Path) -> None:
@@ -170,10 +276,11 @@ def test_agent_wheel_preserves_namespace_and_runtime_skills(tmp_path: Path) -> N
         "klaudia/core/agent/ports/typed.py",
         "klaudia/core/agent/ports/errors.py",
         "klaudia/core/skills/registry.py",
-        "klaudia/core/skills/table-append.md",
     }
     assert required <= paths
     assert not any(path.startswith("klaudia/interfaces/") for path in paths)
+    assert "klaudia/core/agent/llm.py" not in paths
+    assert not any(path.endswith(".md") for path in paths)
 
 
 def test_installed_agent_runs_without_mcp(installed_agent: Path) -> None:
@@ -186,16 +293,16 @@ from importlib.util import find_spec
 from pathlib import Path
 import sys
 
-import klaudia
-from klaudia.core.agent.agent import MainAgent
-from klaudia.core.agent.context import TaskContext
-from klaudia.core.skills.registry import SkillRegistry
+import agent_core
+from agent_core.agent.agent import MainAgent
+from agent_core.agent.context import TaskContext
+from agent_skills.registry import SkillRegistry
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
-for name in ('app', 'config', 'ledger', 'ledger_core', 'asyncpg', 'fastapi', 'fastmcp', 'mcp'):
+for name in ('klaudia', 'langchain_openai', 'langchain_google_genai', 'openai', 'app', 'config', 'ledger', 'ledger_core', 'asyncpg', 'fastapi', 'fastmcp', 'mcp'):
     assert find_spec(name) is None, name
-assert find_spec('klaudia.interfaces') is None
-assert Path(klaudia.__file__).resolve().is_relative_to(Path(sys.prefix))
+assert find_spec('klaudia') is None
+assert Path(agent_core.__file__).resolve().is_relative_to(Path(sys.prefix))
 
 registry = SkillRegistry()
 assert registry.descriptions
@@ -240,18 +347,18 @@ import json
 from importlib.util import find_spec
 from unittest.mock import AsyncMock
 
-from klaudia.core.agent.agent import MainAgent
-from klaudia.core.agent.context import TaskContext
-from klaudia.core.agent.documents import DocumentTools
-from klaudia.core.agent.memory import MemoryTools
-from klaudia.core.agent.reconciliation import PolicyReconciliationTools
-from klaudia.core.agent.ports.documents import DocumentReader
-from klaudia.core.agent.ports.memory import MemoryReader
-from klaudia.core.agent.ports.reconciliation import PolicyReconciler
+from agent_core.agent.agent import MainAgent
+from agent_core.agent.context import TaskContext
+from agent_core.agent.documents import DocumentTools
+from agent_core.agent.memory import MemoryTools
+from agent_core.agent.reconciliation import PolicyReconciliationTools
+from agent_core.agent.ports.documents import DocumentReader
+from agent_core.agent.ports.memory import MemoryReader
+from agent_core.agent.ports.reconciliation import PolicyReconciler
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
 from langchain_core.messages import AIMessage
 
-for name in ('app', 'config', 'ledger', 'asyncpg', 'fastapi', 'fastmcp', 'mcp'):
+for name in ('klaudia', 'langchain_openai', 'langchain_google_genai', 'openai', 'app', 'config', 'ledger', 'asyncpg', 'fastapi', 'fastmcp', 'mcp'):
     assert find_spec(name) is None, name
 
 class ToolModel(FakeMessagesListChatModel):
@@ -320,15 +427,15 @@ import json
 from importlib.util import find_spec
 from unittest.mock import AsyncMock
 
-from klaudia.core.agent.agent import MainAgent
-from klaudia.core.agent.authoring import AuthoringReader
-from klaudia.core.agent.context import TaskContext
-from klaudia.core.agent.ports.catalogue import CatalogueReader
-from klaudia.core.agent.ports.operations import OperationExecutor
+from agent_core.agent.agent import MainAgent
+from agent_core.agent.authoring import AuthoringReader
+from agent_core.agent.context import TaskContext
+from agent_core.agent.ports.catalogue import CatalogueReader
+from agent_core.agent.ports.operations import OperationExecutor
 from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
 from langchain_core.messages import AIMessage
 
-for name in ('app', 'config', 'ledger', 'ledger_core', 'asyncpg', 'fastapi', 'fastmcp', 'mcp'):
+for name in ('klaudia', 'langchain_openai', 'langchain_google_genai', 'openai', 'app', 'config', 'ledger', 'ledger_core', 'asyncpg', 'fastapi', 'fastmcp', 'mcp'):
     assert find_spec(name) is None, name
 
 class ToolModel(FakeMessagesListChatModel):
@@ -336,7 +443,7 @@ class ToolModel(FakeMessagesListChatModel):
 
     def bind_tools(self, tools, **kwargs):
         """Check that every schema belongs to the consumer package."""
-        assert all(tool.args_schema.__module__.startswith('klaudia.') for tool in tools)
+        assert all(tool.args_schema.__module__.startswith(('agent_core.', 'agent_skills.')) for tool in tools)
         return self
 
 catalogue = AsyncMock(spec=CatalogueReader)
@@ -377,7 +484,7 @@ assert outcome.working_set == ()
 for method in (catalogue.search, catalogue.inspect, catalogue.calculate, catalogue.financial_query,
                operations.prepare, operations.prepare_authoring, operations.prepare_typed):
     owner, request = method.await_args.args
-    assert owner == 42 and type(request).__module__.startswith('klaudia.')
+    assert owner == 42 and type(request).__module__.startswith('agent_core.')
 operations.execute.assert_awaited_once_with(42, 'prepared:original')
 print('isolated-ledger-capabilities')
 ''',

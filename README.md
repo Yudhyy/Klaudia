@@ -137,7 +137,7 @@ output budget and require the ledger backend. Discovery covers registered tables
 only; stale metadata remains marked. Shared-workspace roles, agent-selected
 workbooks and multi-workbook writes are not enabled by this change.
 
-The main agent components in `klaudia/core/agent/` expose task-bound
+The main agent components in `packages/agent-core/src/agent_core/agent/` expose task-bound
 `search_resources`, `inspect_resource`, `release_resource`, `calculate` and
 `financial_query` tools. The server
 supplies immutable user identity and an optional active-workbook hint. Inspection
@@ -513,7 +513,9 @@ MOCK_KIE=true uv run pytest tests/e2e -q   # full evaluation
 ```text
 app/            FastAPI routes, orchestrator, guardrails, extraction,
                 memory, verifier, approvals
-klaudia/        single main agent, checked tools, packaged skills
+klaudia/        compatibility imports for agent runtime and skills
+packages/agent-core/    single main agent, checked tools and capability ports
+packages/agent-skills/  versioned skill registry and procedure files
 packages/ledger-core/  pure ledger contracts, aggregation and exact native formulas
 mcp-ledger/     Postgres ledger MCP server (the default sheets backend)
 tests/e2e/      the sandbox: dataset, generators, runners, reports

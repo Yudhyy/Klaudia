@@ -21,6 +21,8 @@ COPY pyproject.toml uv.lock ./
 COPY klaudia/pyproject.toml ./klaudia/pyproject.toml
 COPY mcp-ledger/pyproject.toml ./mcp-ledger/pyproject.toml
 COPY packages/ledger-core/pyproject.toml ./packages/ledger-core/pyproject.toml
+COPY packages/agent-core/pyproject.toml ./packages/agent-core/pyproject.toml
+COPY packages/agent-skills/pyproject.toml ./packages/agent-skills/pyproject.toml
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-workspace
