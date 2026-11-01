@@ -156,6 +156,12 @@ def test_agent_wheel_preserves_namespace_and_runtime_skills(tmp_path: Path) -> N
         paths = set(wheel.namelist())
     required = {
         "klaudia/core/agent/agent.py",
+        "klaudia/core/agent/documents.py",
+        "klaudia/core/agent/memory.py",
+        "klaudia/core/agent/reconciliation.py",
+        "klaudia/core/agent/ports/documents.py",
+        "klaudia/core/agent/ports/memory.py",
+        "klaudia/core/agent/ports/reconciliation.py",
         "klaudia/core/skills/registry.py",
         "klaudia/core/skills/table-append.md",
     }
@@ -206,6 +212,88 @@ print('isolated')
 ''',
     )
     assert result == "isolated"
+
+
+def test_installed_capability_tools_run_without_application(
+    installed_agent: Path,
+) -> None:
+    """Run all optional read tools from the wheel with application modules absent.
+
+    Args:
+        installed_agent: Python executable in the isolated wheel environment.
+    """
+    saved = json.loads(
+        (REPO_ROOT / "tests/fixtures/agent_compatibility/v1/requests.json").read_text()
+    )
+    requests = {request["tool"]: request["input"] for request in saved}
+    output = probe(
+        installed_agent,
+        f"requests = {requests!r}\n"
+        + '''
+import asyncio
+import json
+from importlib.util import find_spec
+from unittest.mock import AsyncMock
+
+from klaudia.core.agent.agent import MainAgent
+from klaudia.core.agent.context import TaskContext
+from klaudia.core.agent.documents import DocumentTools
+from klaudia.core.agent.memory import MemoryTools
+from klaudia.core.agent.reconciliation import PolicyReconciliationTools
+from klaudia.core.agent.ports.documents import DocumentReader
+from klaudia.core.agent.ports.memory import MemoryReader
+from klaudia.core.agent.ports.reconciliation import PolicyReconciler
+from langchain_core.language_models.fake_chat_models import FakeMessagesListChatModel
+from langchain_core.messages import AIMessage
+
+for name in ('app', 'config', 'ledger', 'asyncpg', 'fastapi', 'fastmcp', 'mcp'):
+    assert find_spec(name) is None, name
+
+class ToolModel(FakeMessagesListChatModel):
+    """Return scripted tool requests without a model provider."""
+
+    def bind_tools(self, tools, **kwargs):
+        """Accept the installed agent's complete tool set."""
+        return self
+
+documents = AsyncMock(spec=DocumentReader)
+memory = AsyncMock(spec=MemoryReader)
+reconciler = AsyncMock(spec=PolicyReconciler)
+evidence = (
+    {'documents': [], 'next_offset': None},
+    {'extraction_text': 'Saved document facts', 'next_offset': None},
+    {'authority': 'untrusted_context', 'accounting_validation': 'not_run'},
+    {'records': [{'difference': '0.023456789012345678901'}]},
+)
+for method, payload in zip(
+    (documents.search, documents.read, memory.read, reconciler.reconcile), evidence
+):
+    method.return_value = payload
+archive = DocumentTools(documents).tools
+memory_tool = MemoryTools(memory).read_tool
+policy_tool = PolicyReconciliationTools(reconciler).tool
+names = [tool.name for tool in (*archive, memory_tool, policy_tool)]
+model = ToolModel(responses=[
+    *[
+        AIMessage(content='', tool_calls=[{
+            'name': name, 'args': requests[name], 'id': name,
+        }])
+        for name in names
+    ],
+    AIMessage(content='Evidence read.'),
+])
+agent = MainAgent(
+    model, catalogue=object(), archive_tools=archive,
+    memory_tool=memory_tool, reconciliation_tool=policy_tool,
+)
+outcome = asyncio.run(agent.run('Read evidence', TaskContext(user_id=42)))
+assert outcome.status == 'answered'
+assert list(outcome.tools_called) == names
+assert tuple(json.loads(entry[2]) for entry in outcome.tool_evidence) == evidence
+print('isolated-capabilities')
+''',
+    )
+    assert output == "isolated-capabilities"
 
 
 def test_wheel_installs_without_legacy_or_infrastructure(installed_core: Path) -> None:

@@ -235,7 +235,7 @@ async def test_archived_document_is_retrievable_outside_history_with_owner_check
     main_chat_client,
 ):
     """Bounded archive tools retrieve older pages without leaking foreign metadata."""
-    from app.services.core.archive_tools import ArchiveTools
+    from app.services.core.archive_tools import ArchiveReader
     from ledger.resources import ResourceNotFoundError
 
     fixture = main_chat_client
@@ -287,7 +287,7 @@ async def test_archived_document_is_retrievable_outside_history_with_owner_check
     assert evidence[1]["next_offset"] == 8192
     assert evidence[2]["next_offset"] is None
     assert evidence[1]["extraction_text"] + evidence[2]["extraction_text"] == extracted
-    foreign = ArchiveTools(database, fixture.user_id + 1000000)
+    foreign = ArchiveReader(database, fixture.user_id + 1000000)
     assert await foreign.search("historic-invoice") == {
         "documents": [],
         "next_offset": None,

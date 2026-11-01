@@ -12,10 +12,13 @@ from typing import Any
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from app.models.chat import ChatMetadata
-from app.services.core.archive_tools import ArchiveTools
+from app.services.core.archive_tools import ArchiveReader
 from app.services.memory.store import MemoryDocumentStore
-from app.services.memory.tools import MemoryTools
-from app.services.memory.reconciliation import PolicyReconciliationTools
+from app.services.memory.tools import MemoryReader
+from app.services.memory.reconciliation import PolicyReconciler
+from klaudia.core.agent.documents import DocumentTools
+from klaudia.core.agent.memory import MemoryTools
+from klaudia.core.agent.reconciliation import PolicyReconciliationTools
 from app.services.core.observability import LangfuseService
 from app.services.extraction.infra.db_client import AppDBClient
 from klaudia.core.agent.agent import (
@@ -400,17 +403,23 @@ class MainChatService:
             self._model,
             self._catalogue,
             operations=executor,
-            archive_tools=ArchiveTools(self._database, turn.user_id).tools,
+            archive_tools=DocumentTools(
+                ArchiveReader(self._database, turn.user_id)
+            ).tools,
             authoring=self._authoring,
             reconciliation_tool=(
                 PolicyReconciliationTools(
-                    self._memory_documents, self._catalogue, turn.user_id
+                    PolicyReconciler(
+                        self._memory_documents, self._catalogue, turn.user_id
+                    )
                 ).tool
                 if self._memory_documents is not None
                 else None
             ),
             memory_tool=(
-                MemoryTools(self._memory_documents, turn.user_id).read_tool
+                MemoryTools(
+                    MemoryReader(self._memory_documents, turn.user_id)
+                ).read_tool
                 if self._memory_documents is not None
                 else None
             ),

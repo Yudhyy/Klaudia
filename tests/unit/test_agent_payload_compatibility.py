@@ -6,8 +6,9 @@ import pytest
 from langchain_core.messages import AIMessage
 
 from app.services.memory.contracts import MemoryDocument
-from app.services.memory.tools import MemoryTools
-from app.services.core.archive_tools import ArchiveTools
+from app.services.memory.tools import MemoryReader
+from app.services.core.archive_tools import ArchiveReader
+from klaudia.core.agent.memory import MemoryTools
 from klaudia.core.agent.agent import MainAgent
 from klaudia.core.agent.context import TaskContext
 from ledger_core.errors import RevisionConflictError
@@ -88,7 +89,7 @@ async def test_saved_document_and_memory_evidence_payloads() -> None:
     database = AsyncMock()
     database.fetchall.return_value = saved["document_search"]["rows"]
     database.fetchone.return_value = dict(saved["document_page"]["row"])
-    tools = ArchiveTools(database, 42)
+    tools = ArchiveReader(database, 42)
     assert (
         await tools.search(**saved["document_search"]["arguments"])
         == saved["document_search"]["response"]
@@ -102,7 +103,9 @@ async def test_saved_document_and_memory_evidence_payloads() -> None:
         saved["memory"]["document"]
     )
     assert (
-        await MemoryTools(memory, 42).read_tool.ainvoke(saved["memory"]["arguments"])
+        await MemoryTools(MemoryReader(memory, 42)).read_tool.ainvoke(
+            saved["memory"]["arguments"]
+        )
         == saved["memory"]["response"]
     )
 
