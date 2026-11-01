@@ -16,7 +16,7 @@ from ledger_core.resources import (
     ResourceNotFoundError as LedgerResourceNotFound,
 )
 
-from klaudia.core.agent.ports.errors import (
+from agent_core.agent.ports.errors import (
     ApprovalRequiredError,
     ResourceExistsError,
     ResourceNotFoundError,

@@ -83,7 +83,7 @@ async def test_main_agent_capability(scenario, container, capability_report):
     from app.adapters.agent.catalogue import CatalogueAdapter
     from app.services.core.operations import OperationService
     from klaudia.core.agent.agent import MainAgent
-    from klaudia.core.agent.llm import build_chat_llm
+    from app.adapters.llm.model_factory import build_chat_llm
 
     if container.ledger_store is None or container.catalogue is None:
         raise RuntimeError("Candidate capability benchmark requires the ledger backend")

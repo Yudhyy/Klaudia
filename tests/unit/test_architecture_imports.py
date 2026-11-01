@@ -107,6 +107,27 @@ def test_entire_core_package_has_only_pure_dependencies():
 
 
 @pytest.mark.parametrize(
+    ("package", "allowed"),
+    [
+        ("agent-core", {"agent_core", "agent_skills", "langchain_core", "pydantic"}),
+        ("agent-skills", {"agent_skills", "pydantic"}),
+    ],
+)
+def test_agent_packages_have_only_consumed_dependencies(package, allowed):
+    """Check every canonical module, including imports inside functions."""
+    import_root = REPO_ROOT / "packages" / package / "src"
+    sources = sorted(import_root.rglob("*.py"))
+    assert sources, "The canonical package must contain its implementation"
+    violations = []
+    for source in sources:
+        namespace = ".".join(source.parent.relative_to(import_root).parts)
+        for line, imported in imported_modules(source.read_text(), namespace):
+            if imported.split(".")[0] not in sys.stdlib_module_names | allowed:
+                violations.append(f"{source}:{line}: forbidden import {imported}")
+    assert not violations, "\n".join(violations)
+
+
+@pytest.mark.parametrize(
     ("source", "package", "expected"),
     [
         (

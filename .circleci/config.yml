@@ -13,7 +13,7 @@ workflows:
           # Unmapped paths run both, except documentation and licences.
           mapping: |
             ^apps/mobile/.*$ run_mobile true
-            ^(app|klaudia|mcp-ledger|packages/ledger-core|config|tests|sample-data)/.*$ run_backend true
+            ^(app|klaudia|mcp-ledger|packages/(ledger-core|agent-core|agent-skills)|config|tests|sample-data)/.*$ run_backend true
             ^(pyproject\.toml|uv\.lock)$ run_backend true
             ^(\.circleci|\.github|scripts)/.*$ run_full true
-            ^(?!(apps/mobile/|app/|klaudia/|mcp-ledger/|packages/ledger-core/|config/|tests/|sample-data/|docs/|\.circleci/|\.github/|scripts/|pyproject\.toml$|uv\.lock$|README\.md$|LICENSE(\.md)?$)).+$ run_full true
+            ^(?!(apps/mobile/|app/|klaudia/|mcp-ledger/|packages/(ledger-core|agent-core|agent-skills)/|config/|tests/|sample-data/|docs/|\.circleci/|\.github/|scripts/|pyproject\.toml$|uv\.lock$|README\.md$|LICENSE(\.md)?$)).+$ run_full true

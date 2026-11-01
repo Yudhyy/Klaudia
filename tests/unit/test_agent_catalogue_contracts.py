@@ -17,7 +17,7 @@ def test_read_tools_use_consumer_contracts() -> None:
     assert tool_contracts(list(tools)) == {
         tool.name: saved[tool.name] for tool in tools
     }
-    assert all(tool.args_schema.__module__.startswith("klaudia.") for tool in tools)
+    assert all(tool.args_schema.__module__.startswith("agent_core.") for tool in tools)
 
 
 @pytest.mark.parametrize(

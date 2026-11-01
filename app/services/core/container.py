@@ -25,7 +25,7 @@ from app.services.core.main_chat import MainChatService
 from app.services.workflow.store import TaskStore
 from app.services.workflow.approvals import CheckedApprovals
 from app.services.core.operations import OperationService
-from klaudia.core.agent.llm import build_chat_llm
+from app.adapters.llm.model_factory import build_chat_llm
 
 logger = logging.getLogger(__name__)
 

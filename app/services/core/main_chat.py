@@ -22,20 +22,20 @@ from app.services.memory.reconciliation import PolicyReconciler
 from app.services.memory.store import MemoryDocumentStore
 from app.services.memory.tools import MemoryReader
 from app.services.workflow.store import TaskSession, TaskStore
-from klaudia.core.agent.agent import (
+from agent_core.agent.agent import (
     AgentExecutionError,
     AgentRunCancelled,
     MainAgent,
     RunOutcome,
 )
-from klaudia.core.agent.context import TaskContext
-from klaudia.core.agent.documents import DocumentTools
-from klaudia.core.agent.memory import MemoryTools
-from klaudia.core.agent.ports.append import TableAppendProposal
-from klaudia.core.agent.ports.authoring import AuthoringProposal
-from klaudia.core.agent.ports.typed import TypedEditProposal
-from klaudia.core.agent.reconciliation import PolicyReconciliationTools
-from klaudia.core.agent.writes import OperationExecutor
+from agent_core.agent.context import TaskContext
+from agent_core.agent.documents import DocumentTools
+from agent_core.agent.memory import MemoryTools
+from agent_core.agent.ports.append import TableAppendProposal
+from agent_core.agent.ports.authoring import AuthoringProposal
+from agent_core.agent.ports.typed import TypedEditProposal
+from agent_core.agent.reconciliation import PolicyReconciliationTools
+from agent_core.agent.writes import OperationExecutor
 
 logger = logging.getLogger(__name__)
 _CONTEXT_BYTES = 8192

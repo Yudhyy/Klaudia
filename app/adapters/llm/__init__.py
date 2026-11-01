@@ -1,0 +1,1 @@
+"""Application model provider adapters."""

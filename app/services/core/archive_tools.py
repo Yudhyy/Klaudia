@@ -3,7 +3,7 @@
 from typing import Any
 
 from app.services.extraction.infra.db_client import AppDBClient
-from klaudia.core.agent.ports.errors import ResourceNotFoundError
+from agent_core.agent.ports.errors import ResourceNotFoundError
 
 
 class ArchiveReader:

@@ -68,8 +68,27 @@ The packaging suite installs the agent and core wheels with their declared
 dependencies outside the checkout. It checks that MCP and application libraries
 are absent, loads every installed skill and completes a scripted agent run.
 Client transport, authorization and error regressions retain their existing
-tests. These checks cover transport separation; ledger contracts, LangChain
-and provider construction remain agent dependencies for later migration.
+tests. At that stage, ledger contracts, LangChain and provider construction
+remained agent dependencies. The later capability and package extractions remove
+ledger contracts and provider construction while retaining LangChain core.
+
+## Runtime and skills separation follow-up
+
+The canonical runtime is now `packages/agent-core/src/agent_core/agent/`.
+The registry and procedure files belong to
+`packages/agent-skills/src/agent_skills/`. Legacy `klaudia.core` runtime and
+registry modules re-export their definitions. Application callers use the
+canonical imports. This keeps one implementation and one copy of each skill.
+
+Provider construction moved to `app/adapters/llm/model_factory.py` with the same
+configuration and failures. The old `klaudia.core.agent.llm` path is removed.
+The root application declares the provider libraries and its TOON encoder.
+The runtime retains LangChain model/tool types, Pydantic and the skills package.
+It has no application, ledger, database, MCP or concrete provider dependency.
+Skills depend on Pydantic alone. Standalone wheel checks cover those boundaries
+and legacy object identity; saved release fixtures protect tool, prompt, skill
+and continuation compatibility. Storage and process-layout moves remain later
+work. The full target tree remains a proposal.
 
 ## Completed work and remaining limits
 

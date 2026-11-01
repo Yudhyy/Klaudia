@@ -16,12 +16,18 @@ dependencies = [
     "aiohttp>=3.9.0",
     "python-dotenv>=1.0.0",
     "requests>=2.31.0",
-    "httpx>=0.27.0",
+    "httpx>=0.28.0",
     "groq>=0.9.0",
     "openai>=1.54.0",
     "google-genai>=1.0.0",
     "python-multipart>=0.0.9",
     "klaudia",
+    "agent-core",
+    "agent-skills",
+    "langchain-core>=1.6.0,<2.0.0",
+    "langchain-google-genai>=4.0.0",
+    "langchain-openai>=0.3.0",
+    "toon-format @ git+https://github.com/toon-format/toon-python.git@e475c82e9da03dfaf88c0b277dee6b5d17100b13",
     "ledger-core",
     "mcp-ledger",
     "langfuse>=4.5.0",
@@ -40,6 +46,8 @@ dependencies = [
 
 [tool.uv.sources]
 klaudia = { workspace = true }
+agent-core = { workspace = true }
+agent-skills = { workspace = true }
 ledger-core = { workspace = true }
 mcp-ledger = { workspace = true }
 
@@ -48,6 +56,8 @@ members = [
     "klaudia",
     "mcp-ledger",
     "packages/ledger-core",
+    "packages/agent-core",
+    "packages/agent-skills",
 ]
 
 [tool.uv]
