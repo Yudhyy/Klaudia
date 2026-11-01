@@ -1,48 +1,23 @@
 """Read-only reconciliation under revision-bound human accounting policy."""
 
-from datetime import date
-from typing import Annotated, Any
+from typing import Any
 
-from langchain_core.tools import StructuredTool
-from pydantic import BeforeValidator, Field
-
-from app.services.memory.contracts import DocumentPath, MAX_EXPECTED_REVISION
-from app.services.memory.policy import PolicyLabel, ReconciliationPolicy
+from app.services.memory.contracts import DocumentPath
 from app.services.memory.store import MemoryDocumentStore
+from klaudia.core.agent.ports.reconciliation import PolicyReconciliation
 from klaudia.core.agent.tools import CatalogueReader
 from ledger_core.errors import RevisionConflictError
 from ledger_core.evidence import bounded_evidence
 from ledger_core.financial_contracts import (
     CheckedFinancialRequest,
-    Keys,
     NumericPolicy,
-    Page,
     Reconcile,
     SourceRevision,
-    TableId,
 )
-from ledger_core.query import ColumnName
 from ledger_core.resources import ResourceInspection
 
 
-class PolicyReconciliation(Page):
-    """Select source columns and declared scope; saved policy supplies the rules."""
-
-    table_id: TableId
-    right_table_id: TableId
-    left_keys: Keys
-    right_keys: Keys
-    left_amount: ColumnName
-    right_amount: ColumnName
-    left_unit_column: ColumnName
-    right_unit_column: ColumnName
-    entity: PolicyLabel
-    jurisdiction: PolicyLabel
-    as_of: Annotated[date, BeforeValidator(ReconciliationPolicy.canonical_date)]
-    policy_revision: Annotated[int, Field(strict=True, gt=0, le=MAX_EXPECTED_REVISION)]
-
-
-class PolicyReconciliationTools:
+class PolicyReconciler:
     """Bind exact reads to authenticated identity and stored policy revisions."""
 
     def __init__(
@@ -58,18 +33,12 @@ class PolicyReconciliationTools:
         self._documents = documents
         self._catalogue = catalogue
         self._user_id = user_id
-        self.tool = StructuredTool.from_function(
-            coroutine=self.reconcile,
-            name="reconcile_with_policy",
-            description="Reconcile all rows in two owned registered tables under saved structured accounting policy. Read /accounting-policy.md first and supply its revision. Requires explicit unit columns and matching table entities. as_of selects policy validity, not a row date filter. Jurisdiction is caller-declared. Read-only; no legal compliance certification.",
-            args_schema=PolicyReconciliation,
-        )
 
-    async def reconcile(self, **arguments: Any) -> dict[str, Any]:
+    async def reconcile(self, request: PolicyReconciliation) -> dict[str, Any]:
         """Check policy before and after a revision-bound financial read.
 
         Args:
-            arguments: Source columns, declared applicability and observed policy revision.
+            request: Validated source intent and observed policy revision.
 
         Returns:
             Exact financial evidence with policy revision and checked scope.
@@ -79,7 +48,6 @@ class PolicyReconciliationTools:
             RevisionConflictError: Policy or source observations changed.
             ResourceNotFoundError: A table is absent or no longer owned.
         """
-        request = PolicyReconciliation.model_validate(arguments)
         document = await self._documents.read(
             self._user_id, DocumentPath.ACCOUNTING_POLICY
         )

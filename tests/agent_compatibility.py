@@ -9,10 +9,13 @@ from unittest.mock import AsyncMock
 from langchain_core.tools import StructuredTool
 from langchain_core.utils.function_calling import convert_to_openai_tool
 
-from app.services.core.archive_tools import ArchiveTools
-from app.services.memory.reconciliation import PolicyReconciliationTools
-from app.services.memory.tools import MemoryTools
+from app.services.core.archive_tools import ArchiveReader
+from app.services.memory.reconciliation import PolicyReconciler
+from app.services.memory.tools import MemoryReader
 from klaudia.core.agent.context import TaskContext
+from klaudia.core.agent.documents import DocumentTools
+from klaudia.core.agent.memory import MemoryTools
+from klaudia.core.agent.reconciliation import PolicyReconciliationTools
 
 FIXTURES = Path(__file__).parent / "fixtures" / "agent_compatibility" / "v1"
 CAPABILITIES = ("operations", "authoring", "archive", "memory", "reconciliation")
@@ -50,14 +53,16 @@ def agent_options(
     return {
         "operations": AsyncMock() if capabilities["operations"] else None,
         "authoring": AsyncMock() if capabilities["authoring"] else None,
-        "archive_tools": ArchiveTools(AsyncMock(), context.user_id).tools
+        "archive_tools": DocumentTools(
+            ArchiveReader(AsyncMock(), context.user_id)
+        ).tools
         if capabilities["archive"]
         else (),
-        "memory_tool": MemoryTools(AsyncMock(), context.user_id).read_tool
+        "memory_tool": MemoryTools(MemoryReader(AsyncMock(), context.user_id)).read_tool
         if capabilities["memory"]
         else None,
         "reconciliation_tool": PolicyReconciliationTools(
-            AsyncMock(), AsyncMock(), context.user_id
+            PolicyReconciler(AsyncMock(), AsyncMock(), context.user_id)
         ).tool
         if capabilities["reconciliation"]
         else None,

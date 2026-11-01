@@ -293,8 +293,41 @@ normalization and failure/shutdown behavior. The MCP host and checked financial
 write path retain their implementations. Packaging checks install the agent and
 ledger-core wheels outside the checkout, run a scripted agent and load every
 skill with application, legacy ledger, database and MCP libraries absent.
-Agent runtime still uses ledger-core contracts, LangChain and provider libraries;
-capability adapters and runtime/skills extraction remain later work.
+Agent runtime still uses ledger-core contracts, LangChain and provider libraries.
+Ledger representation changes and runtime/skills extraction remain later work.
+
+## Document, memory and policy capability adapters
+
+The agent now owns document, memory and policy tool schemas and binding in
+`klaudia/core/agent/documents.py`, `memory.py` and `reconciliation.py`.
+Its [consumer interfaces](https://github.com/Yudhyy/Klaudia/tree/development/klaudia/core/agent/ports)
+accept document reads, context reads and typed reconciliation intent. These
+interfaces do not import application stores or saved policy models. The memory
+tool has its own path enum; the backend converts it to its stored document path.
+Policy intent still uses the accepted ledger-core field types during migration.
+
+[MainChatService](https://github.com/Yudhyy/Klaudia/blob/development/app/services/core/main_chat.py)
+binds each backend to the authenticated turn owner, then supplies the agent-owned
+tools. `MainAgent` retains its framework tool inputs for this step. Fake
+implementations can exercise these tools without application or database code.
+
+The existing backend methods now serve as capability adapters. `ArchiveReader`
+in `app/services/core/archive_tools.py` retains document SQL, file/session owner
+checks and pagination limits. `MemoryReader` in `app/services/memory/tools.py`
+retains owner-scoped reads and trust labels. `PolicyReconciler` in
+`app/services/memory/reconciliation.py` retains saved policy checks before and
+after the read, source ownership/revisions, exact ledger reconciliation and
+evidence limits. Agent code does not select accounting rules or calculate
+financial results. The old application tool-builder classes have no compatibility
+aliases; repository callers now use the agent builders and backend readers.
+
+The fixed fixtures from PR #33 check complete tool schemas, descriptions,
+requests, results, error messages and checkpoint hashes during this split.
+Import checks protect agent isolation and reject direct tool-framework imports
+in these three adapters. Packaging checks run the four read tools from an
+installed wheel with application, database and MCP modules absent. Ledger
+execution, approvals, task connections and continuation storage retain their
+existing implementations.
 
 ## Verification and next work
 

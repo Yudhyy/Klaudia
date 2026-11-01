@@ -57,6 +57,9 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
         ("mcp-ledger/ledger", ("app", "klaudia", "config")),
         ("klaudia", ("app", "config", "fastmcp", "mcp")),
         ("klaudia/core", ("asyncpg", "ledger")),
+        ("app/services/core/archive_tools.py", ("langchain_core",)),
+        ("app/services/memory/tools.py", ("langchain_core",)),
+        ("app/services/memory/reconciliation.py", ("langchain_core",)),
         *[
             (
                 f"mcp-ledger/ledger/{module}.py",
@@ -132,6 +135,12 @@ def test_relative_imports_resolve_to_their_owning_package(source, package, expec
         "ledger.append_contracts",
         "ledger.authoring_contracts",
         "klaudia.core.agent.agent",
+        "klaudia.core.agent.documents",
+        "klaudia.core.agent.memory",
+        "klaudia.core.agent.reconciliation",
+        "klaudia.core.agent.ports.documents",
+        "klaudia.core.agent.ports.memory",
+        "klaudia.core.agent.ports.reconciliation",
     ],
 )
 def test_contracts_and_agent_import_without_infrastructure(module):

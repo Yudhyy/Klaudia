@@ -6,7 +6,8 @@ import pytest
 from pydantic import ValidationError
 
 from app.services.memory.contracts import DocumentPath, MemoryDocument
-from app.services.memory.reconciliation import PolicyReconciliationTools
+from app.services.memory.reconciliation import PolicyReconciler
+from klaudia.core.agent.reconciliation import PolicyReconciliationTools
 from ledger.errors import RevisionConflictError
 from tests.unit.test_accounting_policy import policy_fields
 
@@ -60,7 +61,7 @@ def setup_tools():
     return (
         documents,
         catalogue,
-        PolicyReconciliationTools(documents, catalogue, 42).tool,
+        PolicyReconciliationTools(PolicyReconciler(documents, catalogue, 42)).tool,
     )
 
 
