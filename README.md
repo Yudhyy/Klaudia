@@ -501,6 +501,13 @@ docker compose logs -f api   # follow API logs in real-time
 docker compose --profile sandbox up -d   # isolated store for the evaluation suite
 ```
 
+Compose runs the versioned database upgrade before the API and worker start.
+For host processes, run `uv run python -m app.adapters.persistence upgrade`
+with the intended `DATABASE_URL` first. Stop old API and worker processes
+before the first schema cutover. See the
+[database architecture](docs/docs/05-development/architecture/database.mdx) and
+[migration and recovery guide](docs/docs/05-development/contributing/database-migrations.mdx).
+
 ```bash
 uv run pytest tests/unit -q   # fast, hermetic
 MOCK_KIE=true uv run pytest tests/e2e -q   # full evaluation

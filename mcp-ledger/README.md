@@ -1,5 +1,13 @@
 # mcp-ledger
 
+Database setup uses the owned ledger Alembic history. Standalone startup retains
+automatic setup through `LedgerStore.connect()`. To run an explicit release step,
+use `python -m ledger.migrations upgrade`, then `python -m ledger.migrations check`
+with `DATABASE_URL` set. Integrated deployments set `LEDGER_SCHEMA_MODE=check`
+after their release command upgrades both histories. See the
+[migration guide](../docs/docs/05-development/contributing/database-migrations.mdx) for
+adoption, revision checks, and recovery.
+
 Postgres-backed MCP reads with current workbook ownership checks. The default
 surface exposes nine read tools. All fourteen mutation handlers are denied,
 including legacy checked append, catalogue writes, and destructive sheet tools.
