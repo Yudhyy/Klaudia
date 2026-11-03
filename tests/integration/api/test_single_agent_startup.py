@@ -1,5 +1,8 @@
 """The application starts with one agent and only its retained services."""
 
+import asyncpg
+import pytest
+
 from app.services.core.container import KlaudiaContainer
 from app.services.workflow.approvals import CheckedApprovals
 from config.settings import Settings
@@ -27,6 +30,10 @@ async def test_single_agent_startup_connects_retained_services():
         assert container.main_chat is not None
         assert container.tasks is not None
         assert container.memory_documents is not None
+        assert container.identity_store is not None
+        assert await container.identity_store.get_user_by_username("dev") == (
+            await container.db_client.get_user_by_username("dev")
+        )
         assert isinstance(container.approvals, CheckedApprovals)
         assert container.mcp_ledger.tools
         assert not hasattr(container, "supervisor")
@@ -34,3 +41,5 @@ async def test_single_agent_startup_connects_retained_services():
         assert not hasattr(container, "memory")
     finally:
         await container.shutdown()
+    with pytest.raises(asyncpg.InterfaceError, match="pool is closed"):
+        await container.identity_store.get_user_by_username("dev")

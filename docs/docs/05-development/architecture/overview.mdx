@@ -211,7 +211,8 @@ session ownership. Retrieved content supplies facts, not execution authority.
 
 | State | Current implementation |
 | --- | --- |
-| Identity, sessions, conversation, document metadata, pages, extraction cache | `AppDBClient` in `app/services/extraction/infra/db_client.py` |
+| Credential lookup, account creation, last-login updates | `IdentityStore` in `app/services/auth/store.py`, implemented by `app/adapters/identity.py` |
+| Identity table setup, sessions, conversation, document metadata, pages, extraction cache | `AppDBClient` in `app/services/extraction/infra/db_client.py` |
 | Sheet grids, resource catalogue, native formulas, operations, receipts | `mcp-ledger/ledger/` |
 | Agent task input, checkpoint storage, status and human-decision routing | `app/services/workflow/` and `app/services/core/main_chat.py` |
 | Human preferences, conventions, accounting policy, revision history | `app/services/memory/` |
@@ -230,6 +231,7 @@ They are separate from financial facts and developer-agent notes.
 | --- | --- |
 | HTTP contract or mobile caller | `app/routes/v1/`, `app/models/`, `apps/mobile/services/` |
 | Startup wiring, configured providers | `app/services/core/container.py`, `config/settings.py`, `app/adapters/llm/model_factory.py` |
+| Registration/login persistence | `app/services/auth/store.py`, `app/adapters/identity.py` |
 | Agent steps, tool context, runtime skill procedures | `packages/agent-core/src/agent_core/agent/`, `packages/agent-skills/src/agent_skills/` |
 | Catalogue, authoring, memory policy | `app/services/catalogue/`, `app/services/memory/`, associated ledger modules |
 | Checked financial effects and deterministic calculations | `mcp-ledger/ledger/` |
@@ -239,7 +241,8 @@ They are separate from financial facts and developer-agent notes.
 This map points to current paths. At the recorded baseline, `klaudia/` used
 LangChain model/tool types and ledger contracts. The follow-ups below describe
 the later package and contract changes. Application services import ledger implementations directly.
-The extraction database client also owns identity and conversation tables.
+The extraction database client still initializes identity and conversation tables;
+its identity methods now forward to the application identity adapter.
 [PR #25](https://github.com/Yudhyy/Klaudia/pull/25) separated append and authoring
 proposal definitions from persistence. Agent tools import pure ledger contracts;
 legacy execution-module paths re-export the same types. The
@@ -386,6 +389,24 @@ model-provider libraries absent. Legacy imports keep class and error identity.
 Frozen tool schemas, prompts and saved continuation identities remain the
 compatibility tests. Workflow, memory, documents and identity extraction remain
 under issue #3.
+
+## Identity storage interface
+
+Registration and login now use `container.identity_store`, typed by the
+`IdentityStore` protocol in `app/services/auth/store.py`. The PostgreSQL adapter
+in `app/adapters/identity.py` owns credential lookup, account creation and
+last-login SQL. Composition supplies the existing application pool after
+`AppDBClient.connect`; the adapter does not create a pool, initialize tables or
+close shared resources.
+
+The three existing `AppDBClient` method names remain thin forwards for retained
+callers. Their SQL has one implementation. Password hashing, conflict responses,
+JWTs, timestamps and the HTTP contract retain their behavior. Import checks keep
+identity contracts free of database clients and keep the adapter free of
+extraction, object storage and OCR. This completes the persistence interface
+under [issue #16](https://github.com/Yudhyy/Klaudia/issues/16), not a full identity
+package or account lifecycle change. Versioned schema work remains separate
+under [issue #38](https://github.com/Yudhyy/Klaudia/issues/38).
 
 ## Verification and next work
 

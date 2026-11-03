@@ -233,16 +233,23 @@ provide the regression surface for this contract.
 ### Identity persistence
 
 [Authentication routes](https://github.com/Yudhyy/Klaudia/blob/5a33e394748c9a1c7863488402acfa8b96780bd7/app/routes/v1/auth.py)
-still use `container.db_client`. The
+at the recorded baseline use `container.db_client`. The
 [shared database client](https://github.com/Yudhyy/Klaudia/blob/5a33e394748c9a1c7863488402acfa8b96780bd7/app/services/extraction/infra/db_client.py)
-implements user creation, credential lookup and last-login updates alongside
+at that revision implements user creation, credential lookup and last-login updates alongside
 conversation, document and extraction-cache storage.
 
-When identity work starts, isolate those identity operations using the current
-pool and schema. Preserve authentication responses, password handling, token
-behavior and conflict handling. Conversation sessions are not authentication
-sessions. Account deletion and token invalidation remain the separate behavior
-requested by [issue #9](https://github.com/Yudhyy/Klaudia/issues/9).
+The current source isolates those operations through
+`app/services/auth/store.py` and `app/adapters/identity.py` under
+[issue #16](https://github.com/Yudhyy/Klaudia/issues/16). Auth uses the identity
+interface; retained `AppDBClient` methods forward to the same adapter. Composition
+reuses the existing pool. Schema startup and shutdown remain with the application
+client. This change preserves authentication responses, password handling,
+tokens and conflict mapping. See the
+[identity follow-up](overview.mdx#identity-storage-interface).
+
+Conversation sessions remain separate from authentication sessions. Account
+deletion and token invalidation remain the behavior requested by
+[issue #9](https://github.com/Yudhyy/Klaudia/issues/9).
 
 ### Schema upgrades
 
@@ -251,8 +258,10 @@ requested by [issue #9](https://github.com/Yudhyy/Klaudia/issues/9).
 No versioned migration setup exists in the reviewed paths. Before schema-changing
 work or relocating those stores, define upgrade ownership and process startup
 order, retaining the ledger's standalone initialization contract. Issue #9
-already requires an upgrade path for installed databases; the target's Alembic
-layout does not establish that a migration framework has been selected.
+already requires an upgrade path for installed databases.
+[Issue #38](https://github.com/Yudhyy/Klaudia/issues/38) selects SQLAlchemy and
+Alembic and tracks migration ownership. The identity interface does not implement
+that migration work.
 
 ### Workflow, memory and documents
 

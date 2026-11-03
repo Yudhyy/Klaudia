@@ -62,6 +62,20 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
         ("app/services/core/archive_tools.py", ("langchain_core",)),
         ("app/services/memory/tools.py", ("langchain_core",)),
         ("app/services/memory/reconciliation.py", ("langchain_core",)),
+        (
+            "app/services/auth",
+            (
+                "app.services.extraction",
+                "app.adapters",
+                "asyncpg",
+                "aioboto3",
+                "taskiq",
+            ),
+        ),
+        (
+            "app/adapters/identity.py",
+            ("app.services.extraction", "config", "aioboto3", "taskiq"),
+        ),
         *[
             (
                 f"mcp-ledger/ledger/{module}.py",
@@ -208,3 +222,34 @@ importlib.import_module(sys.argv[1])
         cwd=REPO_ROOT,
     )
     assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize("module", ["app.services.auth.store", "app.adapters.identity"])
+def test_identity_imports_without_extraction(module):
+    """Block transitive extraction, object-store and queue imports in a fresh process."""
+    script = """
+import importlib
+from importlib.abc import MetaPathFinder
+import sys
+
+sys.path.insert(0, sys.argv[2])
+
+class NoExtraction(MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        blocked = ('app.services.extraction', 'aioboto3', 'taskiq', 'redis')
+        if sys.argv[1] == 'app.services.auth.store':
+            blocked += ('asyncpg',)
+        if any(fullname == name or fullname.startswith(name + '.') for name in blocked):
+            raise ImportError(f'Forbidden identity dependency: {fullname}')
+
+sys.meta_path.insert(0, NoExtraction())
+importlib.import_module(sys.argv[1])
+"""
+    completed = subprocess.run(
+        [sys.executable, "-I", "-c", script, module, str(REPO_ROOT)],
+        capture_output=True,
+        text=True,
+        timeout=20,
+        cwd=REPO_ROOT,
+    )
+    assert completed.returncode == 0, completed.stderr

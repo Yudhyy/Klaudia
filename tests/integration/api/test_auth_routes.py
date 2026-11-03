@@ -12,13 +12,23 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
+from app.adapters.identity import PostgresIdentityStore
 from app.routes import v1_router
+from app.helpers.ratelimit import limiter
+from app.services.auth.passwords import verify_password
+from app.services.auth.tokens import decode_access_token
+from config.settings import get_settings
 
 
 @pytest.fixture
-async def client(postgres_db) -> AsyncIterator[httpx.AsyncClient]:
+async def client(postgres_db, monkeypatch) -> AsyncIterator[httpx.AsyncClient]:
+    """Serve auth behavior checks without shared rate-limit counters."""
+    monkeypatch.setattr(limiter, "enabled", False)
     app = FastAPI()
-    app.state.container = SimpleNamespace(db_client=postgres_db)
+    app.state.container = SimpleNamespace(
+        db_client=postgres_db,
+        identity_store=PostgresIdentityStore(postgres_db.pool),
+    )
     app.include_router(v1_router)
 
     transport = httpx.ASGITransport(app=app)
@@ -59,6 +69,42 @@ async def test_register_duplicate_username_conflicts(client):
         },
     )
     assert resp.status_code == 409
+    assert resp.json() == {"detail": "Username already taken"}
+
+
+async def test_register_duplicate_email_has_generic_conflict(client):
+    """Keep email conflicts distinct from the username precheck."""
+    await _register(client, "alice")
+    response = await client.post(
+        "/v1/auth/register",
+        json={
+            "username": "another-user",
+            "email": "alice@example.com",
+            "password": "hunter2hunter2",
+        },
+    )
+    assert (response.status_code, response.json()) == (
+        409,
+        {"detail": "Account already exists"},
+    )
+
+
+async def test_registration_stores_hash_and_issues_matching_token(client, postgres_db):
+    """Store credentials without including them in the token response."""
+    body = await _register(client, "alice")
+    stored = await postgres_db.fetchone(
+        'SELECT user_id, password_hash, last_login FROM "user" WHERE username = $1',
+        ("alice",),
+    )
+    assert set(body) == {"access_token", "token_type", "user_id", "username"}
+    assert stored["password_hash"] != "hunter2hunter2"
+    assert verify_password("hunter2hunter2", stored["password_hash"])
+    assert stored["last_login"] is None
+    assert (
+        decode_access_token(body["access_token"], secret=get_settings().jwt_secret)
+        == stored["user_id"]
+        == body["user_id"]
+    )
 
 
 async def test_register_rejects_short_password(client):
@@ -77,6 +123,53 @@ async def test_login_roundtrip(client):
     )
     assert resp.status_code == 200
     assert resp.json()["access_token"]
+
+
+async def test_login_updates_only_the_matching_account(client, postgres_db):
+    """A successful login updates only its account with the database time."""
+    await _register(client, "alice")
+    await _register(client, "bob")
+    before_login = await postgres_db.fetchval("SELECT CURRENT_TIMESTAMP")
+    response = await client.post(
+        "/v1/auth/login",
+        json={"username": "alice", "password": "hunter2hunter2"},
+    )
+    after_login = await postgres_db.fetchval("SELECT CURRENT_TIMESTAMP")
+    accounts = await postgres_db.fetchall(
+        'SELECT username, last_login FROM "user" WHERE username IN ($1, $2) '
+        "ORDER BY username",
+        ("alice", "bob"),
+    )
+    assert response.status_code == 200
+    assert before_login <= accounts[0]["last_login"] <= after_login
+    assert accounts[1]["last_login"] is None
+
+
+async def test_failed_login_keeps_the_previous_login_time(client, postgres_db):
+    """A rejected password must not change saved login state."""
+    await _register(client, "alice")
+    await postgres_db.execute(
+        "UPDATE \"user\" SET last_login = CURRENT_TIMESTAMP - INTERVAL '1 day' "
+        "WHERE username = $1",
+        ("alice",),
+    )
+    previous_login = await postgres_db.fetchval(
+        'SELECT last_login FROM "user" WHERE username = $1', ("alice",)
+    )
+    response = await client.post(
+        "/v1/auth/login",
+        json={"username": "alice", "password": "wrong-password"},
+    )
+    assert (response.status_code, response.json()) == (
+        401,
+        {"detail": "Invalid username or password"},
+    )
+    assert (
+        await postgres_db.fetchval(
+            'SELECT last_login FROM "user" WHERE username = $1', ("alice",)
+        )
+        == previous_login
+    )
 
 
 async def test_login_wrong_password_rejected(client):

@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from app.adapters.identity import PostgresIdentityStore
+from app.services.auth.store import IdentityStore
 from config.settings import Settings
 from app.services.core.llm_client import LLMClient
 from app.services.core.observability import LangfuseService
@@ -102,6 +104,7 @@ class KlaudiaContainer:
         self.llm_client: Optional[LLMClient] = None
         self.kie_client: Optional[KIEClient] = None
         self.db_client: Optional[AppDBClient] = None
+        self.identity_store: Optional[IdentityStore] = None
         self.memory_documents: Optional[MemoryDocumentStore] = None
         self.dedup_cache: Optional[DedupCache] = None
         self.object_store: Optional[MinIOClient] = None
@@ -128,6 +131,7 @@ class KlaudiaContainer:
         container.kie_client = KIEClient(settings, langfuse=container.langfuse)
         container.db_client = AppDBClient(settings)
         await container.db_client.connect()
+        container.identity_store = PostgresIdentityStore(container.db_client.pool)
         container.memory_documents = MemoryDocumentStore(container.db_client.pool)
         await container.memory_documents.initialize()
         container.dedup_cache = DedupCache(settings)
