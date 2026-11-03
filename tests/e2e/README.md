@@ -110,10 +110,13 @@ If any target resolves to the value it is supposed to replace, the run **raises
 claimed to be sandboxed would be worse than no isolation, because its results
 would be trusted. Set `E2E_SANDBOX=0` to run against development on purpose.
 
-Schemas need no migration step: the app and ledger tables are
-`CREATE TABLE IF NOT EXISTS` statements run on first connect, so a fresh
-database populates itself. `scripts/sandbox_init.sql` adds only the `vector`
-extension, which the application role cannot create for itself.
+The E2E container fixture runs the integrated Alembic release command against
+the selected sandbox before it starts runtime services. For a host API or
+worker, run `uv run python -m app.adapters.persistence upgrade` with the
+intended sandbox `DATABASE_URL` first. Unknown or partial owned layouts fail
+the upgrade; do not stamp them to bypass the check. The current runtime does
+not require the legacy `vector` extension. See the
+[migration guide](../../docs/docs/05-development/contributing/database-migrations.mdx).
 
 Do not use `docker compose --profile sandbox down -v` as a sandbox-only reset.
 It can remove other project volumes, including development data.

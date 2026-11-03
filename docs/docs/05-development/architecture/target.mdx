@@ -7,6 +7,12 @@ import AppArchitecture from '../img/app-architecture.avif';
 
 # Proposed architecture
 
+The [database migration foundation](database.mdx), delivered through
+[issue #38](https://github.com/Yudhyy/Klaudia/issues/38), defines owned SQLAlchemy
+metadata and two Alembic histories. [ADR 0001](decisions/0001-database-migration-schema.mdx)
+records the reasons and tradeoffs. The remaining module and process layout on
+this page stays proposed.
+
 Status: proposed architecture and incremental migration plan under
 [issue #3](https://github.com/Yudhyy/Klaudia/issues/3). The
 [current architecture](overview.mdx) and [assessment](assessment.mdx) describe
@@ -328,10 +334,13 @@ klaudia/
 │       │       ├── tracing.py            # trace factory + run metadata        
 │       │       └── correlation.py        # request/session/task/operation context
 │       │
-│       ├── migrations/                      # versioned alembic migrations
+│       ├── migrations/                      # application Alembic history
 │       │   ├── versions/
+│       │   ├── metadata.py
 │       │   ├── env.py
-│       │   └── alembic.ini
+│       │   ├── script.py.mako
+│       │   ├── app_0001.sql
+│       │   └── app_0001.json
 │       ├── config/
 │       │   ├── models.yaml
 │       │   └── models.schema.json
@@ -635,6 +644,7 @@ klaudia/
 │       │   ├── img/
 │       │   ├── contributing/
 │       │   │   ├── issue-workflow.mdx
+│       │   │   ├── database-migrations.mdx
 │       │   │   └── roadmap.mdx
 │       │   ├── architecture/
 │       │   │   ├── overview.mdx
@@ -651,9 +661,10 @@ klaudia/
 │       │   │   ├── directories.mdx
 │       │   │   ├── contracts.mdx
 │       │   │   └── decisions/
-│       │   │       ├── 0001-hexagonal-modular-monolith.mdx
-│       │   │       ├── 0002-openapi-contract.mdx
-│       │   │       └── 0003-ironcalc-as-formula-engine.mdx
+│       │   │       ├── 0001-database-migration-schema.mdx
+│       │   │       ├── 0002-hexagonal-modular-monolith.mdx
+│       │   │       ├── 0003-openapi-contract.mdx
+│       │   │       └── 0004-ironcalc-as-formula-engine.mdx
 │       │   └── research/                # training/fine-tuning, modeling, comparison, etc...
 │       │       ├── models/
 │       │       ├── papers/
@@ -684,6 +695,7 @@ klaudia/
 ├── pnpm-workspace.yaml
 ├── pnpm-lock.yaml
 ├── Cargo.lock
+├── alembic.ini                           # named application and ledger histories
 ├── pyproject.toml                        # uv workspace root
 ├── uv.lock
 ├── README.md
@@ -698,9 +710,40 @@ klaudia/
 └── turbo.json                            # optional js task orchestration
 ```
 
+### Database ownership during module moves
+
+The tree above describes the full target under issue #3. The migration foundation
+adds schema ownership and release checks needed for later module moves. Review
+changes to the target separately from each feature's implementation.
+
+The [database architecture](database.mdx) and
+[ADR 0001](decisions/0001-database-migration-schema.mdx) describe the current
+migration setup. Its implementation paths are:
+
+| Responsibility | Current path |
+| --- | --- |
+| Authoring configuration for both histories | Root `alembic.ini` |
+| Application metadata, environment, revisions, SQL, and schema contracts | `app/adapters/persistence/` |
+| Ledger metadata, environment, revisions, SQL, and schema contracts | `mcp-ledger/ledger/migrations/` |
+| Integrated ledger-before-application release order | `app/adapters/persistence/migrations.py` |
+
+The proposed `services/api/migrations/` directory shows the application history
+in the future service layout. The ledger history must remain usable without
+application tables or imports. Its final package path and the location of shared
+migration helpers need review when the storage adapters move. This foundation
+leaves those package choices open.
+
+Module extraction retains two histories, stable revision IDs, predecessor links,
+version-table names, and frozen assets. It does not create a history per domain
+module. Keep SQLAlchemy, Alembic, and asyncpg in persistence adapters rather than
+pure core packages. A later move must update installed imports, asset discovery,
+CLI commands, process startup, Docker, and CI selection together. Preserve task
+connection use, exact financial effects, approval payloads, checkpoints, operation
+references, and receipts through regression checks.
+
 ## Dependency rules
 
-### Current implementation
+### Recorded baseline
 
 `app` composes agent protocols with concrete ledger, document, workflow and
 memory implementations. The agent uses its own capability request shapes and
@@ -827,7 +870,9 @@ not become client wire contracts by default.
 | Implemented transport separation | Outbound MCP client in application adapters; agent distribution drops MCP dependencies | Independent installed-agent/skill check, package-wide import rule and existing client/authorization regressions |
 | Implemented capability separation | Agent-owned document, memory, policy and ledger contracts with application adapters | Frozen tool/error/continuation contracts, independent installed tools, import checks and execution/recovery regressions |
 | Implemented runtime separation | Agent runtime/skills packages and application-owned provider construction | Independent runtime, skills and compatibility wheel checks; frozen schemas/continuations; process startup, Docker and CI selection checks |
-| Module by module | Workflow, memory, documents and identity packages with their adapters | Owned entrypoints, durable/owner-isolation regressions and process startup checks for each moved module |
+| Implemented identity interface | `IdentityStore` separates identity persistence from auth callers while retaining schema and behavior, delivered by [#40](https://github.com/Yudhyy/Klaudia/pull/40) for [#16](https://github.com/Yudhyy/Klaudia/issues/16) | Auth, identity-store, and existing route regressions |
+| Database foundation in [#38](https://github.com/Yudhyy/Klaudia/issues/38) | Owned metadata, two histories, checked adoption, release coordination, and runtime checks | Blank/populated/standalone/retry/interruption tests, ownership filters, installed assets, and financial recovery checks |
+| Module by module | Workflow, memory, documents and remaining identity extraction with their adapters | Owned entrypoints, durable/owner-isolation regressions and process startup checks for each moved module |
 | As consumers are ready | API/worker/MCP entrypoints and infrastructure relocated into the proposed service layout | Installed imports and startup for all three processes; Docker, CI, commands and contributor docs match the new paths |
 
 Use the [first-extraction scope and acceptance criteria](assessment.mdx#first-extraction-installable-ledger-core)
@@ -835,9 +880,12 @@ as the contract retained by the first code slice. Its implementation keeps the
 existing pure module structure; the full domain/application tree above is a
 later design option. Test commands/results belong to the code PR; the presence
 of CI configuration does not establish a remote pass.
-Identity/schema-changing work must define upgrade ownership before moving stores
-and remain coordinated with [issue #9](https://github.com/Yudhyy/Klaudia/issues/9).
-The ledger's standalone initialization remains supported.
+The identity interface and database foundation establish upgrade ownership before
+stores move. Further schema changes follow the owning history and stay coordinated
+with [issue #9](https://github.com/Yudhyy/Klaudia/issues/9). The ledger's standalone
+initialization remains supported. Extract workflow, memory, and documents through
+their interfaces before relocating process composition. Complete the remaining
+ledger adapter move with its standalone packaging checks.
 
 Each slice moves a working responsibility with its callers, metadata, tests and
 entrypoints. Preserve public behavior during package moves. Record deliberate

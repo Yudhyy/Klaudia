@@ -1,0 +1,163 @@
+---
+sidebar_position: 1
+title: "ADR 0001: Database migrations and schema ownership"
+description: Why Klaudia uses two Alembic histories, checked schema adoption, and persistence-owned metadata.
+---
+
+# Database migrations and schema ownership
+
+Status: proposed for review with [issue #38](https://github.com/Yudhyy/Klaudia/issues/38).
+Date: 2026-11-03.
+
+Klaudia uses SQLAlchemy metadata and Alembic for versioned PostgreSQL schema
+changes. One release runner coordinates two histories: ledger, then application.
+Each history owns its objects and version table. Runtime stores retain asyncpg
+queries and their existing transaction rules.
+
+See the [database architecture](../database.mdx) for the system design and the
+[migration guide](../../contributing/database-migrations.mdx) for contributor steps.
+
+## Context and constraints
+
+Before this change, application, memory, workflow, and ledger stores run schema
+SQL during startup. That makes upgrade order depend on which process starts
+first. Package moves also need a clear owner for tables, indexes, sequences,
+extensions, functions, and triggers.
+
+The migration must support blank databases and the checked local development and
+sandbox layouts. It must preserve populated users, documents, approvals,
+checkpoints, sheet revisions, operation references, and receipts. Unknown layouts
+must fail before the runner records a version. These checked layouts do not
+establish support for every historical deployment.
+
+Ledger also supports installation without application tables or imports. An
+integrated release must use that same ledger history. These constraints come
+from [issue #38](https://github.com/Yudhyy/Klaudia/issues/38), within the gradual
+module changes tracked by [issue #3](https://github.com/Yudhyy/Klaudia/issues/3).
+
+## Decision
+
+### Two histories and one release coordinator
+
+The application history owns identity, chat, document, memory, and workflow
+objects. The ledger history owns ledger objects. Their version tables are
+`app_alembic_version` and `ledger_alembic_version`.
+
+This split follows the standalone ledger requirement. A logical module does not
+need its own migration history. Adding an application module normally extends
+the application history. Alembic documents
+[independent environments in one configuration file](https://alembic.sqlalchemy.org/en/latest/cookbook.html#run-multiple-alembic-environments-from-one-ini-file).
+
+The integrated coordinator takes one session advisory lock, checks both starting
+layouts, and upgrades ledger before application objects. Each revision has
+its own transaction and schema postcondition. The lock spans commits. A failed
+application revision can leave a completed ledger revision recorded; the release
+must finish both histories before services start. This is ordered execution, not
+one atomic transaction across both histories.
+
+Normal API, worker, and integrated MCP startup checks schema state. The standalone
+ledger compatibility entrypoint can initialize ledger objects through the same
+coordinator. No second startup DDL implementation remains responsible for them.
+
+### One authoring configuration
+
+The root `alembic.ini` contains named `application` and `ledger` sections. It owns
+the UTC filename format and Ruff generation hook. Each environment has `env.py`,
+`script.py.mako`, and its own `versions/` directory. The template gives each new
+revision its header and typed functions.
+
+Installed runtime execution uses Alembic `Config()` with the installed environment
+path and a caller-supplied connection. It reads no authoring `.ini` file and needs
+no repository checkout. Database URLs come from the caller, not committed config.
+This uses the supported [Alembic configuration API](https://alembic.sqlalchemy.org/en/latest/api/config.html).
+
+We rejected three configuration files because they repeated filename, timezone,
+and path settings without a separate deployment need. Two histories do not
+require two configuration files. Contributors author migrations from the checkout;
+installed packages carry the revisions and their required assets.
+
+### Current metadata and frozen migration assets
+
+| Artifact | Purpose | Change rule |
+| --- | --- | --- |
+| `metadata.py` | Describe the current owned tables for reflection filters and candidate generation | Update with the current schema |
+| `versions/YYYY-MM-DD-HHMM_slug.py` | Apply a change and link it to its predecessor | Keep shared or published revisions fixed |
+| `app_0001.sql`, `ledger_0001.sql` | Create the fixed initial baselines and retain supported legacy ledger adoption | Keep fixed after publication |
+| `<revision_id>.json` | Record the expected owned PostgreSQL catalog at that revision | Review with that revision; keep fixed after publication |
+
+The SQL files retain the existing PostgreSQL DDL, including functions, triggers,
+generated expressions, indexes, and seeds. A small Python revision invokes each
+baseline within Alembic's transaction. Later revisions can use normal `op.*`
+operations and explicit SQL where needed; each revision does not need a separate
+SQL file.
+
+The JSON files contain schema definitions, not user records or test results.
+They cover objects that table names and a normal autogenerated diff cannot prove,
+such as trigger bodies, sequence settings, index validity, and generated
+expressions. Adoption compares the installed catalog with the frozen contract
+before stamping a fixed revision. Upgrade postconditions and startup checks use
+the same contract. A baseline cannot depend on mutable current metadata to prove
+what an older schema should contain.
+
+This full catalog policy is a Klaudia choice. Alembic's
+[autogenerate documentation](https://alembic.sqlalchemy.org/en/latest/autogenerate.html)
+requires candidate review and describes detection limits; it does not require
+JSON manifests. Exact catalog checks add maintenance work and PostgreSQL version
+sensitivity. A change must keep its revision, required head, current metadata,
+and frozen contract consistent. Generated Python alone is not a complete change.
+
+### Ownership stays outside domain code
+
+SQLAlchemy metadata, Alembic, and asyncpg remain persistence concerns. Domain and
+agent packages do not import them. Module interfaces describe required behavior;
+concrete adapters implement storage and composition supplies them.
+
+The present application adapter reuses technical migration helpers from the
+ledger distribution. This keeps standalone delivery working but is a transitional
+location. The final location of ledger persistence and shared migration support
+needs review when those adapters move. No new infrastructure package is selected
+by this decision. These helpers do not belong in `ledger-core`, agent core, or a
+domain shared kernel. The [target layout](../target.mdx#database-ownership-during-module-moves)
+records the constraints on that later move: retain revision identities and two
+histories rather than creating a history for every module.
+
+## Reference choices
+
+We reviewed Polar at commit `0c52aeac2be7c02b59edcc44e7071ecda9e3ccc7`.
+It is a working reference for Alembic conventions, not a template for Klaudia's
+deployment or domain model.
+
+| Reference | Choice for Klaudia |
+| --- | --- |
+| [Polar server configuration](https://github.com/polarsource/polar/blob/0c52aeac2be7c02b59edcc44e7071ecda9e3ccc7/server/alembic.ini) | One authoring config and `YYYY-MM-DD-HHMM_slug.py` filenames; Klaudia explicitly sets UTC and keeps revision IDs independent of filenames |
+| [Polar revision template](https://github.com/polarsource/polar/blob/0c52aeac2be7c02b59edcc44e7071ecda9e3ccc7/server/migrations/script.py.mako) | Summary, Revision ID, Revises, Create Date, and typed revision functions |
+| [Polar migration environment](https://github.com/polarsource/polar/blob/0c52aeac2be7c02b59edcc44e7071ecda9e3ccc7/server/migrations/env.py) | Explicit metadata registration and comparison filters; adapt connection handling to Klaudia's asyncpg DSN and release coordinator |
+| [Polar migration checks](https://github.com/polarsource/polar/blob/0c52aeac2be7c02b59edcc44e7071ecda9e3ccc7/server/scripts/check_migrations.py) | Check a single head per history and test candidate generation; retain Klaudia's adoption and financial behavior checks |
+| [Polar migration safety decision](https://github.com/polarsource/polar/blob/0c52aeac2be7c02b59edcc44e7071ecda9e3ccc7/handbook/engineering/decisions/0006-migration-and-backfill-safety.mdx) | Review locks, recovery, and compatibility for each change; choose deployment rules for Klaudia's processes |
+
+Polar's server uses one history. Klaudia's two histories, frozen SQL baselines,
+catalog JSON contracts, and coordinated adoption are local design choices.
+Polar's migration-only deployment policy and timeouts do not establish suitable
+defaults for Klaudia. The initial cutover stops the old schema-writing processes;
+it does not promise a rolling upgrade with mixed application versions.
+
+## Alternatives and costs
+
+| Alternative | Reason for this decision |
+| --- | --- |
+| Keep startup `CREATE IF NOT EXISTS` calls | They cannot prove that an installed layout matches the required version or define ordered upgrades |
+| Use one combined history | It makes standalone ledger setup depend on application history |
+| Create one history per logical module | It adds ordering and packaging work without a separate installation need |
+| Build the baseline only from current metadata | It loses a fixed record of old schema behavior and does not describe all PostgreSQL objects |
+| Check only version numbers or autogenerate output | A recorded version or empty diff can conceal changed guards, invalid indexes, or a partial adoption |
+
+The frozen SQL and JSON assets make review larger. Full catalog checks add startup
+queries and couple expectations to PostgreSQL definitions. Supported optional
+legacy objects also need explicit handling. This cost buys strict adoption and
+drift detection for the supported stores; it is not a measured performance gain.
+
+Revisit this decision if ledger no longer needs independent installation, a new
+PostgreSQL version changes catalog output, contract maintenance causes repeated
+errors, or measured startup cost becomes material. Revisit release ordering before
+adding nontransactional DDL or mixed-version rollout. Such changes need explicit
+compatibility and recovery tests; passing baseline tests alone does not prove them.

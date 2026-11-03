@@ -45,6 +45,16 @@ npm test
 
 See [README.md](README.md) for local services and
 [tests/e2e/README.md](tests/e2e/README.md) for integration and evaluation setup.
+Host API and worker processes require the release step first:
+`uv run python -m app.adapters.persistence upgrade` with the intended
+`DATABASE_URL`. Compose runs this step through its `migrate` service. Read the
+[migration guide](docs/docs/05-development/contributing/database-migrations.mdx) before
+adopting an existing database or adding a revision.
+Use the root `alembic.ini` with `-n application` or `-n ledger` to generate
+revisions. Each environment includes its own template. Installed checks and
+upgrades use programmatic configuration without a checkout or bundled `.ini`.
+Autogeneration and `alembic check` use a current disposable database in read-only
+mode; release writes remain behind the coordinated runner.
 Check actual test-store targets before running service tests. Keep user stores
 separate. Live-model checks need model access and can incur charges.
 

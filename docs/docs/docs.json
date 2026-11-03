@@ -13,9 +13,12 @@
         "group": "Development",
         "pages": [
           "05-development/architecture/overview",
+          "05-development/architecture/database",
+          "05-development/architecture/decisions/0001-database-migration-schema",
           "05-development/architecture/assessment",
           "05-development/architecture/target",
-          "05-development/contributing/issue-workflow"
+          "05-development/contributing/issue-workflow",
+          "05-development/contributing/database-migrations"
         ]
       }
     ]

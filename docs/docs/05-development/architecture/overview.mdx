@@ -5,6 +5,10 @@ title: Current architecture
 
 # Current architecture
 
+The [database architecture](database.mdx) describes the owned Alembic histories,
+release order, startup checks, retained legacy objects, and recovery added after
+the source snapshot below.
+
 Klaudia has a FastAPI backend, one main accounting agent, a PostgreSQL ledger,
 document extraction, and an Expo mobile client. The API and extraction worker
 share application code but run in separate processes. By default, the API starts
