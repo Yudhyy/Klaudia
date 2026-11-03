@@ -35,6 +35,15 @@ executors:
           POSTGRES_PASSWORD: klaudia
           POSTGRES_DB: klaudia
 
+  python-with-postgres:
+    docker:
+      - image: cimg/python:3.11
+      - image: cimg/postgres:16.4
+        environment:
+          POSTGRES_USER: klaudia
+          POSTGRES_PASSWORD: klaudia
+          POSTGRES_DB: klaudia_migrations
+
 commands:
   install-deps:
     description: Install uv and sync all workspace packages
@@ -122,6 +131,27 @@ jobs:
       - store_test_results:
           path: test-results
 
+  migration-test:
+    executor: python-with-postgres
+    environment:
+      PG_TEST_URL: postgresql://klaudia:klaudia@127.0.0.1:5432/klaudia_migrations
+    steps:
+      - checkout
+      - install-deps
+      - run:
+          name: Wait for isolated migration PostgreSQL
+          command: |
+            for attempt in $(seq 1 30); do
+              if nc -z 127.0.0.1 5432; then exit 0; fi
+              sleep 1
+            done
+            exit 1
+      - run:
+          name: Test owned migrations in disposable databases
+          command: uv run pytest tests/integration/migrations -q --junitxml=test-results/migrations.xml
+      - store_test_results:
+          path: test-results
+
   mobile-checks:
     docker:
       - image: cimg/node:24.12.0
@@ -165,6 +195,9 @@ workflows:
           requires:
             - lint
       - integration-test:
+          requires:
+            - unit-test
+      - migration-test:
           requires:
             - unit-test
 
