@@ -8,15 +8,12 @@ a PostgreSQL ledger, document extraction, and an Expo mobile client.
 1. Read [CONTRIBUTING.md](CONTRIBUTING.md) and identify the requested outcome.
 2. Check `git status --short`, `git branch --show-current`, and `git rev-parse HEAD`.
    Inspect existing changes and untracked files before editing. Preserve them.
-3. If present, read `.local/agent/preferences.md` and `.local/agent/state.md`.
-   These files are optional private aids. A fresh clone must work without them.
-4. Compare the handoff's recorded HEAD with current history and the working diff.
-   Review changes made outside this session. Never restore an old design from
-   memory without checking the current code and task.
-5. Fetch the selected GitHub issue, linked PRs, and relevant discussion. If access
+3. Review relevant recent commits before relying on earlier context. Check the
+   current code and task before applying an earlier design.
+4. Fetch the selected GitHub issue, linked PRs, and relevant discussion. If access
    fails, state which snapshot you have and what remains unverified. A closed
    issue does not prove implementation; a closed PR does not prove a merge.
-6. Read the affected implementation, tests, and accepted decisions. State material
+5. Read the affected implementation, tests, and accepted decisions. State material
    assumptions and a short plan before a non-trivial change. Ask when an unresolved
    choice changes scope, behavior, or a public contract. Continue independent work.
 
@@ -40,7 +37,7 @@ a PostgreSQL ledger, document extraction, and an Expo mobile client.
 | `tests/` | Unit, integration, and evaluation checks |
 | `.circleci/` | Backend and mobile CI commands and path selection |
 
-`docs/CONTEXT.md` documents application memory. It is not a coding-agent handoff.
+`docs/CONTEXT.md` describes application memory.
 Read the [current architecture](docs/docs/05-development/architecture/overview.mdx)
 for execution paths and source links. The
 [hexagonal layout](docs/docs/05-development/architecture/target.mdx) is a proposed
@@ -99,8 +96,5 @@ Report changes, verification, unresolved risks, and the next action. Distinguish
 implemented, tested, proposed, and unknown state. Do not claim a remote CI pass
 from local checks or close an issue merely because code was written.
 
-When `.local/agent/state.md` exists, update it with the checked branch and full
-HEAD, working-tree changes, active issue, commands and outcomes, open questions,
-and next action. Keep it short. Read archived notes only for a specific question.
-Put lasting design reasons in public docs or decision records. Local notes are
-not the only record of a public contract.
+Record lasting design reasons and public contracts in reviewed documentation or
+decision records.
