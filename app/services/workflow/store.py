@@ -13,6 +13,7 @@ from typing import Any, AsyncIterator
 from uuid import uuid4
 
 import asyncpg
+from app.adapters.persistence.migrations import check_database
 from pydantic import ValidationError
 from agent_core.agent.writes import ExecuteOperation
 
@@ -23,23 +24,6 @@ from ledger.table_operations import (
     prepare_table_append,
     execute_prepared_operation,
 )
-
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS workflow_task (
-    task_id TEXT PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    session_id INTEGER NOT NULL REFERENCES session(session_id) ON DELETE CASCADE,
-    request_key TEXT NOT NULL,
-    fingerprint TEXT NOT NULL,
-    input_payload TEXT NOT NULL,
-    checkpoint TEXT,
-    status TEXT NOT NULL DEFAULT 'ready',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (user_id, session_id, request_key)
-);
-CREATE INDEX IF NOT EXISTS workflow_task_session ON workflow_task(user_id, session_id);
-"""
 
 
 class TaskBusyError(Exception):
@@ -260,12 +244,21 @@ class TaskStore:
         self._reads: asyncpg.Pool | None = None
 
     async def connect(self) -> None:
-        """Open up to four concurrent task connections and apply additive storage."""
+        """Open task connections only after checking release migrations.
+
+        Raises:
+            RuntimeError: Required migrations or owned objects are missing.
+        """
         self._pool = await asyncpg.create_pool(self._url, min_size=1, max_size=4)
-        self._reads = await asyncpg.create_pool(
-            self._url, min_size=1, max_size=2, command_timeout=10
-        )
-        await self._reads.execute(_SCHEMA)
+        try:
+            async with self._pool.acquire() as connection:
+                await check_database(connection)
+            self._reads = await asyncpg.create_pool(
+                self._url, min_size=1, max_size=2, command_timeout=10
+            )
+        except BaseException:
+            await self.close()
+            raise
 
     async def close(self) -> None:
         """Close the task pool and release its database resources."""

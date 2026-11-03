@@ -4,6 +4,7 @@ import json
 from importlib.metadata import version
 from pathlib import Path
 import subprocess
+import shutil
 import sys
 import tomllib
 from zipfile import ZipFile
@@ -91,11 +92,18 @@ def install_agent_packages(directory: Path, distributions: tuple[str, ...]) -> P
     """
     wheels = directory / "wheels"
     for distribution in distributions:
+        source = directory / "sources" / distribution
+        source.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(
+            REPO_ROOT / distribution,
+            source,
+            ignore=shutil.ignore_patterns("build", "dist", "*.egg-info", "__pycache__"),
+        )
         run_command(
             [
                 "uv",
                 "build",
-                str(REPO_ROOT / distribution),
+                str(source),
                 "--wheel",
                 "--no-sources",
                 "--offline",

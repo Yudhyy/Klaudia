@@ -144,30 +144,29 @@ async def test_ensure_spreadsheet_is_idempotent(store):
     assert [s["title"] for s in await store.list_sheets(workspace)] == ["Jul"]
 
 
-async def test_connect_adopts_orphan_workspaces(store):
-    """Legacy rows (pre-tenancy ledger_sheet without a spreadsheet row) are
-    adopted as system-owned spreadsheets when the schema is (re)applied."""
-    orphan = f"legacy-{uuid.uuid4().hex[:8]}"
-    async with store.pool.acquire() as conn:
-        # Simulate a pre-migration row: bypass the FK, then drop the
-        # spreadsheet row so only the sheet remains.
-        await conn.execute(
-            "ALTER TABLE ledger_sheet DROP CONSTRAINT ledger_sheet_workspace_fkey"
-        )
-        await conn.execute(
-            "INSERT INTO ledger_sheet (workspace, title, grid) VALUES ($1, 'Jul', '[]')",
-            orphan,
-        )
+async def test_connect_adopts_orphan_workspaces(migration_database):
+    """Adopt verified unversioned legacy rows through the shared ledger history."""
+    from ledger.migrations import LEDGER_HISTORY
 
-    fresh = LedgerStore(_PG_URL)
-    await fresh.connect()  # re-applies schema: adopt orphans + restore FK
+    database_url, connection = migration_database
+    await connection.execute((LEDGER_HISTORY.directory / "ledger_0001.sql").read_text())
+    await connection.execute(
+        "ALTER TABLE ledger_sheet DROP CONSTRAINT ledger_sheet_workspace_fkey"
+    )
+    await connection.execute(
+        "INSERT INTO ledger_sheet (workspace,title,grid) VALUES ('legacy','Claims','[]')"
+    )
+    fresh = LedgerStore(database_url)
     try:
-        adopted = await fresh.get_spreadsheet(orphan)
+        await fresh.connect()
+        adopted = await fresh.get_spreadsheet("legacy")
         assert adopted["userId"] == 0
-        constraint = await fresh.pool.fetchrow(
-            "SELECT 1 FROM pg_constraint WHERE conname = 'ledger_sheet_workspace_fkey'"
+        assert (
+            await connection.fetchval(
+                "SELECT count(*) FROM pg_constraint WHERE conname='ledger_sheet_workspace_fkey'"
+            )
+            == 1
         )
-        assert constraint is not None
     finally:
         await fresh.close()
 

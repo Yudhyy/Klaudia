@@ -42,6 +42,8 @@ dependencies = [
     "bcrypt>=5.0.0",
     "slowapi>=0.1.10",
     "asyncpg>=0.31.0",
+    "sqlalchemy[asyncio]>=2.0,<3",
+    "alembic>=1.17,<2",
 ]
 
 [tool.uv.sources]

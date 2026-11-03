@@ -4,37 +4,10 @@ import json
 
 import asyncpg
 
-from app.services.memory.contracts import DocumentEdit, DocumentPath, MemoryDocument
+from app.adapters.persistence.migrations import APPLICATION_HISTORY
+from ledger.migrations.runtime import check_history
 
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS memory_document (
-    user_id INTEGER NOT NULL REFERENCES "user"(user_id) ON DELETE CASCADE,
-    path TEXT NOT NULL CHECK (path IN ('/preferences.md', '/conventions.md', '/accounting-policy.md')),
-    revision BIGINT NOT NULL CHECK (revision > 0),
-    status TEXT NOT NULL CHECK (status IN ('active', 'deleted')),
-    content TEXT CHECK (octet_length(content) <= 8192),
-    actor_id INTEGER NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    source_note TEXT NOT NULL CHECK (char_length(source_note) <= 512),
-    PRIMARY KEY (user_id, path),
-    CHECK (actor_id = user_id),
-    CHECK ((status = 'active' AND content IS NOT NULL) OR (status = 'deleted' AND content IS NULL))
-);
-CREATE TABLE IF NOT EXISTS memory_document_revision (
-    user_id INTEGER NOT NULL,
-    path TEXT NOT NULL,
-    revision BIGINT NOT NULL,
-    status TEXT NOT NULL,
-    content TEXT,
-    actor_id INTEGER NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    source_note TEXT NOT NULL,
-    PRIMARY KEY (user_id, path, revision),
-    FOREIGN KEY (user_id, path) REFERENCES memory_document(user_id, path) ON DELETE CASCADE
-);
-ALTER TABLE memory_document ADD COLUMN IF NOT EXISTS policy JSONB;
-ALTER TABLE memory_document_revision ADD COLUMN IF NOT EXISTS policy JSONB;
-"""
+from app.services.memory.contracts import DocumentEdit, DocumentPath, MemoryDocument
 
 
 class DocumentConflict(ValueError):
@@ -53,8 +26,13 @@ class MemoryDocumentStore:
         self._pool = pool
 
     async def initialize(self) -> None:
-        """Create the document tables without modifying existing records."""
-        await self._pool.execute(_SCHEMA)
+        """Check the application migration without modifying stored documents.
+
+        Raises:
+            RuntimeError: Required migrations or owned objects are missing.
+        """
+        async with self._pool.acquire() as connection:
+            await check_history(connection, APPLICATION_HISTORY)
 
     async def read(self, user_id: int, path: DocumentPath) -> MemoryDocument:
         """Read only the authenticated owner's current document.

@@ -20,25 +20,6 @@ from ledger.approvals import check_approval, prepare_approval
 from ledger_core.errors import IdempotencyConflictError, RevisionConflictError
 from ledger_core.resources import ResourceNotFoundError
 
-TABLE_OPERATION_SCHEMA = """
-CREATE TABLE IF NOT EXISTS ledger_table_operation (
-    user_id INTEGER NOT NULL,
-    idempotency_key TEXT NOT NULL,
-    fingerprint TEXT NOT NULL,
-    workspace TEXT,
-    receipt JSONB,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_id, idempotency_key)
-);
-ALTER TABLE ledger_table_operation ADD COLUMN IF NOT EXISTS request_payload TEXT;
-ALTER TABLE ledger_table_operation ADD COLUMN IF NOT EXISTS approval_required BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE ledger_table_operation ADD COLUMN IF NOT EXISTS approval_id TEXT;
-ALTER TABLE ledger_table_operation ADD COLUMN IF NOT EXISTS approval_status TEXT;
-ALTER TABLE ledger_table_operation ADD COLUMN IF NOT EXISTS approval_expires_at TIMESTAMPTZ;
-ALTER TABLE ledger_table_operation ADD COLUMN IF NOT EXISTS approved_fingerprint TEXT;
-CREATE UNIQUE INDEX IF NOT EXISTS ledger_table_approval_id ON ledger_table_operation(approval_id) WHERE approval_id IS NOT NULL;
-"""
-
 
 async def prepare_table_append(
     pool: asyncpg.Pool,

@@ -22,40 +22,6 @@ from ledger_core.resources import (
     TableUpdate,
 )
 
-CATALOGUE_SCHEMA = """
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-
-CREATE TABLE IF NOT EXISTS ledger_resource (
-    resource_id TEXT PRIMARY KEY,
-    sheet_id INTEGER NOT NULL REFERENCES ledger_sheet(sheet_id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    description TEXT NOT NULL,
-    grain TEXT NOT NULL,
-    aliases TEXT[] NOT NULL,
-    alias_keys TEXT[] NOT NULL,
-    entity TEXT,
-    period_start DATE,
-    period_end DATE,
-    table_range TEXT NOT NULL,
-    first_row INTEGER NOT NULL,
-    first_column INTEGER NOT NULL,
-    last_row INTEGER NOT NULL,
-    last_column INTEGER NOT NULL,
-    columns JSONB NOT NULL,
-    column_keys TEXT[] NOT NULL,
-    record_count INTEGER NOT NULL,
-    source_revision BIGINT NOT NULL,
-    revision BIGINT NOT NULL DEFAULT 1,
-    search_text TEXT NOT NULL,
-    search_vector TSVECTOR GENERATED ALWAYS AS (to_tsvector('simple', search_text)) STORED,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (sheet_id, table_range)
-);
-CREATE INDEX IF NOT EXISTS ledger_resource_search ON ledger_resource USING GIN(search_vector);
-CREATE INDEX IF NOT EXISTS ledger_resource_trigrams ON ledger_resource USING GIN(search_text gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS ledger_resource_columns ON ledger_resource USING GIN(column_keys);
-"""
 
 _SELECT_RESOURCE = """
 SELECT r.*, s.workspace, s.title AS sheet_name, s.revision AS current_sheet_revision,

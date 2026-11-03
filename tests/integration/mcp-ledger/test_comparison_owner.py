@@ -10,7 +10,9 @@ from tests.e2e.comparison_owner import comparison_owner
 from tests.integration.postgres import POSTGRES_TEST_URL
 
 
-async def test_comparison_owner_cleans_sessions_after_failure_without_touching_other_owner():
+async def test_comparison_owner_cleans_sessions_after_failure_without_touching_other_owner(
+    migrated_postgres,
+):
     """Cleanup includes failed trials but leaves another fixture's account intact."""
     settings = Settings(DATABASE_URL=POSTGRES_TEST_URL)
     assert settings.database_url == POSTGRES_TEST_URL

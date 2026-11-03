@@ -9,7 +9,7 @@ from config.settings import Settings
 from tests.integration.postgres import POSTGRES_TEST_URL
 
 
-async def test_single_agent_startup_connects_retained_services():
+async def test_single_agent_startup_connects_retained_services(migrated_postgres):
     """Start real stores and ledger transport without calling a model provider."""
     settings = Settings(
         _env_file=None,
