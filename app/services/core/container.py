@@ -85,6 +85,7 @@ def _build_ledger_registry(settings: Settings) -> MCPToolRegistry:
                 "DATABASE_URL": settings.database_url,
                 "JWT_SECRET": settings.jwt_secret,
                 "MCP_USER_ID": "",
+                "LEDGER_SCHEMA_MODE": "check",
             },
         )
     if transport == "http":
@@ -149,7 +150,7 @@ class KlaudiaContainer:
         except Exception as e:
             logger.error("MinIO unavailable (%s). Image/PDF uploads will fail.", e)
         container.ledger_store = LedgerStore(settings.database_url)
-        await container.ledger_store.connect()
+        await container.ledger_store.connect_existing()
         container.spreadsheets = SpreadsheetService(container.ledger_store)
         container.catalogue = CatalogueService(
             CatalogueStore(container.ledger_store.pool)

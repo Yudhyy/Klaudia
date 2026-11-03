@@ -83,7 +83,7 @@ class AppendChatModel(ScriptedModel):
 
 
 @pytest.fixture
-async def main_chat_client():
+async def main_chat_client(migrated_postgres):
     """Create fresh identities and workbooks with cleanup limited to this fixture."""
     settings = Settings(
         _env_file=None,

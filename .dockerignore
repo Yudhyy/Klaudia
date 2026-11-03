@@ -13,6 +13,9 @@ __pycache__
 *.egg-info/
 dist/
 build/
+**/build/
+**/dist/
+**/*.egg-info/
 
 # Dependencies
 node_modules
@@ -28,6 +31,10 @@ node_modules
 
 # version control and local tooling
 .git
+.local
+.agents
+.codex
+AGENTS.override.md
 .github
 .circleci
 .venv

@@ -96,6 +96,8 @@ services:
       # Bind beyond loopback so a physical Expo/mobile device on the LAN can reach the API.
       - "${APP_PORT:-8000}:8000"
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -142,6 +144,8 @@ services:
       - --log-level
       - INFO
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -150,6 +154,20 @@ services:
         condition: service_healthy
     stop_grace_period: 30s
     restart: unless-stopped
+
+  migrate:
+    image: klaudia-protocol:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      <<: *klaudia-environment
+    command: ["python", "-m", "app.adapters.persistence", "upgrade"]
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   # Isolated store for the end-to-end sandbox. Never shares the development volume.
   postgres-sandbox:

@@ -70,7 +70,9 @@ async def container():
     """Build the real KlaudiaContainer once for the module."""
     from app.services.core.container import KlaudiaContainer
     from config.settings import get_settings
+    from app.adapters.persistence.migrations import upgrade_database
 
+    await upgrade_database(get_settings().database_url)
     c = await KlaudiaContainer.create(get_settings())
     yield c
     await c.shutdown()
