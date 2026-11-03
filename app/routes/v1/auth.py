@@ -8,6 +8,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from app.helpers.ratelimit import auth_limit, limiter
 from app.services.auth.passwords import hash_password, verify_password
+from app.services.auth.store import IdentityStore
 from app.services.auth.tokens import create_access_token
 from config.settings import get_settings
 
@@ -51,11 +52,11 @@ async def register(
     body: RegisterRequest, request: Request, response: Response
 ) -> TokenResponse:
     """Create a user account and return an access token."""
-    db = request.app.state.container.db_client
-    if await db.get_user_by_username(body.username) is not None:
+    identity: IdentityStore = request.app.state.container.identity_store
+    if await identity.get_user_by_username(body.username) is not None:
         raise HTTPException(status_code=409, detail="Username already taken")
     try:
-        user_id = await db.create_user(
+        user_id = await identity.create_user(
             username=body.username,
             email=body.email,
             password_hash=hash_password(body.password),
@@ -78,12 +79,12 @@ async def login(
     body: LoginRequest, request: Request, response: Response
 ) -> TokenResponse:
     """Verify credentials and return an access token."""
-    db = request.app.state.container.db_client
-    user = await db.get_user_by_username(body.username)
+    identity: IdentityStore = request.app.state.container.identity_store
+    user = await identity.get_user_by_username(body.username)
     if user is None or not verify_password(body.password, user["password_hash"]):
         # Same error for unknown user and wrong password (no enumeration).
         raise HTTPException(status_code=401, detail="Invalid username or password")
-    await db.update_last_login(user["user_id"])
+    await identity.update_last_login(user["user_id"])
     return TokenResponse(
         access_token=_issue_token(user["user_id"]),
         user_id=user["user_id"],

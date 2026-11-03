@@ -38,7 +38,7 @@ simpler modules.
 | Ledger | Exact financial calculations, catalogue/table rules, revisions, prepared operations, financial approval requirements and committed receipts | `mcp-ledger/ledger/`, with application catalogue/operation adapters | `ledger-core` |
 | Agent runtime | Model-driven steps, tool selection, run context and continuation payloads | `packages/agent-core/src/agent_core/agent/` and `packages/agent-skills/src/agent_skills/`; `klaudia/core/` keeps compatibility imports | `agent-core` and `agent-skills` (implemented) |
 | Documents | Ingestion, extraction, expected pages, saved outcomes and document lifecycle | `app/services/extraction/` and archive reads | `document-intelligence` |
-| Identity | Accounts, credentials, authentication use cases and account access state | Auth routes/services and user methods in `AppDBClient` | `identity-core` |
+| Identity | Accounts, credentials, authentication use cases and account access state | Auth routes/services, `IdentityStore` and the application PostgreSQL adapter | `identity-core` |
 | Workflow | Durable task identity/status, checkpoint persistence, exclusive task execution, resume coordination and human-decision routing | `app/services/workflow/` and durable orchestration in `main_chat.py` | `workflow-core` |
 | Memory | Owner-scoped context documents, preferences, policy documents and their revisions | `app/services/memory/` | `memory-core` |
 

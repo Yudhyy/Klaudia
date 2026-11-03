@@ -12,6 +12,7 @@ import pytest
 from fastapi import FastAPI
 
 import config.settings as settings_mod
+from app.adapters.identity import PostgresIdentityStore
 from app.models.chat import KlaudiaMessage, KlaudiaResponse
 from app.routes import v1_router
 
@@ -42,7 +43,10 @@ async def client(monkeypatch, postgres_db) -> AsyncIterator[httpx.AsyncClient]:
     limiter.reset()
 
     app = FastAPI()
-    app.state.container = SimpleNamespace(db_client=postgres_db)
+    app.state.container = SimpleNamespace(
+        db_client=postgres_db,
+        identity_store=PostgresIdentityStore(postgres_db.pool),
+    )
     app.state.orchestrator = FakeOrchestrator()
     attach_rate_limiter(app)
     app.include_router(v1_router)

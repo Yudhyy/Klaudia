@@ -8,6 +8,8 @@ from uuid import uuid4
 
 import asyncpg
 
+from app.adapters.identity import PostgresIdentityStore
+from app.services.auth.store import UserCredentials
 from config.settings import Settings
 
 logger = logging.getLogger(__name__)
@@ -174,29 +176,42 @@ class AppDBClient:
         command_status = await self.pool.execute(sql, *params)
         return _affected_rows(command_status)
 
-    async def get_user_by_username(self, username: str) -> dict[str, Any] | None:
-        """Return an authentication row by username."""
-        return await self.fetchone(
-            'SELECT user_id, username, email, password_hash FROM "user" '
-            "WHERE username = $1",
-            (username,),
-        )
+    async def get_user_by_username(self, username: str) -> UserCredentials | None:
+        """Forward credential lookup for existing database-client callers.
+
+        Args:
+            username: Exact account name.
+
+        Returns:
+            Stored credentials, or None when no account matches.
+        """
+        return await PostgresIdentityStore(self.pool).get_user_by_username(username)
 
     async def create_user(self, username: str, email: str, password_hash: str) -> int:
-        """Create a user and return its ID."""
-        user_id = await self.fetchval(
-            'INSERT INTO "user" (username, email, password_hash) '
-            "VALUES ($1, $2, $3) RETURNING user_id",
-            (username, email, password_hash),
+        """Forward account creation for existing database-client callers.
+
+        Args:
+            username: Account name.
+            email: Account email address.
+            password_hash: Hash produced by the authentication service.
+
+        Returns:
+            Generated account ID.
+
+        Raises:
+            asyncpg.UniqueViolationError: The username or email already exists.
+        """
+        return await PostgresIdentityStore(self.pool).create_user(
+            username, email, password_hash
         )
-        return int(user_id)
 
     async def update_last_login(self, user_id: int) -> None:
-        """Set the user's last-login timestamp."""
-        await self.execute(
-            'UPDATE "user" SET last_login = CURRENT_TIMESTAMP WHERE user_id = $1',
-            (user_id,),
-        )
+        """Forward login updates for existing database-client callers.
+
+        Args:
+            user_id: Authenticated account ID.
+        """
+        await PostgresIdentityStore(self.pool).update_last_login(user_id)
 
     async def get_session_owner(self, session_id: int) -> int | None:
         """Return the user that owns a session."""
