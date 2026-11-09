@@ -219,7 +219,7 @@ session ownership. Retrieved content supplies facts, not execution authority.
 | Identity table setup, sessions, conversation, document metadata, pages, extraction cache | `AppDBClient` in `app/services/extraction/infra/db_client.py` |
 | Sheet grids, resource catalogue, native formulas, operations, receipts | `mcp-ledger/ledger/` |
 | Agent task input, checkpoint storage, status and human-decision routing | `app/services/workflow/` and `app/services/core/main_chat.py` |
-| Human preferences, conventions, accounting policy, revision history | `app/services/memory/` |
+| Human preferences, conventions, accounting policy, revision history | Contracts and interfaces in `app/services/memory/`; PostgreSQL adapter in `app/adapters/persistence/memory.py` |
 | Source documents and page images | S3-compatible object storage |
 | Cache, extraction queue, result backend, progress events | Redis |
 
@@ -237,7 +237,7 @@ They are separate from financial facts and developer-agent notes.
 | Startup wiring, configured providers | `app/services/core/container.py`, `config/settings.py`, `app/adapters/llm/model_factory.py` |
 | Registration/login persistence | `app/services/auth/store.py`, `app/adapters/identity.py` |
 | Agent steps, tool context, runtime skill procedures | `packages/agent-core/src/agent_core/agent/`, `packages/agent-skills/src/agent_skills/` |
-| Catalogue, authoring, memory policy | `app/services/catalogue/`, `app/services/memory/`, associated ledger modules |
+| Catalogue, authoring, memory policy | `app/services/catalogue/`, `app/services/memory/`, `app/adapters/ledger/reconciliation.py` and associated ledger modules |
 | Checked financial effects and deterministic calculations | `mcp-ledger/ledger/` |
 | Task recovery and human decisions | `app/services/workflow/`, `app/services/core/main_chat.py` |
 | Document ingestion and background work | `app/services/extraction/` |
@@ -324,7 +324,7 @@ The existing backend methods now serve as capability adapters. `ArchiveReader`
 in `app/services/core/archive_tools.py` retains document SQL, file/session owner
 checks and pagination limits. `MemoryReader` in `app/services/memory/tools.py`
 retains owner-scoped reads and trust labels. `PolicyReconciler` in
-`app/services/memory/reconciliation.py` retains saved policy checks before and
+`app/adapters/ledger/reconciliation.py` retains saved policy checks before and
 after the read, source ownership/revisions, exact ledger reconciliation and
 evidence limits. Agent code does not select accounting rules or calculate
 financial results. The old application tool-builder classes have no compatibility
@@ -337,6 +337,27 @@ in these three adapters. Packaging checks run the four read tools from an
 installed wheel with application, database and MCP modules absent. Ledger
 execution, approvals, task connections and continuation storage retain their
 existing implementations.
+
+### Memory storage boundary
+
+The [memory interfaces](https://github.com/Yudhyy/Klaudia/blob/development/app/services/memory/ports.py)
+separate owner-scoped context reads from human edits. `DocumentReader` returns
+the current document, tombstone or missing state. `DocumentRepository` adds
+expected-revision writes and deletion, with current value and history committed
+together. Memory owns the bounded document and structured policy contracts.
+
+The [PostgreSQL adapter](https://github.com/Yudhyy/Klaudia/blob/development/app/adapters/persistence/memory.py)
+retains the existing SQL, transactions, migration check and application pool.
+Composition supplies it to routes and chat. Context tools and saved-policy
+reconciliation depend on the read interface. Replay checks use the same reader
+on the task connection that holds the lock; they no longer contain memory SQL.
+Changed, deleted or restored policy revisions still stop saved reconciliation
+replay. Document and workbook access checks retain their current implementation.
+
+Old memory store and reconciliation paths retain compatibility imports without
+a second implementation. Import checks isolate the memory contracts, interfaces
+and context reader from agent, ledger and infrastructure code. This is an
+application boundary; `memory-core` packaging remains proposed.
 
 ## Ledger capability contracts
 

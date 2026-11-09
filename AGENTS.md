@@ -28,7 +28,7 @@ a PostgreSQL ledger, document extraction, and an Expo mobile client.
 | `app/services/workflow/` | Task coordination and storage, progress, and decision interfaces |
 | `app/services/extraction/` | Document ingestion, extraction, queue, and archive storage |
 | `app/services/catalogue/` | Resource discovery and table authoring |
-| `app/services/memory/` | Owner-scoped application context documents |
+| `app/services/memory/` | Context document contracts and owner-scoped read/edit interfaces |
 | `klaudia/` | Main agent, bounded tools, and versioned runtime skills |
 | `packages/ledger-core/` | Pure ledger contracts, grid aggregation, and exact native formulas |
 | `mcp-ledger/ledger/` | Ledger storage, checked execution, MCP transport, and compatibility imports |

@@ -7,13 +7,14 @@ import pytest
 from pydantic import ValidationError
 
 from app.services.memory.contracts import DocumentEdit, DocumentPath
-from app.services.memory.store import DocumentConflict, MemoryDocumentStore
+from app.adapters.persistence.memory import PostgresMemoryDocumentStore
+from app.services.memory.ports import DocumentConflict
 
 
 @pytest.fixture
 async def documents(postgres_db):
     """Provide a document store using the isolated application database."""
-    store = MemoryDocumentStore(postgres_db.pool)
+    store = PostgresMemoryDocumentStore(postgres_db.pool)
     await store.initialize()
     return store
 

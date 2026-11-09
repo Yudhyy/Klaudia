@@ -101,9 +101,24 @@ compatibility imports.
 
 The lifecycle service and interfaces import without agent or infrastructure
 code. This is an application boundary, not an installed `workflow-core` package.
-Package extraction, document/memory access interfaces and process layout remain
+Package extraction, document access interfaces and process layout remain
 later work. The connection and recovery constraints in the baseline assessment
 still apply. Test results belong to the code PR.
+
+## Memory boundary follow-up
+
+The [memory storage boundary](overview.mdx#memory-storage-boundary) now gives
+routes, context tools and saved-policy reconciliation memory-owned read/edit
+interfaces. PostgreSQL persistence lives in an application adapter. Ledger
+reconciliation remains a ledger adapter and uses only the memory read interface.
+Saved task policy checks use that interface on the connection holding the task
+lock. Owner scope, revision conflicts, history, tombstones and byte limits retain
+their current contracts.
+
+Import checks protect the memory contracts, interfaces and context reader from
+agent, ledger and infrastructure dependencies. The old store and reconciliation
+modules retain aliases. An installed `memory-core` package, document interfaces
+and process moves remain proposed. Test results belong to the code PR.
 
 ## Completed work and remaining limits
 

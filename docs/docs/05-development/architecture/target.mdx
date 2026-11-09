@@ -26,6 +26,9 @@ packages; application adapters own model-provider construction.
 Workflow coordination now uses application-owned storage and run interfaces;
 concrete adapters retain task SQL, agent-state checks and ledger execution.
 The `workflow-core` package remains proposed.
+Memory context reads and edits now use memory-owned interfaces, with PostgreSQL
+storage and saved-policy ledger reconciliation in application adapters.
+The `memory-core` package remains proposed.
 The overview and assessment distinguish these follow-ups
 from their recorded baseline source.
 
@@ -49,7 +52,7 @@ simpler modules.
 | Documents | Ingestion, extraction, expected pages, saved outcomes and document lifecycle | `app/services/extraction/` and archive reads | `document-intelligence` |
 | Identity | Accounts, credentials, authentication use cases and account access state | Auth routes/services, `IdentityStore` and the application PostgreSQL adapter | `identity-core` |
 | Workflow | Durable task identity/status, checkpoint persistence, exclusive task execution, resume coordination and human-decision routing | `app/services/workflow/` interfaces and coordination; persistence, agent-state and ledger adapters under `app/adapters/`; chat binding in `main_chat.py` | `workflow-core` |
-| Memory | Owner-scoped context documents, preferences, policy documents and their revisions | `app/services/memory/` | `memory-core` |
+| Memory | Owner-scoped context documents, preferences, policy documents and their revisions | `app/services/memory/` contracts and interfaces; persistence and policy reconciliation under `app/adapters/` | `memory-core` |
 
 Ownership describes rules and interfaces, not a requirement to create every
 package at once. The agent defines how to serialize and interpret its
@@ -876,6 +879,7 @@ not become client wire contracts by default.
 | Implemented identity interface | `IdentityStore` separates identity persistence from auth callers while retaining schema and behavior, delivered by [#40](https://github.com/Yudhyy/Klaudia/pull/40) for [#16](https://github.com/Yudhyy/Klaudia/issues/16) | Auth, identity-store, and existing route regressions |
 | Database foundation in [#38](https://github.com/Yudhyy/Klaudia/issues/38) | Owned metadata, two histories, checked adoption, release coordination, and runtime checks | Blank/populated/standalone/retry/interruption tests, ownership filters, installed assets, and financial recovery checks |
 | Implemented workflow boundary | Application workflow interfaces and lifecycle service with concrete persistence, agent-state and ledger adapters | Pre-change API checkpoint replay, lifecycle/import checks, durable tasks, approval, shared-connection and process-recovery tests; `workflow-core` packaging remains proposed |
+| Implemented memory boundary | Memory-owned context read/edit interfaces with PostgreSQL persistence and ledger policy adapters | Owner isolation, revision conflicts, atomic history, tombstones, byte limits, policy reconciliation and task-connection replay checks; `memory-core` packaging remains proposed |
 | Module by module | Workflow, memory, documents and remaining identity extraction with their adapters | Owned entrypoints, durable/owner-isolation regressions and process startup checks for each moved module |
 | As consumers are ready | API/worker/MCP entrypoints and infrastructure relocated into the proposed service layout | Installed imports and startup for all three processes; Docker, CI, commands and contributor docs match the new paths |
 

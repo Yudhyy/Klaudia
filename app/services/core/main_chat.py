@@ -18,8 +18,8 @@ from app.services.core.archive_tools import ArchiveReader
 from app.services.core.observability import LangfuseService
 from app.services.core.operations import OperationService
 from app.services.extraction.infra.db_client import AppDBClient
-from app.services.memory.reconciliation import PolicyReconciler
-from app.services.memory.store import MemoryDocumentStore
+from app.adapters.ledger.reconciliation import PolicyReconciler
+from app.services.memory.ports import DocumentReader
 from app.services.memory.tools import MemoryReader
 from app.adapters.persistence.tasks import PostgresTaskSession, PostgresTaskStore
 from app.services.workflow.service import TaskCompletion, TaskRun, WorkflowService
@@ -249,7 +249,7 @@ class MainChatService:
         langfuse: LangfuseService | None = None,
         tasks: PostgresTaskStore | None = None,
         authoring: AuthoringService | None = None,
-        memory_documents: MemoryDocumentStore | None = None,
+        memory_documents: DocumentReader | None = None,
     ) -> None:
         """Share immutable dependencies while each turn creates local execution state.
 

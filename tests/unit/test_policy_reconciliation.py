@@ -8,7 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.services.memory.contracts import DocumentPath, MemoryDocument
-from app.services.memory.reconciliation import PolicyReconciler
+from app.adapters.ledger.reconciliation import PolicyReconciler
 from klaudia.core.agent.reconciliation import PolicyReconciliationTools
 from klaudia.core.agent.ports.errors import RevisionConflictError
 from tests.unit.test_accounting_policy import policy_fields

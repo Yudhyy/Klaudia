@@ -7,25 +7,31 @@ import asyncpg
 from pydantic import ValidationError
 
 from agent_core.agent.writes import ExecuteOperation
+from app.services.memory.contracts import DocumentPath
+from app.services.memory.ports import DocumentReader
 from ledger_core.errors import RevisionConflictError
 from ledger_core.resources import ResourceNotFoundError
 
 
 async def check_saved_access(
-    connection: asyncpg.Connection, record: dict[str, Any]
+    connection: asyncpg.Connection,
+    record: dict[str, Any],
+    documents: DocumentReader,
 ) -> None:
     """Recheck all saved tool sources before replaying their evidence.
 
     Args:
         connection: Connection holding the task lock.
         record: Persisted task and original input.
+        documents: Owner-scoped memory reads on the task connection.
 
     Raises:
         ResourceNotFoundError: A saved source is no longer owned.
+        RevisionConflictError: Saved policy is no longer current and active.
     """
     state = json.loads(record["checkpoint"]) if record["checkpoint"] else {}
     workbooks = set()
-    documents = set(json.loads(record["input_payload"])["turn"]["document_ids"])
+    document_ids = set(json.loads(record["input_payload"])["turn"]["document_ids"])
     for name, _, encoded in state.get("evidence", []):
         evidence = json.loads(encoded)
         if name == "list_authoring_sheets":
@@ -41,21 +47,22 @@ async def check_saved_access(
         elif name in {"financial_query", "reconcile_with_policy"}:
             workbooks.update(source["spreadsheet_id"] for source in evidence["sources"])
             if name == "reconcile_with_policy":
-                revision = await connection.fetchval(
-                    "SELECT revision FROM memory_document WHERE user_id = $1 "
-                    "AND path = '/accounting-policy.md' AND status = 'active'",
-                    record["user_id"],
+                policy = await documents.read(
+                    record["user_id"], DocumentPath.ACCOUNTING_POLICY
                 )
-                if revision != evidence["policy_evidence"]["revision"]:
+                if (
+                    policy.status != "active"
+                    or policy.revision != evidence["policy_evidence"]["revision"]
+                ):
                     raise RevisionConflictError(
                         "Saved reconciliation policy changed; start a new task"
                     )
         elif name == "execute_operation" and evidence.get("status") == "committed":
             workbooks.add(evidence["target"]["spreadsheet_id"])
         elif name == "search_documents":
-            documents.update(item["file_id"] for item in evidence["documents"])
+            document_ids.update(item["file_id"] for item in evidence["documents"])
         elif name == "read_document_page":
-            documents.add(evidence["file_id"])
+            document_ids.add(evidence["file_id"])
     owned_workbooks = await connection.fetchval(
         "SELECT count(*) FROM ledger_spreadsheet WHERE user_id = $1 AND spreadsheet_id = ANY($2::text[])",
         record["user_id"],
@@ -64,9 +71,9 @@ async def check_saved_access(
     owned_documents = await connection.fetchval(
         "SELECT count(*) FROM metadata_file f JOIN session s ON s.session_id = f.session_id WHERE f.user_id = $1 AND s.user_id = $1 AND f.id = ANY($2::int[])",
         record["user_id"],
-        list(documents),
+        list(document_ids),
     )
-    if owned_workbooks != len(workbooks) or owned_documents != len(documents):
+    if owned_workbooks != len(workbooks) or owned_documents != len(document_ids):
         raise ResourceNotFoundError("Saved task source is no longer available")
 
 
