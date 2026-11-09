@@ -215,7 +215,7 @@ session ownership. Retrieved content supplies facts, not execution authority.
 
 | State | Current implementation |
 | --- | --- |
-| Credential lookup, account creation, last-login updates | `IdentityStore` in `app/services/auth/store.py`, implemented by `app/adapters/identity.py` |
+| Credential lookup, account creation, last-login updates | `IdentityStore` in `identity_core.ports`, implemented by `app/adapters/identity.py` |
 | Application database pool, startup checks and seed user | `ApplicationDatabase` in `app/adapters/persistence/application.py`; the former `AppDBClient` import remains compatible |
 | Sessions, recent history and conversation messages | `ConversationStore` in `app/services/conversation/store.py`, implemented by `app/adapters/persistence/conversations.py` |
 | Document metadata, pages, extraction cache and saved outcomes | `app/services/documents/` contracts/interfaces, implemented by `app/adapters/persistence/documents.py` and `extraction_outcomes.py` |
@@ -237,7 +237,7 @@ They are separate from financial facts and developer-agent notes.
 | --- | --- |
 | HTTP contract or mobile caller | `app/routes/v1/`, `app/models/`, `apps/mobile/services/` |
 | Startup wiring, configured providers | `app/services/core/container.py`, `config/settings.py`, `app/adapters/llm/model_factory.py` |
-| Registration/login persistence | `app/services/auth/store.py`, `app/adapters/identity.py` |
+| Registration/login rules and adapters | `packages/identity-core/`, `app/adapters/identity.py`, `app/adapters/auth/` |
 | Agent steps, tool context, runtime skill procedures | `packages/agent-core/src/agent_core/agent/`, `packages/agent-skills/src/agent_skills/` |
 | Catalogue, authoring, memory policy | `app/services/catalogue/`, `app/services/memory/`, `app/adapters/ledger/reconciliation.py` and associated ledger modules |
 | Checked financial effects and deterministic calculations | `mcp-ledger/ledger/` |
@@ -459,21 +459,31 @@ under issue #3.
 
 ## Identity storage interface
 
-Registration and login now use `container.identity_store`, typed by the
-`IdentityStore` protocol in `app/services/auth/store.py`. The PostgreSQL adapter
-in `app/adapters/identity.py` owns credential lookup, account creation and
-last-login SQL. Composition supplies the existing application pool after
-`AppDBClient.connect`; the adapter does not create a pool, initialize tables or
-close shared resources.
+Registration and login routes use `container.identity_service`, an
+`IdentityService` from `packages/identity-core/`. The use cases own account lookup,
+duplicate checks, password verification, last-login updates and token issuance
+order. They receive `IdentityStore`, `PasswordHasher` and `TokenIssuer` capabilities
+from composition. HTTP retains validation, rate limits and response mapping.
+
+`IdentityStore` now lives in `identity_core.ports`. The PostgreSQL adapter in
+`app/adapters/identity.py` owns credential lookup, account creation and last-login
+SQL. Composition supplies the existing application pool after
+`ApplicationDatabase.connect`; the adapter does not create a pool, initialize
+tables or close shared resources. `app/adapters/auth/` owns bcrypt and JWT helpers
+and supplies the configured password and token implementations.
 
 The three existing `AppDBClient` method names remain thin forwards for retained
-callers. Their SQL has one implementation. Password hashing, conflict responses,
-JWTs, timestamps and the HTTP contract retain their behavior. Import checks keep
-identity contracts free of database clients and keep the adapter free of
-extraction, object storage and OCR. This completes the persistence interface
-under [issue #16](https://github.com/Yudhyy/Klaudia/issues/16), not a full identity
-package or account lifecycle change. Versioned schema work remains separate
-under [issue #38](https://github.com/Yudhyy/Klaudia/issues/38).
+callers. Their SQL has one implementation. The former auth store/password/token
+paths retain compatibility imports. Password hashing, conflict responses, JWT
+claims and lifetime, timestamps and the HTTP contract retain their behavior.
+
+Import checks restrict identity-core to the standard library. An independent
+wheel test runs registration and login with no application, HTTP, database or
+crypto libraries installed. Auth route, identity storage and startup regressions
+cover the concrete adapters. The persistence interface was delivered under
+[issue #16](https://github.com/Yudhyy/Klaudia/issues/16); this package adds no
+roles, refresh sessions, account deletion or token revocation. The larger identity
+tree and account lifecycle work remain separate.
 
 ## Workflow boundary
 

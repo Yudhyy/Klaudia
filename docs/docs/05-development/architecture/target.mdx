@@ -18,8 +18,9 @@ Status: proposed architecture and incremental migration plan under
 [current architecture](overview.mdx) and [assessment](assessment.mdx) describe
 source at `5a33e394748c9a1c7863488402acfa8b96780bd7`, checked on 2026-10-29.
 The ownership and dependency rules below guide subsequent code PRs. The first
-pure ledger-core package is now implemented; the rest of the package tree remains
-a destination sketch. The outbound MCP client now belongs to application adapters.
+pure ledger-core package is now implemented; follow-ups below record other
+delivered packages. The full tree remains a destination sketch. The outbound
+MCP client now belongs to application adapters.
 Agent-owned capability requests and application translation adapters now remove
 the agent's direct ledger dependency. The runtime and skills now have canonical
 packages; application adapters own model-provider construction.
@@ -33,6 +34,9 @@ Document ingestion, archive reads and queued outcomes now use document-owned
 storage interfaces. Session and message callers use a separate conversation
 interface. PostgreSQL adapters share the existing application pool; document
 package extraction and process moves remain proposed.
+Registration and login now use an installed `identity-core` package with supplied
+account, password and token capabilities. PostgreSQL, bcrypt and JWT adapters
+remain in the application. The full identity domain tree remains proposed.
 The overview and assessment distinguish these follow-ups
 from their recorded baseline source.
 
@@ -54,7 +58,7 @@ simpler modules.
 | Ledger | Exact financial calculations, catalogue/table rules, revisions, prepared operations, financial approval requirements and committed receipts | `mcp-ledger/ledger/`, with application catalogue/operation adapters | `ledger-core` |
 | Agent runtime | Model-driven steps, tool selection, run context and continuation payloads | `packages/agent-core/src/agent_core/agent/` and `packages/agent-skills/src/agent_skills/`; `klaudia/core/` keeps compatibility imports | `agent-core` and `agent-skills` (implemented) |
 | Documents | Ingestion, extraction, expected pages, saved outcomes and document lifecycle | `app/services/documents/` contracts/interfaces, `app/services/extraction/` coordination, and PostgreSQL adapters under `app/adapters/persistence/` | `document-intelligence` |
-| Identity | Accounts, credentials, authentication use cases and account access state | Auth routes/services, `IdentityStore` and the application PostgreSQL adapter | `identity-core` |
+| Identity | Accounts, credentials, authentication use cases and account access state | Registration/login use cases and interfaces in `packages/identity-core/`; PostgreSQL, bcrypt and JWT adapters in the application | `identity-core` (current use cases implemented) |
 | Workflow | Durable task identity/status, checkpoint persistence, exclusive task execution, resume coordination and human-decision routing | `app/services/workflow/` interfaces and coordination; persistence, agent-state and ledger adapters under `app/adapters/`; chat binding in `main_chat.py` | `workflow-core` |
 | Memory | Owner-scoped context documents, preferences, policy documents and their revisions | `app/services/memory/` contracts and interfaces; persistence and policy reconciliation under `app/adapters/` | `memory-core` |
 
@@ -885,7 +889,8 @@ not become client wire contracts by default.
 | Implemented workflow boundary | Application workflow interfaces and lifecycle service with concrete persistence, agent-state and ledger adapters | Pre-change API checkpoint replay, lifecycle/import checks, durable tasks, approval, shared-connection and process-recovery tests; `workflow-core` packaging remains proposed |
 | Implemented memory boundary | Memory-owned context read/edit interfaces with PostgreSQL persistence and ledger policy adapters | Owner isolation, revision conflicts, atomic history, tombstones, byte limits, policy reconciliation and task-connection replay checks; `memory-core` packaging remains proposed |
 | Implemented document and conversation storage boundaries | Document-owned upload/archive/outcome interfaces and a separate session/message interface, supplied by application persistence adapters | Inline and queued extraction, saved progress, archive owner checks, session/history contracts and task-connection replay regressions; document packaging remains proposed |
-| Module by module | Workflow, memory, documents and remaining identity extraction with their adapters | Owned entrypoints, durable/owner-isolation regressions and process startup checks for each moved module |
+| Implemented identity use cases | Installable registration/login use cases with supplied storage, password and token capabilities; HTTP retains validation and response mapping | Behavior and import checks, independent installed-wheel execution, auth/identity-store and startup regressions; account lifecycle features remain separate |
+| Module by module | Workflow, memory, documents and remaining ledger adapters | Owned entrypoints, durable/owner-isolation regressions and process startup checks for each moved module |
 | As consumers are ready | API/worker/MCP entrypoints and infrastructure relocated into the proposed service layout | Installed imports and startup for all three processes; Docker, CI, commands and contributor docs match the new paths |
 
 Use the [first-extraction scope and acceptance criteria](assessment.mdx#first-extraction-installable-ledger-core)

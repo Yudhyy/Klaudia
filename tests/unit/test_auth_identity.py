@@ -1,6 +1,7 @@
-"""Auth routes use identity storage without an extraction database client."""
+"""Auth routes use supplied identity use cases and retain HTTP behavior."""
 
 from collections.abc import AsyncIterator
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -9,8 +10,11 @@ import pytest
 from fastapi import FastAPI
 
 from app.routes.v1 import auth
+from app.adapters.auth.passwords import BcryptPasswords
+from app.adapters.auth.tokens import JwtTokenIssuer
 from app.services.auth.passwords import hash_password, verify_password
-from config.settings import Settings
+from identity_core.contracts import AuthenticatedAccount, Login, Registration
+from identity_core.service import IdentityService
 
 PASSWORD = "hunter2hunter2"
 REGISTRATION = {
@@ -31,15 +35,27 @@ def identity():
 
 
 @pytest.fixture
-async def client(identity, monkeypatch) -> AsyncIterator[httpx.AsyncClient]:
-    """Serve auth routes with no extraction client on the container."""
-    settings = Settings(
-        _env_file=None, JWT_SECRET="identity-test-secret-with-at-least-32-bytes"
+def token_issuer():
+    """Observe token issuance with the existing signed-token implementation."""
+    return Mock(
+        wraps=JwtTokenIssuer(
+            "identity-test-secret-with-at-least-32-bytes", timedelta(days=7)
+        )
     )
-    monkeypatch.setattr(auth, "get_settings", lambda: settings)
+
+
+@pytest.fixture
+def identity_service(identity, token_issuer):
+    """Connect real use cases to the narrow account-store fixture."""
+    return IdentityService(identity, BcryptPasswords(), token_issuer)
+
+
+@pytest.fixture
+async def client(identity_service, monkeypatch) -> AsyncIterator[httpx.AsyncClient]:
+    """Serve auth routes with only identity use cases on the container."""
     monkeypatch.setattr(auth.limiter, "enabled", False)
     app = FastAPI()
-    app.state.container = SimpleNamespace(identity_store=identity)
+    app.state.container = SimpleNamespace(identity_service=identity_service)
     app.include_router(auth.router)
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
@@ -122,7 +138,7 @@ async def test_rejected_login_does_not_update_identity(client, identity, stored_
 
 
 async def test_login_write_failure_prevents_token_creation(
-    client, identity, monkeypatch
+    client, identity, token_issuer
 ):
     """Propagate a failed last-login write before issuing an access token."""
     identity.get_user_by_username.return_value = {
@@ -131,10 +147,62 @@ async def test_login_write_failure_prevents_token_creation(
         "password_hash": hash_password(PASSWORD),
     }
     identity.update_last_login.side_effect = ConnectionError("login write failed")
-    issue_token = Mock()
-    monkeypatch.setattr(auth, "_issue_token", issue_token)
     with pytest.raises(ConnectionError, match="login write failed"):
         await client.post(
             "/auth/login", json={"username": "alice", "password": PASSWORD}
         )
-    issue_token.assert_not_called()
+    token_issuer.issue.assert_not_called()
+
+
+async def test_register_delegates_validated_fields(
+    client, identity_service, monkeypatch
+):
+    """Map the supplied use-case output without reading account storage."""
+    register = AsyncMock(return_value=AuthenticatedAccount(91, "created", "issued"))
+    monkeypatch.setattr(identity_service, "register", register)
+    response = await client.post("/auth/register", json=REGISTRATION)
+    assert (response.status_code, response.json()) == (
+        201,
+        {
+            "access_token": "issued",
+            "token_type": "bearer",
+            "user_id": 91,
+            "username": "created",
+        },
+    )
+    register.assert_awaited_once_with(
+        Registration("alice", "alice@example.com", PASSWORD)
+    )
+
+
+async def test_login_delegates_credentials(client, identity_service, monkeypatch):
+    """Return the stored identity supplied by the login use case."""
+    login = AsyncMock(return_value=AuthenticatedAccount(91, "stored", "issued"))
+    monkeypatch.setattr(identity_service, "login", login)
+    response = await client.post(
+        "/auth/login", json={"username": "alice", "password": PASSWORD}
+    )
+    assert (response.status_code, response.json()["username"]) == (200, "stored")
+    login.assert_awaited_once_with(Login("alice", PASSWORD))
+
+
+@pytest.mark.parametrize(
+    "invalid_fields",
+    [
+        {"username": "ab"},
+        {"username": "a" * 65},
+        {"username": "alice smith"},
+        {"email": "invalid-email"},
+        {"password": "short"},
+        {"password": "a" * 129},
+    ],
+)
+async def test_registration_validation_stops_before_use_case(
+    client, identity_service, monkeypatch, invalid_fields
+):
+    """Keep HTTP field validation ahead of account operations."""
+    register = AsyncMock()
+    monkeypatch.setattr(identity_service, "register", register)
+    response = await client.post("/auth/register", json=REGISTRATION | invalid_fields)
+    assert response.status_code == 422
+    register.assert_not_awaited()

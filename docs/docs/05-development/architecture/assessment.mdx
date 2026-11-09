@@ -141,6 +141,23 @@ infrastructure. Storage behavior and public responses remain unchanged.
 Document package extraction, OCR/object-store/queue separation and process moves
 remain later work. Test results belong to the code PR.
 
+## Identity use-case follow-up
+
+Registration and login now run through `IdentityService` in
+`packages/identity-core/`. The package owns account decisions and token issuance
+order through supplied account storage, password and token interfaces. HTTP
+retains field validation, rate limits, status codes and response mapping.
+PostgreSQL stays in `app/adapters/identity.py`; bcrypt and JWT implementations
+live in `app/adapters/auth/`. Composition supplies the current pool and token
+settings. Former auth imports retain canonical type and function identity.
+
+Package-wide import checks allow only the standard library. Installed-wheel
+checks run registration and login outside the checkout without application or
+infrastructure dependencies. Existing auth, identity SQL and startup regressions
+cover adapter behavior. This step preserves current account behavior; roles,
+refresh sessions, deletion and revocation remain separate features. The full
+target identity tree remains proposed. Test results belong to the code PR.
+
 ## Completed work and remaining limits
 
 | Change | Implemented in the reviewed source | Remaining limit |
@@ -289,10 +306,11 @@ at the recorded baseline use `container.db_client`. The
 at that revision implements user creation, credential lookup and last-login updates alongside
 conversation, document and extraction-cache storage.
 
-The current source isolates those operations through
+The persistence interface first isolated those operations through
 `app/services/auth/store.py` and `app/adapters/identity.py` under
 [issue #16](https://github.com/Yudhyy/Klaudia/issues/16). Auth uses the identity
-interface; retained `AppDBClient` methods forward to the same adapter. Composition
+interface, now canonical in `identity_core.ports`; retained `AppDBClient` methods
+forward to the same adapter. Composition
 reuses the existing pool. Schema startup and shutdown remain with the application
 client. This change preserves authentication responses, password handling,
 tokens and conflict mapping. See the

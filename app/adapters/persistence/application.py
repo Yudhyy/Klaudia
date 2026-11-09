@@ -11,7 +11,7 @@ from app.adapters.identity import PostgresIdentityStore
 from app.adapters.persistence.conversations import PostgresConversationStore
 from app.adapters.persistence.documents import PostgresDocumentStore
 from app.adapters.persistence.migrations import check_database
-from app.services.auth.store import UserCredentials
+from identity_core.ports import UserCredentials
 from config.settings import Settings
 
 logger = logging.getLogger(__name__)

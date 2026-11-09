@@ -1,66 +1,15 @@
-"""JWT access-token helpers (HS256, self-issued).
+"""Compatibility imports for the application access-token adapter."""
 
-The token carries only the user id (`sub`) plus issued-at/expiry claims.
-Anything else about the user is looked up server-side, so tokens never go
-stale on profile changes.
-"""
+from app.adapters.auth.tokens import (
+    DEFAULT_EXPIRES,
+    InvalidTokenError,
+    create_access_token,
+    decode_access_token,
+)
 
-import datetime
-
-import jwt
-
-DEFAULT_EXPIRES = datetime.timedelta(days=7)
-_ALGORITHM = "HS256"
-
-
-class InvalidTokenError(Exception):
-    """Raised when a token is expired, tampered with, or malformed."""
-
-
-def create_access_token(
-    user_id: int,
-    secret: str,
-    expires_delta: datetime.timedelta = DEFAULT_EXPIRES,
-) -> str:
-    """Issue a signed access token for a user.
-
-    Args:
-        user_id: Authenticated user's id.
-        secret: HS256 signing secret.
-        expires_delta: Token lifetime; defaults to 7 days.
-
-    Returns:
-        Encoded JWT string.
-    """
-    now = datetime.datetime.now(tz=datetime.timezone.utc)
-    payload = {
-        "sub": str(user_id),
-        "iat": now,
-        "exp": now + expires_delta,
-    }
-    return jwt.encode(payload, secret, algorithm=_ALGORITHM)
-
-
-def decode_access_token(token: str, secret: str) -> int:
-    """Validate a token and return the user id it was issued to.
-
-    Args:
-        token: Encoded JWT from the Authorization header.
-        secret: HS256 signing secret.
-
-    Returns:
-        The user id from the `sub` claim.
-
-    Raises:
-        InvalidTokenError: If the token is expired, tampered with,
-            malformed, or missing a numeric `sub` claim.
-    """
-    try:
-        payload = jwt.decode(token, secret, algorithms=[_ALGORITHM])
-    except jwt.PyJWTError as e:
-        raise InvalidTokenError(str(e)) from e
-    sub = payload.get("sub")
-    try:
-        return int(sub)
-    except (TypeError, ValueError) as e:
-        raise InvalidTokenError("token missing numeric sub claim") from e
+__all__ = [
+    "DEFAULT_EXPIRES",
+    "InvalidTokenError",
+    "create_access_token",
+    "decode_access_token",
+]
