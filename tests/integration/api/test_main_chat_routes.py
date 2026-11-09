@@ -1,5 +1,8 @@
 """Authenticated main chat uses real catalogue, ledger and conversation storage."""
 
+from app.adapters.persistence.conversations import PostgresConversationStore
+from app.adapters.persistence.documents import PostgresDocumentStore
+
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -112,13 +115,18 @@ async def main_chat_client(migrated_postgres):
                 db_client=database,
                 guardrails=guardrails,
                 main_chat=MainChatService(
-                    model, catalogue, database, operations=OperationService(store)
+                    model,
+                    catalogue,
+                    PostgresConversationStore(database.pool),
+                    operations=OperationService(store),
+                    documents=PostgresDocumentStore(database.pool),
                 ),
                 spreadsheets=SpreadsheetService(store),
                 supervisor=None,
                 extraction_agent=None,
                 memory=None,
                 langfuse=None,
+                conversations=database,
             )
             app = FastAPI()
             app.state.container = container
@@ -287,7 +295,9 @@ async def test_archived_document_is_retrievable_outside_history_with_owner_check
     assert evidence[1]["next_offset"] == 8192
     assert evidence[2]["next_offset"] is None
     assert evidence[1]["extraction_text"] + evidence[2]["extraction_text"] == extracted
-    foreign = ArchiveReader(database, fixture.user_id + 1000000)
+    foreign = ArchiveReader(
+        PostgresDocumentStore(database.pool), fixture.user_id + 1000000
+    )
     assert await foreign.search("historic-invoice") == {
         "documents": [],
         "next_offset": None,

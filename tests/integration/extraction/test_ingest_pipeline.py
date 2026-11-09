@@ -14,6 +14,9 @@ Requires the isolated PostgreSQL test database. Skipped if a service is down.
 
 from __future__ import annotations
 
+from app.adapters.persistence.documents import PostgresDocumentStore
+from app.adapters.persistence.extraction_outcomes import PostgresExtractionOutcomes
+
 import uuid
 from pathlib import Path
 from typing import AsyncIterator
@@ -76,7 +79,14 @@ async def ingest_stack(
     )
     ocr = KIEClient(settings)
 
-    ingest = IngestService(settings=settings, db=db, cache=cache, store=store, ocr=ocr)
+    ingest = IngestService(
+        settings=settings,
+        db=PostgresDocumentStore(db.pool),
+        cache=cache,
+        store=store,
+        ocr=ocr,
+        outcomes=PostgresExtractionOutcomes(db.pool, (settings).max_pdf_pages),
+    )
 
     yield ingest, db, cache, store, int(sid)
 

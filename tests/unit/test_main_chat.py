@@ -36,7 +36,9 @@ def chat_service(model, operations=None):
     ]
     catalogue = AsyncMock()
     catalogue.inspect.return_value = descriptor()
-    service = MainChatService(model, catalogue, database, operations=operations)
+    service = MainChatService(
+        model, catalogue, database, operations=operations, documents=AsyncMock()
+    )
     return service, database
 
 
@@ -210,6 +212,7 @@ def orchestrator_container():
         extraction_agent=AsyncMock(),
         langfuse=None,
         spreadsheets=spreadsheets,
+        conversations=database,
     )
 
 
@@ -449,7 +452,12 @@ async def test_pre_boundary_task_resumes_its_saved_call_before_new_model_work():
     tasks = SimpleNamespace(open=opened, create=AsyncMock())
     database = AsyncMock()
     service = MainChatService(
-        model, AsyncMock(), database, operations=AsyncMock(), tasks=tasks
+        model,
+        AsyncMock(),
+        database,
+        operations=AsyncMock(),
+        tasks=tasks,
+        documents=AsyncMock(),
     )
     turn, outcome = await service.resume(record["user_id"], record["task_id"])
     assert outcome.status == "answered"

@@ -1,5 +1,8 @@
 """Service restart preserves pending approvals and committed ledger effects."""
 
+from app.adapters.persistence.conversations import PostgresConversationStore
+from app.adapters.persistence.documents import PostgresDocumentStore
+
 import pytest
 
 from app.services.core.main_chat import MainChatService
@@ -74,9 +77,10 @@ async def test_service_restart_retains_tasks_and_resumes_original_operation(
         container.main_chat = MainChatService(
             fixture.model,
             old_service._catalogue,
-            container.db_client,
+            PostgresConversationStore(container.db_client.pool),
             operations=OperationService(fixture.fixture.store),
             tasks=reopened,
+            documents=PostgresDocumentStore(container.db_client.pool),
         )
         decision = await client.post(
             f"/v1/approvals/{approval_id}", json={"decision": "approve"}

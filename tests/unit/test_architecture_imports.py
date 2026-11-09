@@ -60,6 +60,55 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
         ("klaudia/core/agent/tools.py", ("ledger", "ledger_core")),
         ("klaudia/core/agent/ports", ("ledger", "ledger_core")),
         ("app/services/core/archive_tools.py", ("langchain_core",)),
+        *[
+            (
+                directory,
+                (
+                    "app.adapters",
+                    "app.services.extraction",
+                    "app.services.core",
+                    "agent_core",
+                    "agent_skills",
+                    "klaudia",
+                    "ledger",
+                    "ledger_core",
+                    "config",
+                    "asyncpg",
+                    "sqlalchemy",
+                    "alembic",
+                    "fastapi",
+                    "langchain_core",
+                    "redis",
+                    "aioboto3",
+                    "taskiq",
+                ),
+            )
+            for directory in ("app/services/documents", "app/services/conversation")
+        ],
+        *[
+            (
+                caller,
+                (
+                    "app.services.extraction.infra.db_client",
+                    "app.services.extraction.outcomes",
+                    "app.adapters.persistence.application",
+                    "app.adapters.persistence.conversations",
+                    "app.adapters.persistence.documents",
+                    "app.adapters.persistence.extraction_outcomes",
+                    "asyncpg",
+                ),
+            )
+            for caller in (
+                "app/services/core/main_chat.py",
+                "app/services/core/archive_tools.py",
+                "app/services/core/orchestrator.py",
+                "app/services/extraction/ingest.py",
+                "app/services/extraction/queue/progress.py",
+                "app/services/extraction/queue/tasks.py",
+                "app/routes/v1/chat.py",
+                "app/routes/v1/sessions.py",
+            )
+        ],
         ("app/services/memory/tools.py", ("langchain_core",)),
         ("app/services/memory/reconciliation.py", ("langchain_core",)),
         *[
@@ -170,6 +219,9 @@ def test_module_dependency_direction(directory, forbidden):
     [
         ("workflow", "ports"),
         ("workflow", "service"),
+        ("documents", "contracts"),
+        ("documents", "ports"),
+        ("conversation", "store"),
         *[("memory", module) for module in ("contracts", "policy", "ports", "tools")],
     ],
 )

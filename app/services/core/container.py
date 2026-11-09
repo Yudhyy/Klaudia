@@ -9,7 +9,12 @@ from app.services.auth.store import IdentityStore
 from config.settings import Settings
 from app.services.core.llm_client import LLMClient
 from app.services.core.observability import LangfuseService
-from app.services.extraction.infra.db_client import AppDBClient
+from app.adapters.persistence.application import ApplicationDatabase
+from app.adapters.persistence.conversations import PostgresConversationStore
+from app.adapters.persistence.documents import PostgresDocumentStore
+from app.adapters.persistence.extraction_outcomes import PostgresExtractionOutcomes
+from app.services.conversation.store import ConversationStore
+from app.services.documents.ports import ExtractionOutcomeStore
 from app.adapters.persistence.memory import PostgresMemoryDocumentStore
 from app.services.memory.ports import DocumentRepository
 from app.services.extraction.infra.dedup_cache import DedupCache
@@ -105,7 +110,10 @@ class KlaudiaContainer:
         self.settings: Optional[Settings] = None
         self.llm_client: Optional[LLMClient] = None
         self.kie_client: Optional[KIEClient] = None
-        self.db_client: Optional[AppDBClient] = None
+        self.db_client: Optional[ApplicationDatabase] = None
+        self.conversations: Optional[ConversationStore] = None
+        self.documents: Optional[PostgresDocumentStore] = None
+        self.document_outcomes: Optional[ExtractionOutcomeStore] = None
         self.identity_store: Optional[IdentityStore] = None
         self.memory_documents: Optional[DocumentRepository] = None
         self.dedup_cache: Optional[DedupCache] = None
@@ -131,8 +139,13 @@ class KlaudiaContainer:
         container.langfuse = LangfuseService(settings)
         container.llm_client = LLMClient(settings, langfuse=container.langfuse)
         container.kie_client = KIEClient(settings, langfuse=container.langfuse)
-        container.db_client = AppDBClient(settings)
+        container.db_client = ApplicationDatabase(settings)
         await container.db_client.connect()
+        container.conversations = PostgresConversationStore(container.db_client.pool)
+        container.documents = PostgresDocumentStore(container.db_client.pool)
+        container.document_outcomes = PostgresExtractionOutcomes(
+            container.db_client.pool, settings.max_pdf_pages
+        )
         container.identity_store = PostgresIdentityStore(container.db_client.pool)
         memory_documents = PostgresMemoryDocumentStore(container.db_client.pool)
         await memory_documents.initialize()
@@ -166,7 +179,8 @@ class KlaudiaContainer:
 
         container.ingest_service = IngestService(
             settings=settings,
-            db=container.db_client,
+            db=container.documents,
+            outcomes=container.document_outcomes,
             cache=container.dedup_cache,  # type: ignore[arg-type]
             store=container.object_store,
             ocr=container.kie_client,
@@ -218,7 +232,8 @@ class KlaudiaContainer:
         container.main_chat = MainChatService(
             model,
             container.catalogue,
-            container.db_client,
+            container.conversations,
+            documents=container.documents,
             operations=OperationService(container.ledger_store),
             tasks=container.tasks,
             authoring=container.authoring,

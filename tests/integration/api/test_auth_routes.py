@@ -28,6 +28,7 @@ async def client(postgres_db, monkeypatch) -> AsyncIterator[httpx.AsyncClient]:
     app.state.container = SimpleNamespace(
         db_client=postgres_db,
         identity_store=PostgresIdentityStore(postgres_db.pool),
+        conversations=postgres_db,
     )
     app.include_router(v1_router)
 

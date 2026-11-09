@@ -13,7 +13,10 @@ from dataclasses import dataclass
 
 from taskiq import TaskiqEvents
 
-from app.services.extraction.infra.db_client import AppDBClient
+from app.adapters.persistence.application import ApplicationDatabase
+from app.adapters.persistence.documents import PostgresDocumentStore
+from app.adapters.persistence.extraction_outcomes import PostgresExtractionOutcomes
+from app.services.documents.ports import DocumentIngestionStore, ExtractionOutcomeStore
 from app.services.extraction.infra.dedup_cache import DedupCache
 from app.services.extraction.infra.object_store import MinIOClient
 from app.services.extraction.infra.kie_client import KIEClient
@@ -25,7 +28,9 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class WorkerContext:
-    db: AppDBClient
+    db: ApplicationDatabase
+    documents: DocumentIngestionStore
+    outcomes: ExtractionOutcomeStore
     cache: DedupCache
     store: MinIOClient
     ocr: KIEClient
@@ -47,14 +52,21 @@ def get_context() -> WorkerContext:
 async def _startup(_state) -> None:
     global _ctx
     settings = get_settings()
-    db = AppDBClient(settings)
+    db = ApplicationDatabase(settings)
     await db.connect()
     cache = DedupCache(settings)
     await cache.connect()
     store = MinIOClient(settings)
     await store.ensure_bucket()
     ocr = KIEClient(settings)
-    _ctx = WorkerContext(db=db, cache=cache, store=store, ocr=ocr)
+    _ctx = WorkerContext(
+        db=db,
+        cache=cache,
+        store=store,
+        ocr=ocr,
+        documents=PostgresDocumentStore(db.pool),
+        outcomes=PostgresExtractionOutcomes(db.pool, settings.max_pdf_pages),
+    )
     logger.info("Extraction worker context ready")
 
 

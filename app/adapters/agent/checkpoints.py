@@ -1,6 +1,7 @@
 """Interpret saved agent state for replay access checks and public task progress."""
 
 import json
+from dataclasses import dataclass
 from typing import Any
 
 import asyncpg
@@ -9,21 +10,30 @@ from pydantic import ValidationError
 from agent_core.agent.writes import ExecuteOperation
 from app.services.memory.contracts import DocumentPath
 from app.services.memory.ports import DocumentReader
+from app.services.documents.ports import DocumentArchive
 from ledger_core.errors import RevisionConflictError
 from ledger_core.resources import ResourceNotFoundError
+
+
+@dataclass(frozen=True)
+class SavedSources:
+    """Bind memory and document reads to the connection holding the task lock."""
+
+    memory: DocumentReader
+    documents: DocumentArchive
 
 
 async def check_saved_access(
     connection: asyncpg.Connection,
     record: dict[str, Any],
-    documents: DocumentReader,
+    sources: SavedSources,
 ) -> None:
     """Recheck all saved tool sources before replaying their evidence.
 
     Args:
         connection: Connection holding the task lock.
         record: Persisted task and original input.
-        documents: Owner-scoped memory reads on the task connection.
+        sources: Owner-scoped memory and document reads on the task connection.
 
     Raises:
         ResourceNotFoundError: A saved source is no longer owned.
@@ -47,7 +57,7 @@ async def check_saved_access(
         elif name in {"financial_query", "reconcile_with_policy"}:
             workbooks.update(source["spreadsheet_id"] for source in evidence["sources"])
             if name == "reconcile_with_policy":
-                policy = await documents.read(
+                policy = await sources.memory.read(
                     record["user_id"], DocumentPath.ACCOUNTING_POLICY
                 )
                 if (
@@ -68,10 +78,8 @@ async def check_saved_access(
         record["user_id"],
         list(workbooks),
     )
-    owned_documents = await connection.fetchval(
-        "SELECT count(*) FROM metadata_file f JOIN session s ON s.session_id = f.session_id WHERE f.user_id = $1 AND s.user_id = $1 AND f.id = ANY($2::int[])",
-        record["user_id"],
-        list(document_ids),
+    owned_documents = await sources.documents.count_owned_documents(
+        record["user_id"], list(document_ids)
     )
     if owned_workbooks != len(workbooks) or owned_documents != len(document_ids):
         raise ResourceNotFoundError("Saved task source is no longer available")

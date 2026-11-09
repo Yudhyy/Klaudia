@@ -10,7 +10,8 @@ from typing import AsyncIterator
 import redis.asyncio as aioredis
 from redis.exceptions import RedisError
 
-from app.services.extraction.outcomes import ExtractionOutcomes, ExtractionScope
+from app.services.documents.contracts import ExtractionScope
+from app.services.documents.ports import ExtractionOutcomeStore
 
 logger = logging.getLogger(__name__)
 PROGRESS_CHANNEL_FMT = "extraction:file:{file_id}:progress"
@@ -35,7 +36,7 @@ class ProgressWait:
 
 async def stream_progress(
     redis_client: aioredis.Redis | None,
-    outcomes: ExtractionOutcomes,
+    outcomes: ExtractionOutcomeStore,
     wait: ProgressWait,
 ) -> AsyncIterator[ProgressEvent]:
     """Yield each saved terminal page once, stopping on completion or timeout.

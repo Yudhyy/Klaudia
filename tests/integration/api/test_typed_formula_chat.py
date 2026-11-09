@@ -1,5 +1,8 @@
 """Main chat retains typed operation receipts through approvals and durable replay."""
 
+from app.adapters.persistence.conversations import PostgresConversationStore
+from app.adapters.persistence.documents import PostgresDocumentStore
+
 import json
 
 import pytest
@@ -231,9 +234,10 @@ async def test_formula_commit_survives_lost_checkpoint(durable_client, monkeypat
     fixture.container.main_chat = MainChatService(
         ScriptedModel([AIMessage(content="The original formula commit is confirmed.")]),
         fixture.container.main_chat._catalogue,
-        fixture.container.db_client,
+        PostgresConversationStore(fixture.container.db_client.pool),
         operations=OperationService(store),
         tasks=fixture.container.tasks,
+        documents=PostgresDocumentStore(fixture.container.db_client.pool),
     )
     resumed = await fixture.client.post(
         f"/v1/tasks/{outcome['task_id']}/resume", headers=fixture.headers

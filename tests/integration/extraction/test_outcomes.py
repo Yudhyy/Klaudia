@@ -1,5 +1,8 @@
 """Durable extraction checks with PostgreSQL and controlled worker timing."""
 
+from app.adapters.persistence.documents import PostgresDocumentStore
+from app.adapters.persistence.extraction_outcomes import PostgresExtractionOutcomes
+
 import asyncio
 from dataclasses import replace
 from types import SimpleNamespace
@@ -64,6 +67,8 @@ def worker_context(db, monkeypatch):
     )
     ctx = SimpleNamespace(
         db=db,
+        documents=PostgresDocumentStore(db.pool),
+        outcomes=PostgresExtractionOutcomes(db.pool),
         cache=cache,
         store=SimpleNamespace(get=AsyncMock(return_value=b"image")),
         ocr=SimpleNamespace(
@@ -98,6 +103,8 @@ def orchestrator_for(db, scope, blob, enqueue=None):
             ),
             extraction_agent=None,
             langfuse=None,
+            conversations=db,
+            document_outcomes=PostgresExtractionOutcomes(db.pool),
         )
     )
 
@@ -317,7 +324,14 @@ async def test_cache_only_enqueue_finalizes_without_waiter(prepared_file, monkey
         get_extraction=AsyncMock(return_value={"info": {"store_name": "Cached"}})
     )
     ingest = IngestService(
-        settings=Settings(_env_file=None), db=db, cache=cache, store=None, ocr=None
+        settings=Settings(_env_file=None),
+        db=PostgresDocumentStore(db.pool),
+        cache=cache,
+        store=None,
+        ocr=None,
+        outcomes=PostgresExtractionOutcomes(
+            db.pool, (Settings(_env_file=None)).max_pdf_pages
+        ),
     )
     monkeypatch.setattr(ingest, "_sanitize_and_verify", lambda attachment: attachment)
     monkeypatch.setattr(
@@ -342,7 +356,14 @@ async def test_cache_only_enqueue_finalizes_without_waiter(prepared_file, monkey
 async def test_enqueue_rejects_foreign_session_before_storage(prepared_file):
     db, scope, _ = prepared_file
     ingest = IngestService(
-        settings=Settings(_env_file=None), db=db, cache=None, store=None, ocr=None
+        settings=Settings(_env_file=None),
+        db=PostgresDocumentStore(db.pool),
+        cache=None,
+        store=None,
+        ocr=None,
+        outcomes=PostgresExtractionOutcomes(
+            db.pool, (Settings(_env_file=None)).max_pdf_pages
+        ),
     )
     with pytest.raises(ResourceNotFoundError):
         await ingest.enqueue(

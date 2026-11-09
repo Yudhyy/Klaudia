@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.adapters.agent.checkpoints import check_saved_access
+from app.adapters.agent.checkpoints import SavedSources, check_saved_access
 from app.adapters.persistence.memory import PostgresMemoryReader
 from app.services.memory.contracts import DocumentPath, MemoryDocument
 from app.services.memory.ports import DocumentReader
@@ -38,6 +38,8 @@ def saved_reconciliation():
 @pytest.mark.parametrize("status", ["missing", "active", "deleted"])
 async def test_replay_reads_policy_through_the_owner_scoped_interface(status):
     """Only the same active revision can supply saved reconciliation evidence."""
+    archive = AsyncMock()
+    archive.count_owned_documents.return_value = 0
     documents = AsyncMock(spec=DocumentReader)
     documents.read.return_value = MemoryDocument(
         path=DocumentPath.ACCOUNTING_POLICY, status=status, revision=3
@@ -45,10 +47,14 @@ async def test_replay_reads_policy_through_the_owner_scoped_interface(status):
     connection = AsyncMock()
     connection.fetchval.return_value = 0
     if status == "active":
-        await check_saved_access(connection, saved_reconciliation(), documents)
+        await check_saved_access(
+            connection, saved_reconciliation(), SavedSources(documents, archive)
+        )
     else:
         with pytest.raises(RevisionConflictError, match="Saved reconciliation policy"):
-            await check_saved_access(connection, saved_reconciliation(), documents)
+            await check_saved_access(
+                connection, saved_reconciliation(), SavedSources(documents, archive)
+            )
     documents.read.assert_awaited_once_with(42, DocumentPath.ACCOUNTING_POLICY)
     assert all(
         "memory_document" not in call.args[0]
@@ -58,21 +64,29 @@ async def test_replay_reads_policy_through_the_owner_scoped_interface(status):
 
 async def test_replay_rejects_a_new_active_policy_revision():
     """Restoring the same prose cannot restore the old policy revision."""
+    archive = AsyncMock()
+    archive.count_owned_documents.return_value = 0
     documents = AsyncMock(spec=DocumentReader)
     documents.read.return_value = MemoryDocument(
         path=DocumentPath.ACCOUNTING_POLICY, status="active", revision=5
     )
     with pytest.raises(RevisionConflictError, match="Saved reconciliation policy"):
-        await check_saved_access(AsyncMock(), saved_reconciliation(), documents)
+        await check_saved_access(
+            AsyncMock(), saved_reconciliation(), SavedSources(documents, archive)
+        )
 
 
 async def test_replay_does_not_hide_an_unavailable_policy_reader():
     """A read failure stops replay before another source or model call."""
+    archive = AsyncMock()
+    archive.count_owned_documents.return_value = 0
     documents = AsyncMock(spec=DocumentReader)
     documents.read.side_effect = ConnectionError("Policy read unavailable")
     connection = AsyncMock()
     with pytest.raises(ConnectionError, match="Policy read unavailable"):
-        await check_saved_access(connection, saved_reconciliation(), documents)
+        await check_saved_access(
+            connection, saved_reconciliation(), SavedSources(documents, archive)
+        )
     connection.fetchval.assert_not_awaited()
 
 

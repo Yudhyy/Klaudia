@@ -26,12 +26,8 @@ from app.models.attachment import FileAttachment
 from app.services.core.observability import LangfuseService
 from app.services.extraction.agents.config import get_default_extraction
 from app.services.extraction.agents.schema import validate_and_merge
-from app.services.extraction.outcomes import (
-    ExtractionOutcomes,
-    ExtractionScope,
-    PageOutcome,
-)
-from app.services.extraction.infra.db_client import AppDBClient
+from app.services.documents.contracts import ExtractionScope, FileUpload, PageOutcome
+from app.services.documents.ports import DocumentIngestionStore, ExtractionOutcomeStore
 from app.services.extraction.infra.dedup_cache import DedupCache
 from app.services.extraction.infra.filename import sanitize_filename
 from app.services.extraction.infra.hasher import hash_bytes
@@ -103,7 +99,8 @@ class IngestService:
         self,
         *,
         settings: Settings,
-        db: AppDBClient,
+        db: DocumentIngestionStore,
+        outcomes: ExtractionOutcomeStore,
         cache: DedupCache,
         store: MinIOClient,
         ocr: KIEClient,
@@ -115,7 +112,7 @@ class IngestService:
         self._store = store
         self._ocr = ocr
         self._langfuse = langfuse
-        self._outcomes = ExtractionOutcomes(db, settings.max_pdf_pages)
+        self._outcomes = outcomes
 
     async def ingest(
         self,
@@ -218,16 +215,8 @@ class IngestService:
             page_minio_key=blob_minio_key,
         )
 
-        file_id = int(
-            await self._db.fetchval(
-                """
-                INSERT INTO metadata_file
-                    (session_id, user_id, type, file_name, total_pages, status)
-                VALUES ($1, $2, 'image', $3, 1, 'pending')
-                RETURNING id
-                """,
-                (session_id, user_id, attachment.filename),
-            )
+        file_id = await self._db.create_file(
+            FileUpload(session_id, user_id, "image", attachment.filename, 1)
         )
         await self._db.link_metadata_file_blob(file_id, blob_id)
 
@@ -285,16 +274,8 @@ class IngestService:
             prefix="blobs",
         )
 
-        file_id = int(
-            await self._db.fetchval(
-                """
-                INSERT INTO metadata_file
-                    (session_id, user_id, type, file_name, total_pages, status)
-                VALUES ($1, $2, 'pdf', $3, $4, 'pending')
-                RETURNING id
-                """,
-                (session_id, user_id, attachment.filename, pdf_pages),
-            )
+        file_id = await self._db.create_file(
+            FileUpload(session_id, user_id, "pdf", attachment.filename, pdf_pages)
         )
         await self._db.link_metadata_file_blob(file_id, blob_id)
 
@@ -424,36 +405,12 @@ class IngestService:
         )
 
     async def _persist_page(self, file_id: int, outcome: IngestPage) -> None:
-        if outcome.status == "failed":
-            page_id = int(
-                await self._db.fetchval(
-                    """
-                    INSERT INTO pages
-                        (metadata_file_id, page, status, status_message)
-                    VALUES ($1, $2, 'failed', 'OCR failed')
-                    RETURNING id
-                    """,
-                    (file_id, outcome.page),
-                )
-            )
-        else:
-            page_id = int(
-                await self._db.fetchval(
-                    """
-                    INSERT INTO pages
-                        (metadata_file_id, page, agent_extracted, status, status_message)
-                    VALUES ($1, $2, $3, 'extracted', $4)
-                    RETURNING id
-                    """,
-                    (
-                        file_id,
-                        outcome.page,
-                        json.dumps(outcome.extraction, ensure_ascii=False),
-                        "cached" if outcome.cache_layer else "extracted",
-                    ),
-                )
-            )
-        outcome.page_id = page_id
+        outcome.page_id = await self._db.save_page(
+            file_id,
+            PageOutcome(
+                outcome.page, outcome.status, outcome.extraction, outcome.cache_layer
+            ),
+        )
 
     async def _finalize_metadata_file(self, outcome: IngestOutcome) -> None:
         if outcome.status == "completed":
@@ -465,10 +422,7 @@ class IngestService:
             msg = f"{ok}/{len(outcome.pages)} page(s) extracted"
         else:
             msg = "All pages failed"
-        await self._db.execute(
-            "UPDATE metadata_file SET status = $1, status_message = $2 WHERE id = $3",
-            (outcome.status, msg, outcome.file_id),
-        )
+        await self._db.finish_file(outcome.file_id, outcome.status, msg)
 
     async def _record_failure(
         self,
@@ -483,15 +437,15 @@ class IngestService:
         Used for pre-flight failures (corrupt PDF, undecodable image) that
         never reach the OCR call.
         """
-        file_id = int(
-            await self._db.fetchval(
-                """
-                INSERT INTO metadata_file
-                    (session_id, user_id, type, file_name, total_pages, status, status_message)
-                VALUES ($1, $2, $3, $4, 0, 'failed', $5)
-                RETURNING id
-                """,
-                (session_id, user_id, file_type, attachment.filename, error_msg),
+        file_id = await self._db.create_file(
+            FileUpload(
+                session_id,
+                user_id,
+                file_type,
+                attachment.filename,
+                0,
+                "failed",
+                error_msg,
             )
         )
         return IngestOutcome(
@@ -684,16 +638,8 @@ class IngestService:
             page_blake3=page_hash,
             page_minio_key=blob_key,
         )
-        file_id = int(
-            await self._db.fetchval(
-                """
-                INSERT INTO metadata_file
-                    (session_id, user_id, type, file_name, total_pages, status)
-                VALUES ($1, $2, 'image', $3, 1, 'pending')
-                RETURNING id
-                """,
-                (session_id, user_id, attachment.filename),
-            )
+        file_id = await self._db.create_file(
+            FileUpload(session_id, user_id, "image", attachment.filename, 1)
         )
         await self._db.link_metadata_file_blob(file_id, blob_id)
         return blob_id, file_id, [(1, page_hash)]
@@ -729,16 +675,8 @@ class IngestService:
             extension="pdf",
             prefix="blobs",
         )
-        file_id = int(
-            await self._db.fetchval(
-                """
-                INSERT INTO metadata_file
-                    (session_id, user_id, type, file_name, total_pages, status)
-                VALUES ($1, $2, 'pdf', $3, $4, 'pending')
-                RETURNING id
-                """,
-                (session_id, user_id, attachment.filename, pdf_pages),
-            )
+        file_id = await self._db.create_file(
+            FileUpload(session_id, user_id, "pdf", attachment.filename, pdf_pages)
         )
         await self._db.link_metadata_file_blob(file_id, blob_id)
 
@@ -789,14 +727,14 @@ class IngestService:
         file_type: str,
         error_msg: str,
     ) -> int:
-        return int(
-            await self._db.fetchval(
-                """
-                INSERT INTO metadata_file
-                    (session_id, user_id, type, file_name, total_pages, status, status_message)
-                VALUES ($1, $2, $3, $4, 0, 'failed', $5)
-                RETURNING id
-                """,
-                (session_id, user_id, file_type, attachment.filename, error_msg),
+        return await self._db.create_file(
+            FileUpload(
+                session_id,
+                user_id,
+                file_type,
+                attachment.filename,
+                0,
+                "failed",
+                error_msg,
             )
         )

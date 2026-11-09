@@ -1,5 +1,8 @@
 """Disposable child process for testing durable task recovery after SIGKILL."""
 
+from app.adapters.persistence.conversations import PostgresConversationStore
+from app.adapters.persistence.documents import PostgresDocumentStore
+
 import asyncio
 import json
 import sys
@@ -67,9 +70,10 @@ async def run_worker() -> None:
         service = MainChatService(
             AppendChatModel(),
             CatalogueService(CatalogueStore(ledger.pool)),
-            database,
+            PostgresConversationStore(database.pool),
             operations=OperationService(ledger),
             tasks=tasks,
+            documents=PostgresDocumentStore(database.pool),
         )
         await service.run(
             MainChatTurn(

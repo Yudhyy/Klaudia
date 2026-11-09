@@ -134,7 +134,7 @@ class KlaudiaOrchestrator:
     ) -> KlaudiaResponse:
         # 1. Ensure session exists
         if session_id is None:
-            session_id = await self._c.db_client.create_session(user_id)
+            session_id = await self._c.conversations.create_session(user_id)
 
         langfuse = self._langfuse
         trace_cm = (
@@ -267,7 +267,7 @@ class KlaudiaOrchestrator:
             scope_token = set_active_spreadsheet(scope)
 
             if session_id is None:
-                session_id = await self._c.db_client.create_session(user_id)
+                session_id = await self._c.conversations.create_session(user_id)
             yield {"type": "session", "data": {"session_id": session_id}}
 
             langfuse = self._langfuse
@@ -519,10 +519,10 @@ class KlaudiaOrchestrator:
         output_guard = await self._c.guardrails.validate_output(content)
         if not output_guard.passed:
             content = output_guard.rejection_message
-        await self._c.db_client.save_message(
+        await self._c.conversations.save_message(
             turn.session_id, turn.user_id, "assistant", content
         )
-        await self._c.db_client.update_session_timestamp(turn.session_id)
+        await self._c.conversations.update_session_timestamp(turn.session_id)
         return KlaudiaResponse(
             message=KlaudiaMessage(role="assistant", content=content),
             session_id=turn.session_id,
@@ -632,7 +632,7 @@ class KlaudiaOrchestrator:
         """Enqueue pages and consume owner-checked saved extraction outcomes."""
         from app.exceptions import IngestRejectedError
         from app.services.extraction.queue.progress import ProgressWait, stream_progress
-        from app.services.extraction.outcomes import ExtractionOutcomes, ExtractionScope
+        from app.services.documents.contracts import ExtractionScope
 
         settings = self._c.settings
         cache = self._c.dedup_cache
@@ -674,7 +674,7 @@ class KlaudiaOrchestrator:
             yield {"__final__": True, "payload": []}
             return
 
-        outcomes = ExtractionOutcomes(self._c.db_client, settings.max_pdf_pages)
+        outcomes = self._c.document_outcomes
         file_pages = {
             ExtractionScope(user_id, session_id, ef.file_id): tuple(
                 p.page for p in ef.pages

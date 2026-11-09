@@ -85,7 +85,9 @@ async def test_main_chat_binds_context_reader_to_turn_owner():
             AIMessage(content="No saved preferences."),
         ]
     )
-    service = MainChatService(model, AsyncMock(), database, memory_documents=store)
+    service = MainChatService(
+        model, AsyncMock(), database, memory_documents=store, documents=AsyncMock()
+    )
     await service.run(chat_turn())
     store.read.assert_awaited_once_with(42, DocumentPath.PREFERENCES)
 

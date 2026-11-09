@@ -17,7 +17,8 @@ from app.services.catalogue.service import CatalogueService
 from app.services.core.archive_tools import ArchiveReader
 from app.services.core.observability import LangfuseService
 from app.services.core.operations import OperationService
-from app.services.extraction.infra.db_client import AppDBClient
+from app.services.conversation.store import ConversationStore
+from app.services.documents.ports import DocumentArchive
 from app.adapters.ledger.reconciliation import PolicyReconciler
 from app.services.memory.ports import DocumentReader
 from app.services.memory.tools import MemoryReader
@@ -106,7 +107,10 @@ class _SessionOperations:
     """Save recovery references before permitting a financial write to start."""
 
     def __init__(
-        self, executor: OperationExecutor, database: AppDBClient, turn: MainChatTurn
+        self,
+        executor: OperationExecutor,
+        database: ConversationStore,
+        turn: MainChatTurn,
     ) -> None:
         """Bind the executor to authenticated session persistence.
 
@@ -243,13 +247,14 @@ class MainChatService:
         self,
         model: BaseChatModel,
         catalogue: CatalogueService,
-        database: AppDBClient,
+        database: ConversationStore,
         *,
         operations: OperationService | None = None,
         langfuse: LangfuseService | None = None,
         tasks: PostgresTaskStore | None = None,
         authoring: AuthoringService | None = None,
         memory_documents: DocumentReader | None = None,
+        documents: DocumentArchive,
     ) -> None:
         """Share immutable dependencies while each turn creates local execution state.
 
@@ -262,6 +267,7 @@ class MainChatService:
             tasks: Durable task storage used by production main chat.
             authoring: Optional owner-checked table placement reader.
             memory_documents: Optional human-authored context store for on-demand reads.
+            documents: Owner-checked archive reads supplied by composition.
         """
         self._model = model
         self._catalogue = catalogue
@@ -273,6 +279,7 @@ class MainChatService:
         )
         self._authoring = authoring
         self._memory_documents = memory_documents
+        self._documents = documents
 
     async def run(self, turn: MainChatTurn) -> RunOutcome:
         """Load history, persist inputs and execute once without automatic retries.
@@ -429,7 +436,7 @@ class MainChatService:
             CatalogueAdapter(self._catalogue),
             operations=executor,
             archive_tools=DocumentTools(
-                ArchiveReader(self._database, turn.user_id)
+                ArchiveReader(self._documents, turn.user_id)
             ).tools,
             authoring=AuthoringAdapter(self._authoring)
             if self._authoring is not None

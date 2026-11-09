@@ -46,6 +46,7 @@ async def client(monkeypatch, postgres_db) -> AsyncIterator[httpx.AsyncClient]:
     app.state.container = SimpleNamespace(
         db_client=postgres_db,
         identity_store=PostgresIdentityStore(postgres_db.pool),
+        conversations=postgres_db,
     )
     app.state.orchestrator = FakeOrchestrator()
     attach_rate_limiter(app)
