@@ -2,7 +2,7 @@
 
 import asyncpg
 
-from app.services.auth.store import UserCredentials
+from identity_core.ports import UserCredentials
 
 
 class PostgresIdentityStore:

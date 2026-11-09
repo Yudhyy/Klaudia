@@ -45,3 +45,19 @@ def test_decode_rejects_token_without_subject():
     token = jwt.encode({"foo": "bar"}, _SECRET, algorithm="HS256")
     with pytest.raises(InvalidTokenError):
         decode_access_token(token, secret=_SECRET)
+
+
+def test_configured_issuer_retains_claims_algorithm_and_lifetime():
+    """Use the supplied secret and lifetime with the existing JWT format."""
+    import jwt
+
+    from app.adapters.auth.tokens import JwtTokenIssuer
+
+    lifetime = datetime.timedelta(days=3)
+    token = JwtTokenIssuer(_SECRET, lifetime).issue(42)
+    claims = jwt.decode(token, _SECRET, algorithms=["HS256"])
+    assert set(claims) == {"sub", "iat", "exp"}
+    assert claims["sub"] == "42"
+    assert claims["exp"] - claims["iat"] == lifetime.total_seconds()
+    assert jwt.get_unverified_header(token)["alg"] == "HS256"
+    assert decode_access_token(token, secret=_SECRET) == 42

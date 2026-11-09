@@ -1,11 +1,15 @@
 import logging
+from datetime import timedelta
 import os
 import sys
 from pathlib import Path
 from typing import Optional
 
 from app.adapters.identity import PostgresIdentityStore
-from app.services.auth.store import IdentityStore
+from app.adapters.auth.passwords import BcryptPasswords
+from app.adapters.auth.tokens import JwtTokenIssuer
+from identity_core.ports import IdentityStore
+from identity_core.service import IdentityService
 from config.settings import Settings
 from app.services.core.llm_client import LLMClient
 from app.services.core.observability import LangfuseService
@@ -115,6 +119,7 @@ class KlaudiaContainer:
         self.documents: Optional[PostgresDocumentStore] = None
         self.document_outcomes: Optional[ExtractionOutcomeStore] = None
         self.identity_store: Optional[IdentityStore] = None
+        self.identity_service: Optional[IdentityService] = None
         self.memory_documents: Optional[DocumentRepository] = None
         self.dedup_cache: Optional[DedupCache] = None
         self.object_store: Optional[MinIOClient] = None
@@ -147,6 +152,13 @@ class KlaudiaContainer:
             container.db_client.pool, settings.max_pdf_pages
         )
         container.identity_store = PostgresIdentityStore(container.db_client.pool)
+        container.identity_service = IdentityService(
+            container.identity_store,
+            BcryptPasswords(),
+            JwtTokenIssuer(
+                settings.jwt_secret, timedelta(days=settings.jwt_expires_days)
+            ),
+        )
         memory_documents = PostgresMemoryDocumentStore(container.db_client.pool)
         await memory_documents.initialize()
         container.memory_documents = memory_documents

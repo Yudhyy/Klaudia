@@ -1,8 +1,11 @@
 """The application starts with one agent and only its retained services."""
 
 import asyncpg
+import jwt
 import pytest
+from uuid import uuid4
 
+from identity_core.contracts import Login, Registration
 from app.services.core.container import KlaudiaContainer
 from app.services.workflow.approvals import CheckedApprovals
 from config.settings import Settings
@@ -24,6 +27,8 @@ async def test_single_agent_startup_connects_retained_services(migrated_postgres
         MOCK_KIE=True,
         REDIS_URL="redis://localhost:6379/9",
         MINIO_BUCKET="klaudia-sandbox-blobs",
+        JWT_SECRET="startup-identity-secret-with-at-least-32-bytes",
+        JWT_EXPIRES_DAYS=3,
     )
     container = await KlaudiaContainer.create(settings)
     try:
@@ -31,8 +36,26 @@ async def test_single_agent_startup_connects_retained_services(migrated_postgres
         assert container.tasks is not None
         assert container.memory_documents is not None
         assert container.identity_store is not None
+        assert container.identity_service is not None
         assert await container.identity_store.get_user_by_username("dev") == (
             await container.db_client.get_user_by_username("dev")
+        )
+        username = "startup_" + uuid4().hex
+        registered = await container.identity_service.register(
+            Registration(username, f"{username}@example.com", "startup-test-password")
+        )
+        authenticated = await container.identity_service.login(
+            Login(username, "startup-test-password")
+        )
+        claims = jwt.decode(
+            authenticated.access_token, settings.jwt_secret, algorithms=["HS256"]
+        )
+        assert authenticated.user_id == registered.user_id
+        assert claims["sub"] == str(registered.user_id)
+        assert claims["exp"] - claims["iat"] == 3 * 24 * 60 * 60
+        assert await container.db_client.fetchval(
+            'SELECT last_login IS NOT NULL FROM "user" WHERE user_id = $1',
+            (registered.user_id,),
         )
         assert isinstance(container.approvals, CheckedApprovals)
         assert container.mcp_ledger.tools

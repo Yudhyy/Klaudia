@@ -172,10 +172,21 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
             for module in ("ports", "service")
         ],
         (
+            "app/routes/v1/auth.py",
+            (
+                "app.adapters",
+                "app.services.auth",
+                "identity_core.ports",
+                "config",
+                "asyncpg",
+                "bcrypt",
+                "jwt",
+            ),
+        ),
+        (
             "app/services/auth",
             (
                 "app.services.extraction",
-                "app.adapters",
                 "asyncpg",
                 "aioboto3",
                 "taskiq",
@@ -286,6 +297,7 @@ def test_entire_core_package_has_only_pure_dependencies():
     [
         ("agent-core", {"agent_core", "agent_skills", "langchain_core", "pydantic"}),
         ("agent-skills", {"agent_skills", "pydantic"}),
+        ("identity-core", {"identity_core"}),
     ],
 )
 def test_agent_packages_have_only_consumed_dependencies(package, allowed):

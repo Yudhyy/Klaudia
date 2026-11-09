@@ -6,6 +6,7 @@ unauthenticated calls before touching the orchestrator.
 """
 
 from types import SimpleNamespace
+from datetime import timedelta
 from typing import AsyncIterator
 
 import httpx
@@ -13,6 +14,9 @@ import pytest
 from fastapi import FastAPI
 
 from app.adapters.identity import PostgresIdentityStore
+from app.adapters.auth.passwords import BcryptPasswords
+from app.adapters.auth.tokens import JwtTokenIssuer
+from identity_core.service import IdentityService
 from app.routes import v1_router
 from app.helpers.ratelimit import limiter
 from app.services.auth.passwords import verify_password
@@ -24,10 +28,17 @@ from config.settings import get_settings
 async def client(postgres_db, monkeypatch) -> AsyncIterator[httpx.AsyncClient]:
     """Serve auth behavior checks without shared rate-limit counters."""
     monkeypatch.setattr(limiter, "enabled", False)
+    settings = get_settings()
     app = FastAPI()
     app.state.container = SimpleNamespace(
         db_client=postgres_db,
-        identity_store=PostgresIdentityStore(postgres_db.pool),
+        identity_service=IdentityService(
+            PostgresIdentityStore(postgres_db.pool),
+            BcryptPasswords(),
+            JwtTokenIssuer(
+                settings.jwt_secret, timedelta(days=settings.jwt_expires_days)
+            ),
+        ),
         conversations=postgres_db,
     )
     app.include_router(v1_router)

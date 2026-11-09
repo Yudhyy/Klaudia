@@ -5,6 +5,7 @@ values via env + get_settings.cache_clear().
 """
 
 from types import SimpleNamespace
+from datetime import timedelta
 from typing import AsyncIterator
 
 import httpx
@@ -13,6 +14,9 @@ from fastapi import FastAPI
 
 import config.settings as settings_mod
 from app.adapters.identity import PostgresIdentityStore
+from app.adapters.auth.passwords import BcryptPasswords
+from app.adapters.auth.tokens import JwtTokenIssuer
+from identity_core.service import IdentityService
 from app.models.chat import KlaudiaMessage, KlaudiaResponse
 from app.routes import v1_router
 
@@ -36,6 +40,7 @@ async def client(monkeypatch, postgres_db) -> AsyncIterator[httpx.AsyncClient]:
     monkeypatch.setenv("RATE_LIMIT_AUTH", "3/minute")
     monkeypatch.setenv("RATE_LIMIT_CHAT", "2/minute")
     settings_mod.get_settings.cache_clear()
+    settings = settings_mod.get_settings()
 
     from app.helpers.ratelimit import attach_rate_limiter, limiter
 
@@ -45,7 +50,13 @@ async def client(monkeypatch, postgres_db) -> AsyncIterator[httpx.AsyncClient]:
     app = FastAPI()
     app.state.container = SimpleNamespace(
         db_client=postgres_db,
-        identity_store=PostgresIdentityStore(postgres_db.pool),
+        identity_service=IdentityService(
+            PostgresIdentityStore(postgres_db.pool),
+            BcryptPasswords(),
+            JwtTokenIssuer(
+                settings.jwt_secret, timedelta(days=settings.jwt_expires_days)
+            ),
+        ),
         conversations=postgres_db,
     )
     app.state.orchestrator = FakeOrchestrator()

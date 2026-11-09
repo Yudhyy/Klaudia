@@ -7,7 +7,7 @@ from the signed token and never from the request body.
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.services.auth.tokens import InvalidTokenError, decode_access_token
+from app.adapters.auth.tokens import InvalidTokenError, decode_access_token
 from config.settings import get_settings
 
 _bearer = HTTPBearer(auto_error=False)
