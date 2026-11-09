@@ -3,13 +3,13 @@
 from typing import Any
 
 from app.services.memory.contracts import DocumentPath
-from app.services.memory.store import MemoryDocumentStore
+from app.services.memory.ports import DocumentReader
 
 
 class MemoryReader:
     """Read bounded context under the authenticated owner."""
 
-    def __init__(self, store: MemoryDocumentStore, user_id: int) -> None:
+    def __init__(self, store: DocumentReader, user_id: int) -> None:
         """Bind the authenticated owner outside tool arguments.
 
         Args:

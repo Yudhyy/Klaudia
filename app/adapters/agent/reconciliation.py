@@ -3,7 +3,7 @@
 from typing import Any
 
 from app.adapters.agent.errors import ledger_failures
-from app.services.memory.reconciliation import PolicyReconciler
+from app.adapters.ledger.reconciliation import PolicyReconciler
 from agent_core.agent.ports.reconciliation import PolicyReconciliation
 
 

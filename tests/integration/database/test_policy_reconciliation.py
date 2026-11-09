@@ -9,9 +9,12 @@ import pytest
 
 from app.services.catalogue.service import CatalogueService
 from app.services.memory.contracts import DocumentEdit, DocumentPath
-from app.services.memory.reconciliation import PolicyReconciler
+from app.adapters.ledger.reconciliation import PolicyReconciler
 from klaudia.core.agent.reconciliation import PolicyReconciliationTools
-from app.services.memory.store import MemoryDocumentStore
+from app.adapters.persistence.memory import (
+    PostgresMemoryDocumentStore,
+    PostgresMemoryReader,
+)
 from ledger.catalogue import CatalogueStore
 from ledger.errors import RevisionConflictError
 from klaudia.core.agent.ports.errors import (
@@ -33,7 +36,7 @@ async def policy_setup(postgres_db):
     ledger = LedgerStore(POSTGRES_TEST_URL)
     await ledger.connect()
     catalogue = CatalogueStore(ledger.pool)
-    documents = MemoryDocumentStore(postgres_db.pool)
+    documents = PostgresMemoryDocumentStore(postgres_db.pool)
     await documents.initialize()
     await documents.write(
         1,
@@ -224,7 +227,7 @@ async def test_scripted_chat_uses_policy_skill_and_preserves_evidence(
     assert evidence["records"][0]["difference"] == "0.023456789012345678901"
 
 
-@pytest.mark.parametrize("change", ["policy", "ownership"])
+@pytest.mark.parametrize("change", ["policy", "replacement", "restore", "ownership"])
 async def test_task_replay_rechecks_policy_and_source_access(
     policy_setup, postgres_db, change
 ):
@@ -257,8 +260,25 @@ async def test_task_replay_rechecks_policy_and_source_access(
         )
         _, repeated = await service.resume(1, outcome.task_id)
         assert repeated.tool_evidence == outcome.tool_evidence
-        if change == "policy":
+        if change in {"policy", "restore"}:
             await documents.delete(1, DocumentPath.ACCOUNTING_POLICY, 1)
+            if change == "restore":
+                await documents.write(
+                    1,
+                    DocumentPath.ACCOUNTING_POLICY,
+                    DocumentEdit(
+                        expected_revision=2,
+                        content="Restored policy",
+                        policy=policy_fields(),
+                    ),
+                )
+            error = RevisionConflictError
+        elif change == "replacement":
+            await documents.write(
+                1,
+                DocumentPath.ACCOUNTING_POLICY,
+                DocumentEdit(expected_revision=1, content="Prose without rules"),
+            )
             error = RevisionConflictError
         else:
             await ledger.pool.execute(
@@ -268,5 +288,66 @@ async def test_task_replay_rechecks_policy_and_source_access(
             error = ResourceNotFoundError
         with pytest.raises(error):
             await service.resume(1, outcome.task_id)
+    finally:
+        await tasks.close()
+
+
+async def test_task_policy_reads_use_the_connection_holding_the_lock(
+    policy_setup, postgres_db, monkeypatch
+):
+    """Replay reads use the task backend without another application pool slot."""
+    from app.adapters.persistence.tasks import PostgresTaskStore
+
+    session_id = await postgres_db.create_session(1)
+    tasks = PostgresTaskStore(POSTGRES_TEST_URL)
+    await tasks.connect()
+    observed_backends = []
+    read = PostgresMemoryReader.read
+
+    async def observed_read(reader, user_id, path):
+        """Record the database backend used by the real policy read.
+
+        Args:
+            reader: Memory adapter supplied by the task store.
+            user_id: Original authenticated task owner.
+            path: Saved accounting policy path.
+
+        Returns:
+            The current policy read on the supplied connection.
+        """
+        observed_backends.append(
+            await reader._reader.fetchval("SELECT pg_backend_pid()")
+        )
+        return await read(reader, user_id, path)
+
+    monkeypatch.setattr(PostgresMemoryReader, "read", observed_read)
+    try:
+        task_id = await tasks.create(
+            (1, session_id),
+            {
+                "turn": {
+                    "text": "Reconcile",
+                    "document_ids": [],
+                    "active_workbook_id": None,
+                }
+            },
+        )
+        async with tasks.open(1, task_id) as task:
+            await task.save(
+                {
+                    "evidence": [
+                        [
+                            "reconcile_with_policy",
+                            {},
+                            json.dumps(
+                                {"sources": [], "policy_evidence": {"revision": 1}}
+                            ),
+                        ]
+                    ]
+                }
+            )
+        async with tasks.open(1, task_id) as task:
+            locked_backend = await task.connection.fetchval("SELECT pg_backend_pid()")
+            assert observed_backends == [locked_backend]
     finally:
         await tasks.close()

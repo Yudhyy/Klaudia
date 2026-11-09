@@ -8,7 +8,7 @@ from fastapi import FastAPI
 
 from app.routes.v1.memory import router
 from app.services.auth.tokens import create_access_token
-from app.services.memory.store import MemoryDocumentStore
+from app.adapters.persistence.memory import PostgresMemoryDocumentStore
 from config.settings import get_settings
 
 
@@ -19,7 +19,7 @@ async def memory_app(postgres_db):
         'INSERT INTO "user" (user_id, username, email, password_hash) VALUES (2, $1, $2, $3)',
         ("second", "second@example.test", "fixture"),
     )
-    store = MemoryDocumentStore(postgres_db.pool)
+    store = PostgresMemoryDocumentStore(postgres_db.pool)
     await store.initialize()
     app = FastAPI()
     app.state.container = SimpleNamespace(memory_documents=store)

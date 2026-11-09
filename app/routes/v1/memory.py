@@ -12,7 +12,7 @@ from app.services.memory.contracts import (
     DocumentPath,
     MemoryDocument,
 )
-from app.services.memory.store import DocumentConflict, MemoryDocumentStore
+from app.services.memory.ports import DocumentConflict, DocumentRepository
 
 router = APIRouter(prefix="/memory", tags=["memory"])
 
@@ -37,7 +37,7 @@ def document_path(path: str) -> DocumentPath:
         ) from None
 
 
-def document_store(request: Request) -> MemoryDocumentStore:
+def document_store(request: Request) -> DocumentRepository:
     """Resolve the store without silently replacing unavailable context.
 
     Args:
@@ -62,7 +62,7 @@ async def read_document(
     response: Response,
     user_id: int = Depends(get_current_user),
     path: DocumentPath = Depends(document_path),
-    store: MemoryDocumentStore = Depends(document_store),
+    store: DocumentRepository = Depends(document_store),
 ) -> MemoryDocument:
     """Read a current document or its explicit missing/deleted status.
 
@@ -87,7 +87,7 @@ async def write_document(
     response: Response,
     user_id: int = Depends(get_current_user),
     path: DocumentPath = Depends(document_path),
-    store: MemoryDocumentStore = Depends(document_store),
+    store: DocumentRepository = Depends(document_store),
 ) -> MemoryDocument:
     """Apply an explicit human edit at its observed revision.
 
@@ -124,7 +124,7 @@ async def delete_document(
     expected_revision: Annotated[int, Query(ge=1, le=MAX_EXPECTED_REVISION)],
     user_id: int = Depends(get_current_user),
     path: DocumentPath = Depends(document_path),
-    store: MemoryDocumentStore = Depends(document_store),
+    store: DocumentRepository = Depends(document_store),
 ) -> MemoryDocument:
     """Hide the current content while keeping its revision history.
 

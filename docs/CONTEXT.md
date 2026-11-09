@@ -10,6 +10,23 @@ source note holds at most 512 characters. The API rejects null bytes in both.
 Source notes describe the editor's stated source; they are not verified provenance.
 The server records the authenticated actor, timestamp and revision.
 
+## Application boundary
+
+`app/services/memory/` owns document paths, bounded edits, saved policy contracts,
+and the `DocumentReader` and `DocumentRepository` interfaces. Agent context reads
+and ledger reconciliation need only `DocumentReader`. Authenticated edit routes
+use `DocumentRepository`, which requires atomic current-value and history writes.
+
+`app/adapters/persistence/memory.py` implements these interfaces with the existing
+application pool. Task replay supplies its held connection to `PostgresMemoryReader`
+to check saved policy revisions without acquiring another connection. The ledger
+adapter in `app/adapters/ledger/reconciliation.py` checks stored policy before and
+after exact reconciliation. Memory documents do not grant financial authority.
+
+The former store and reconciliation import paths retain aliases. This boundary
+uses the current application layout; an installed `memory-core` package remains
+proposed.
+
 ## API
 
 All requests require the usual bearer token. Identity comes from that token;

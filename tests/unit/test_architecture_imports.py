@@ -64,6 +64,38 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
         ("app/services/memory/reconciliation.py", ("langchain_core",)),
         *[
             (
+                f"app/services/memory/{module}.py",
+                (
+                    "app.adapters",
+                    "app.services.catalogue",
+                    "app.services.memory.store",
+                    "app.services.memory.reconciliation",
+                    "agent_core",
+                    "ledger",
+                    "ledger_core",
+                    "config",
+                    "asyncpg",
+                    "sqlalchemy",
+                    "alembic",
+                    "fastapi",
+                    "langchain_core",
+                ),
+            )
+            for module in ("contracts", "policy", "ports", "tools")
+        ],
+        *[
+            (
+                caller,
+                ("app.services.memory.store", "app.adapters.persistence.memory"),
+            )
+            for caller in (
+                "app/routes/v1/memory.py",
+                "app/services/core/main_chat.py",
+                "app/adapters/ledger/reconciliation.py",
+            )
+        ],
+        *[
+            (
                 f"app/services/workflow/{module}.py",
                 (
                     "app.adapters",
@@ -133,9 +165,18 @@ def test_module_dependency_direction(directory, forbidden):
     assert not violations, "\n".join(violations)
 
 
-@pytest.mark.parametrize("module", ["ports", "service"])
-def test_workflow_imports_without_agent_or_infrastructure(module):
-    """Reject infrastructure imports reached through intermediate workflow modules."""
+@pytest.mark.parametrize(
+    "boundary,module",
+    [
+        ("workflow", "ports"),
+        ("workflow", "service"),
+        *[("memory", module) for module in ("contracts", "policy", "ports", "tools")],
+    ],
+)
+def test_application_boundaries_import_without_agent_or_infrastructure(
+    boundary, module
+):
+    """Reject direct and transitive imports of other modules and infrastructure."""
     script = """
 from importlib.abc import MetaPathFinder
 import importlib
@@ -143,26 +184,32 @@ import sys
 
 sys.path.insert(0, sys.argv[1])
 
-class WorkflowImports(MetaPathFinder):
+class BoundaryImports(MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
         blocked = (
             'app.adapters', 'app.models', 'app.services.core',
-            'app.services.extraction', 'app.services.memory',
+            'app.services.extraction', 'app.services.catalogue',
+            'app.services.memory.store', 'app.services.memory.reconciliation',
             'app.services.workflow.store', 'app.services.workflow.approvals',
             'ledger', 'ledger_core', 'agent_core', 'agent_skills', 'klaudia',
             'config', 'asyncpg', 'sqlalchemy', 'alembic', 'fastapi', 'fastmcp',
             'mcp', 'langchain_core', 'aioboto3', 'taskiq',
         )
+        blocked += (
+            'app.services.memory' if sys.argv[2] == 'workflow'
+            else 'app.services.workflow',
+        )
         if any(fullname == name or fullname.startswith(name + '.') for name in blocked):
-            raise ImportError(f'Workflow infrastructure import: {fullname}')
+            raise ImportError(f'Application boundary import: {fullname}')
 
-sys.meta_path.insert(0, WorkflowImports())
-importlib.import_module('app.services.workflow.' + sys.argv[2])
+sys.meta_path.insert(0, BoundaryImports())
+importlib.import_module('app.services.' + sys.argv[2] + '.' + sys.argv[3])
 """
     completed = subprocess.run(
-        [sys.executable, "-I", "-c", script, str(REPO_ROOT), module],
+        [sys.executable, "-I", "-c", script, str(REPO_ROOT), boundary, module],
         capture_output=True,
         text=True,
+        timeout=20,
     )
     assert completed.returncode == 0, completed.stderr
 
