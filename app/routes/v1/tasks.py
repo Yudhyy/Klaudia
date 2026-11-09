@@ -5,14 +5,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query
 from app.helpers.auth import get_current_user
 from app.helpers.ratelimit import chat_limit, limiter
 from app.models.chat import KlaudiaResponse
-from app.services.workflow.store import TaskBusyError, TaskStore
+from app.services.workflow.ports import TaskBusyError, TaskReader
 from ledger_core.resources import ResourceNotFoundError
 from ledger_core.errors import RevisionConflictError
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-def _store(request: Request) -> TaskStore:
+def _store(request: Request) -> TaskReader:
     """Require the configured durable runtime.
 
     Args:

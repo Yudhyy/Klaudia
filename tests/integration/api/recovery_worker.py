@@ -9,7 +9,8 @@ from app.services.catalogue.service import CatalogueService
 from app.services.core.main_chat import MainChatService, MainChatTurn
 from app.services.core.operations import OperationService
 from app.services.extraction.infra.db_client import AppDBClient
-from app.services.workflow.store import TaskSession, TaskStore
+from app.adapters.ledger.task_operations import TaskOperations
+from app.services.workflow.store import TaskStore
 from config.settings import Settings
 from ledger.catalogue import CatalogueStore
 from ledger.store import LedgerStore
@@ -26,9 +27,9 @@ async def run_worker() -> None:
     await database.connect()
     await ledger.connect()
     await tasks.connect()
-    original_execute = TaskSession.execute
+    original_execute = TaskOperations.execute
 
-    async def pause(task: TaskSession) -> None:
+    async def pause(task: TaskOperations) -> None:
         """Signal a persisted task boundary without closing its database connection.
 
         Args:
@@ -61,7 +62,7 @@ async def run_worker() -> None:
             await pause(task)
         return receipt
 
-    TaskSession.execute = execute_at_boundary
+    TaskOperations.execute = execute_at_boundary
     try:
         service = MainChatService(
             AppendChatModel(),

@@ -92,7 +92,7 @@ async def test_release_task_approval_and_receipt_recovery(release_task) -> None:
             outcome = await MainAgent(
                 model,
                 CatalogueAdapter(CatalogueService(CatalogueStore(store.pool))),
-                operations=OperationAdapter(task),
+                operations=OperationAdapter(task.operations),
             ).run(saved["message"], context, checkpoint=task)
         assert outcome.status == "awaiting_approval"
         assert outcome.pending_approvals == (saved["approval"],)
@@ -132,7 +132,7 @@ async def test_release_task_approval_and_receipt_recovery(release_task) -> None:
         outcome = await MainAgent(
             model,
             CatalogueAdapter(CatalogueService(CatalogueStore(store.pool))),
-            operations=OperationAdapter(task),
+            operations=OperationAdapter(task.operations),
         ).run(saved["message"], context, checkpoint=task)
     assert outcome.status == "answered"
     assert outcome.operation_references == (saved["operation_ref"],)

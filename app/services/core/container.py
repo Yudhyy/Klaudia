@@ -24,8 +24,8 @@ from ledger.catalogue import CatalogueStore
 from app.services.catalogue.service import CatalogueService
 from app.services.catalogue.authoring import AuthoringService
 from app.services.core.main_chat import MainChatService
-from app.services.workflow.store import TaskStore
-from app.services.workflow.approvals import CheckedApprovals
+from app.adapters.persistence.tasks import PostgresTaskStore
+from app.adapters.ledger.approvals import CheckedApprovals
 from app.services.core.operations import OperationService
 from app.adapters.llm.model_factory import build_chat_llm
 
@@ -117,7 +117,7 @@ class KlaudiaContainer:
         self.catalogue: Optional[CatalogueService] = None
         self.authoring: Optional[AuthoringService] = None
         self.main_chat: Optional[MainChatService] = None
-        self.tasks: Optional[TaskStore] = None
+        self.tasks: Optional[PostgresTaskStore] = None
         self.approvals: Optional[CheckedApprovals] = None
         self.extraction_agent: Optional[ExtractionAgent] = None
         self.langfuse: Optional[LangfuseService] = None
@@ -195,7 +195,7 @@ class KlaudiaContainer:
             require_approval=settings.main_chat_require_approval,
         )
         openai_base_url, openai_api_key = settings.active_openai_endpoint()
-        container.tasks = TaskStore(
+        container.tasks = PostgresTaskStore(
             settings.database_url,
             require_approval=settings.main_chat_require_approval,
         )

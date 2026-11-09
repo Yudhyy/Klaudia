@@ -90,6 +90,21 @@ and legacy object identity; saved release fixtures protect tool, prompt, skill
 and continuation compatibility. Storage and process-layout moves remain later
 work. The full target tree remains a proposal.
 
+## Workflow boundary follow-up
+
+The [workflow boundary](overview.mdx#workflow-boundary) now separates task
+coordination from PostgreSQL persistence, ledger operations and agent-state
+interpretation. Chat start and resume use the workflow service. Task and approval
+HTTP callers depend on workflow-owned interfaces; concrete adapters retain the
+current SQL, locks and financial checks. The old store and approval paths remain
+compatibility imports.
+
+The lifecycle service and interfaces import without agent or infrastructure
+code. This is an application boundary, not an installed `workflow-core` package.
+Package extraction, document/memory access interfaces and process layout remain
+later work. The connection and recovery constraints in the baseline assessment
+still apply. Test results belong to the code PR.
+
 ## Completed work and remaining limits
 
 | Change | Implemented in the reviewed source | Remaining limit |

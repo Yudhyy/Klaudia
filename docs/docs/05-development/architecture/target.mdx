@@ -23,6 +23,9 @@ a destination sketch. The outbound MCP client now belongs to application adapter
 Agent-owned capability requests and application translation adapters now remove
 the agent's direct ledger dependency. The runtime and skills now have canonical
 packages; application adapters own model-provider construction.
+Workflow coordination now uses application-owned storage and run interfaces;
+concrete adapters retain task SQL, agent-state checks and ledger execution.
+The `workflow-core` package remains proposed.
 The overview and assessment distinguish these follow-ups
 from their recorded baseline source.
 
@@ -45,7 +48,7 @@ simpler modules.
 | Agent runtime | Model-driven steps, tool selection, run context and continuation payloads | `packages/agent-core/src/agent_core/agent/` and `packages/agent-skills/src/agent_skills/`; `klaudia/core/` keeps compatibility imports | `agent-core` and `agent-skills` (implemented) |
 | Documents | Ingestion, extraction, expected pages, saved outcomes and document lifecycle | `app/services/extraction/` and archive reads | `document-intelligence` |
 | Identity | Accounts, credentials, authentication use cases and account access state | Auth routes/services, `IdentityStore` and the application PostgreSQL adapter | `identity-core` |
-| Workflow | Durable task identity/status, checkpoint persistence, exclusive task execution, resume coordination and human-decision routing | `app/services/workflow/` and durable orchestration in `main_chat.py` | `workflow-core` |
+| Workflow | Durable task identity/status, checkpoint persistence, exclusive task execution, resume coordination and human-decision routing | `app/services/workflow/` interfaces and coordination; persistence, agent-state and ledger adapters under `app/adapters/`; chat binding in `main_chat.py` | `workflow-core` |
 | Memory | Owner-scoped context documents, preferences, policy documents and their revisions | `app/services/memory/` | `memory-core` |
 
 Ownership describes rules and interfaces, not a requirement to create every
@@ -872,6 +875,7 @@ not become client wire contracts by default.
 | Implemented runtime separation | Agent runtime/skills packages and application-owned provider construction | Independent runtime, skills and compatibility wheel checks; frozen schemas/continuations; process startup, Docker and CI selection checks |
 | Implemented identity interface | `IdentityStore` separates identity persistence from auth callers while retaining schema and behavior, delivered by [#40](https://github.com/Yudhyy/Klaudia/pull/40) for [#16](https://github.com/Yudhyy/Klaudia/issues/16) | Auth, identity-store, and existing route regressions |
 | Database foundation in [#38](https://github.com/Yudhyy/Klaudia/issues/38) | Owned metadata, two histories, checked adoption, release coordination, and runtime checks | Blank/populated/standalone/retry/interruption tests, ownership filters, installed assets, and financial recovery checks |
+| Implemented workflow boundary | Application workflow interfaces and lifecycle service with concrete persistence, agent-state and ledger adapters | Pre-change API checkpoint replay, lifecycle/import checks, durable tasks, approval, shared-connection and process-recovery tests; `workflow-core` packaging remains proposed |
 | Module by module | Workflow, memory, documents and remaining identity extraction with their adapters | Owned entrypoints, durable/owner-isolation regressions and process startup checks for each moved module |
 | As consumers are ready | API/worker/MCP entrypoints and infrastructure relocated into the proposed service layout | Installed imports and startup for all three processes; Docker, CI, commands and contributor docs match the new paths |
 

@@ -62,6 +62,34 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
         ("app/services/core/archive_tools.py", ("langchain_core",)),
         ("app/services/memory/tools.py", ("langchain_core",)),
         ("app/services/memory/reconciliation.py", ("langchain_core",)),
+        *[
+            (
+                f"app/services/workflow/{module}.py",
+                (
+                    "app.adapters",
+                    "app.models",
+                    "app.services.core",
+                    "app.services.extraction",
+                    "app.services.memory",
+                    "agent_core",
+                    "agent_skills",
+                    "klaudia",
+                    "ledger",
+                    "ledger_core",
+                    "config",
+                    "asyncpg",
+                    "sqlalchemy",
+                    "alembic",
+                    "fastapi",
+                    "fastmcp",
+                    "mcp",
+                    "langchain_core",
+                    "aioboto3",
+                    "taskiq",
+                ),
+            )
+            for module in ("ports", "service")
+        ],
         (
             "app/services/auth",
             (
@@ -103,6 +131,40 @@ def test_module_dependency_direction(directory, forbidden):
                     f"{source.relative_to(REPO_ROOT)}:{line}: forbidden import {imported}"
                 )
     assert not violations, "\n".join(violations)
+
+
+@pytest.mark.parametrize("module", ["ports", "service"])
+def test_workflow_imports_without_agent_or_infrastructure(module):
+    """Reject infrastructure imports reached through intermediate workflow modules."""
+    script = """
+from importlib.abc import MetaPathFinder
+import importlib
+import sys
+
+sys.path.insert(0, sys.argv[1])
+
+class WorkflowImports(MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        blocked = (
+            'app.adapters', 'app.models', 'app.services.core',
+            'app.services.extraction', 'app.services.memory',
+            'app.services.workflow.store', 'app.services.workflow.approvals',
+            'ledger', 'ledger_core', 'agent_core', 'agent_skills', 'klaudia',
+            'config', 'asyncpg', 'sqlalchemy', 'alembic', 'fastapi', 'fastmcp',
+            'mcp', 'langchain_core', 'aioboto3', 'taskiq',
+        )
+        if any(fullname == name or fullname.startswith(name + '.') for name in blocked):
+            raise ImportError(f'Workflow infrastructure import: {fullname}')
+
+sys.meta_path.insert(0, WorkflowImports())
+importlib.import_module('app.services.workflow.' + sys.argv[2])
+"""
+    completed = subprocess.run(
+        [sys.executable, "-I", "-c", script, str(REPO_ROOT), module],
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
 
 
 def test_entire_core_package_has_only_pure_dependencies():
