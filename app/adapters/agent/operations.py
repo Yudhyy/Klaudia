@@ -8,7 +8,7 @@ from ledger_core.typed_contracts import TypedEditProposal as LedgerTypedEdit
 
 from app.adapters.agent.errors import ledger_failures
 from app.services.core.operations import OperationService
-from app.services.workflow.store import TaskSession
+from app.adapters.ledger.task_operations import TaskOperations
 from agent_core.agent.ports.append import TableAppendProposal
 from agent_core.agent.ports.authoring import AuthoringProposal
 from agent_core.agent.ports.typed import TypedEditProposal
@@ -17,7 +17,7 @@ from agent_core.agent.ports.typed import TypedEditProposal
 class OperationAdapter:
     """Keep standalone or task-bound execution on its existing connection."""
 
-    def __init__(self, executor: OperationService | TaskSession) -> None:
+    def __init__(self, executor: OperationService | TaskOperations) -> None:
         """Bind the supplied executor without building a store or pool.
 
         Args:

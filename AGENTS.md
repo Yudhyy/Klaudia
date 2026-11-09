@@ -25,7 +25,7 @@ a PostgreSQL ledger, document extraction, and an Expo mobile client.
 | `app/routes/` | HTTP adapters |
 | `app/adapters/` | Concrete infrastructure adapters, including the outbound MCP client |
 | `app/services/core/` | Service composition, chat orchestration, checked operations |
-| `app/services/workflow/` | Durable tasks, checkpoints, and approvals |
+| `app/services/workflow/` | Task coordination and storage, progress, and decision interfaces |
 | `app/services/extraction/` | Document ingestion, extraction, queue, and archive storage |
 | `app/services/catalogue/` | Resource discovery and table authoring |
 | `app/services/memory/` | Owner-scoped application context documents |

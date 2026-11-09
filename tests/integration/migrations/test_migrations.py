@@ -69,10 +69,13 @@ async def test_task_effect_and_receipt_use_the_lock_connection(migration_databas
                         }
                     ],
                 )
-                prepared = await task.prepare(1, proposal)
+                prepared = await task.operations.prepare(1, proposal)
                 await task.save({"pending_calls": []})
-                receipt = await task.execute(1, prepared["operation_ref"])
-                assert await task.execute(1, prepared["operation_ref"]) == receipt
+                receipt = await task.operations.execute(1, prepared["operation_ref"])
+                assert (
+                    await task.operations.execute(1, prepared["operation_ref"])
+                    == receipt
+                )
             observed = await connection.fetch(
                 "SELECT * FROM migration_connection_probe"
             )

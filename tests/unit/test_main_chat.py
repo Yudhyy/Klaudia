@@ -2,6 +2,9 @@
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
+from contextlib import asynccontextmanager
+import json
+from pathlib import Path
 
 import pytest
 from langchain_core.messages import AIMessage
@@ -373,3 +376,89 @@ async def test_input_rejection_reports_selected_runtime_without_running_agent():
     assert response.runtime == "main"
     assert response.run_status == "rejected"
     container.main_chat.run.assert_not_awaited()
+
+
+async def test_pre_boundary_task_resumes_its_saved_call_before_new_model_work():
+    """The original API checkpoint retains input, identity and pending execution."""
+    saved = json.loads(
+        (Path(__file__).parents[1] / "fixtures/workflow_baseline.json").read_text()
+    )
+    record = saved["record"]
+    original_payload = record["input_payload"]
+    model = ScriptedModel([AIMessage(content="Original operation confirmed.")])
+    receipt = {
+        "operation_id": "workflow-baseline",
+        "status": "committed",
+        "target": {"spreadsheet_id": "baseline-workbook", "sheet_id": 1},
+        "calculation_status": "not_supported",
+    }
+
+    async def execute(user_id, operation_ref):
+        """Replay the saved reference before the model receives another turn.
+
+        Args:
+            user_id: Original authenticated task owner.
+            operation_ref: Original pending operation identity.
+
+        Returns:
+            The authoritative receipt from the supplied ledger adapter.
+        """
+        assert user_id == record["user_id"]
+        assert operation_ref == saved["operation_ref"]
+        assert model.inputs == []
+        return receipt
+
+    async def load():
+        """Read the original or last saved agent continuation.
+
+        Returns:
+            The unchanged checkpoint shape stored by the baseline runtime.
+        """
+        return json.loads(record["checkpoint"])
+
+    async def save(state):
+        """Save later state without rewriting the original application input.
+
+        Args:
+            state: Next continuation from the agent.
+        """
+        record["checkpoint"] = json.dumps(state)
+
+    session = SimpleNamespace(
+        record=record,
+        load=load,
+        save=save,
+        set_status=AsyncMock(),
+        operations=SimpleNamespace(execute=AsyncMock(side_effect=execute)),
+    )
+
+    @asynccontextmanager
+    async def opened(user_id, task_id):
+        """Supply only the original stored task to the workflow coordinator.
+
+        Args:
+            user_id: Authenticated task owner.
+            task_id: Original stored task identity.
+
+        Yields:
+            The acquired task with its bound ledger adapter.
+        """
+        assert (user_id, task_id) == (record["user_id"], record["task_id"])
+        yield session
+
+    tasks = SimpleNamespace(open=opened, create=AsyncMock())
+    database = AsyncMock()
+    service = MainChatService(
+        model, AsyncMock(), database, operations=AsyncMock(), tasks=tasks
+    )
+    turn, outcome = await service.resume(record["user_id"], record["task_id"])
+    assert outcome.status == "answered"
+    assert outcome.task_id == record["task_id"]
+    assert outcome.operation_references == (saved["operation_ref"],)
+    assert outcome.operation_receipts == (receipt,)
+    assert turn.request_key == "workflow-baseline"
+    assert record["input_payload"] == original_payload
+    session.set_status.assert_awaited_once_with("answered")
+    session.operations.execute.assert_awaited_once()
+    tasks.create.assert_not_awaited()
+    database.get_conversation_history.assert_not_awaited()

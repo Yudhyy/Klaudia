@@ -412,6 +412,43 @@ under [issue #16](https://github.com/Yudhyy/Klaudia/issues/16), not a full ident
 package or account lifecycle change. Versioned schema work remains separate
 under [issue #38](https://github.com/Yudhyy/Klaudia/issues/38).
 
+## Workflow boundary
+
+`WorkflowService` in `app/services/workflow/service.py` now coordinates task
+creation, exclusive execution, resume, stop status and failure recovery. Its
+storage and run interfaces do not import agent, ledger or infrastructure code.
+The application supplies a run bound to the original stored input and acquired
+session. Workflow records the returned status; the application interprets the
+agent continuation and builds the response.
+
+| Responsibility | Current implementation |
+| --- | --- |
+| Task, progress and human-decision interfaces | `app/services/workflow/ports.py` |
+| Task SQL, checkpoint storage, pools and advisory locks | `app/adapters/persistence/tasks.py` |
+| Checked writes on the task connection and authoritative operation evidence | `app/adapters/ledger/task_operations.py` |
+| Exact human approval decisions and execution | `app/adapters/ledger/approvals.py` |
+| Saved-agent-state interpretation and replay access checks | `app/adapters/agent/checkpoints.py` |
+| Original chat input, agent construction and outcome translation | `app/services/core/main_chat.py` |
+
+Task and approval HTTP callers use the workflow interfaces. Composition creates
+the concrete adapters. The former workflow store and approval modules retain
+import aliases for existing callers; the protected service and interface modules
+do not depend on those aliases. Import checks cover both direct dependencies and
+imports reached through intermediate modules.
+
+This changes module ownership, not task storage or execution policy. Task-bound
+checkpoints and checked writes still use the connection holding the advisory
+lock. Financial effects and receipts still commit together in short transactions.
+Human decisions remain separate requests, and ledger validates each exact stored
+proposal. Old checkpoints, original references and public responses retain their
+formats. A frozen pre-change API checkpoint and the existing database approval,
+replay, ownership and process-recovery suites protect these contracts.
+
+The `workflow-core` package remains a later extraction. Replay checks still use
+application SQL for document and policy access until those modules gain their
+own interfaces. Pools, four execution slots per API process and acquisition
+timeouts retain their behavior; this move does not establish a throughput gain.
+
 ## Verification and next work
 
 The repo has unit, real-service integration, and opt-in live-model evaluation

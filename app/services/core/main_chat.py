@@ -21,7 +21,8 @@ from app.services.extraction.infra.db_client import AppDBClient
 from app.services.memory.reconciliation import PolicyReconciler
 from app.services.memory.store import MemoryDocumentStore
 from app.services.memory.tools import MemoryReader
-from app.services.workflow.store import TaskSession, TaskStore
+from app.adapters.persistence.tasks import PostgresTaskSession, PostgresTaskStore
+from app.services.workflow.service import TaskCompletion, TaskRun, WorkflowService
 from agent_core.agent.agent import (
     AgentExecutionError,
     AgentRunCancelled,
@@ -246,7 +247,7 @@ class MainChatService:
         *,
         operations: OperationService | None = None,
         langfuse: LangfuseService | None = None,
-        tasks: TaskStore | None = None,
+        tasks: PostgresTaskStore | None = None,
         authoring: AuthoringService | None = None,
         memory_documents: MemoryDocumentStore | None = None,
     ) -> None:
@@ -267,7 +268,9 @@ class MainChatService:
         self._database = database
         self._operations = operations
         self._langfuse = langfuse
-        self._tasks = tasks
+        self._workflow = (
+            WorkflowService(tasks, self._bind_stored) if tasks is not None else None
+        )
         self._authoring = authoring
         self._memory_documents = memory_documents
 
@@ -300,16 +303,16 @@ class MainChatService:
             },
             ensure_ascii=False,
         )
-        if self._tasks is not None:
+        if self._workflow is not None:
             payload = {"turn": asdict(turn), "request": request}
             payload["turn"]["metadata"] = turn.metadata.model_dump()
             payload["turn"]["extraction_contexts"] = [
                 _bounded_context(text) for text in turn.extraction_contexts
             ]
-            task_id = await self._tasks.create((turn.user_id, turn.session_id), payload)
-            async with self._tasks.open(turn.user_id, task_id) as task:
-                _, outcome = await self._run_stored(task)
-                return outcome
+            _, outcome = await self._workflow.start(
+                (turn.user_id, turn.session_id), payload
+            )
+            return outcome
         return await self._invoke(turn, request)
 
     async def resume(
@@ -328,19 +331,20 @@ class MainChatService:
             RuntimeError: Durable task storage is unavailable.
             TaskBusyError: Another worker owns the task.
         """
-        if self._tasks is None:
+        if self._workflow is None:
             raise RuntimeError("Durable task storage is unavailable")
-        async with self._tasks.open(user_id, task_id) as task:
-            return await self._run_stored(task)
+        return await self._workflow.resume(user_id, task_id)
 
-    async def _run_stored(self, task: TaskSession) -> tuple[MainChatTurn, RunOutcome]:
-        """Use stored intent and checkpoint without reconstructing a new request.
+    def _bind_stored(
+        self, task: PostgresTaskSession
+    ) -> TaskRun[tuple[MainChatTurn, RunOutcome]]:
+        """Restore application input and bind the agent to the acquired task.
 
         Args:
             task: Exclusively owned database continuation.
 
         Returns:
-            Original turn and observed task outcome.
+            Agent execution and failure recovery for the original stored turn.
         """
         payload = json.loads(task.record["input_payload"])
         turn_fields = payload["turn"]
@@ -354,13 +358,24 @@ class MainChatService:
             document_ids=tuple(turn_fields.get("document_ids", ())),
             request_key=turn_fields.get("request_key"),
         )
-        try:
+
+        async def run() -> TaskCompletion[tuple[MainChatTurn, RunOutcome]]:
+            """Invoke the agent with the original input and bound ledger executor.
+
+            Returns:
+                Observed status and application result with the original task ID.
+            """
             outcome = await self._invoke(turn, payload["request"], task=task)
-            await task.set_status(outcome.status)
-            return turn, replace(outcome, task_id=task.record["task_id"])
-        except Exception:
-            logger.exception("Durable task stopped before a recoverable agent outcome")
-            await task.set_status("failed")
+            return TaskCompletion(
+                outcome.status, (turn, replace(outcome, task_id=task.record["task_id"]))
+            )
+
+        async def recover() -> tuple[MainChatTurn, RunOutcome]:
+            """Read agent-owned failure evidence from the last saved continuation.
+
+            Returns:
+                Original turn and known operation references and receipts.
+            """
             state = await task.load() or {}
             return turn, RunOutcome(
                 status="failed",
@@ -373,15 +388,15 @@ class MainChatService:
                 operation_receipts=tuple(state.get("receipts", [])),
                 task_id=task.record["task_id"],
             )
-        except BaseException:
-            try:
-                await task.set_status("interrupted")
-            except Exception:
-                logger.exception("Could not record interrupted task status")
-            raise
+
+        return TaskRun(run, recover)
 
     async def _invoke(
-        self, turn: MainChatTurn, request: str, *, task: TaskSession | None = None
+        self,
+        turn: MainChatTurn,
+        request: str,
+        *,
+        task: PostgresTaskSession | None = None,
     ) -> RunOutcome:
         """Run fresh or checkpointed state with the matching operation executor.
 
@@ -400,7 +415,11 @@ class MainChatService:
                 )
         executor = (
             _SessionOperations(
-                OperationAdapter(task or self._operations), self._database, turn
+                OperationAdapter(
+                    task.operations if task is not None else self._operations
+                ),
+                self._database,
+                turn,
             )
             if self._operations is not None
             else None

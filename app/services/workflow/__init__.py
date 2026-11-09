@@ -1,1 +1,1 @@
-"""Durable task coordination over the existing ledger operation store."""
+"""Coordinate durable tasks through storage, run and decision interfaces."""
