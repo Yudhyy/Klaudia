@@ -1,5 +1,8 @@
 """Policy-backed reconciliation against real owned PostgreSQL tables."""
 
+from app.adapters.persistence.conversations import PostgresConversationStore
+from app.adapters.persistence.documents import PostgresDocumentStore
+
 from app.adapters.agent.reconciliation import ReconciliationAdapter
 
 import json
@@ -218,7 +221,11 @@ async def test_scripted_chat_uses_policy_skill_and_preserves_evidence(
         ]
     )
     outcome = await MainChatService(
-        model, catalogue, postgres_db, memory_documents=documents
+        model,
+        catalogue,
+        PostgresConversationStore(postgres_db.pool),
+        memory_documents=documents,
+        documents=PostgresDocumentStore(postgres_db.pool),
     ).run(replace(chat_turn(), user_id=1, session_id=session))
     assert outcome.loaded_skills["policy-reconciliation"] == "3"
     assert outcome.operation_receipts == ()
@@ -251,7 +258,12 @@ async def test_task_replay_rechecks_policy_and_source_access(
             ]
         )
         service = MainChatService(
-            model, catalogue, postgres_db, memory_documents=documents, tasks=tasks
+            model,
+            catalogue,
+            PostgresConversationStore(postgres_db.pool),
+            memory_documents=documents,
+            tasks=tasks,
+            documents=PostgresDocumentStore(postgres_db.pool),
         )
         outcome = await service.run(replace(chat_turn(), user_id=1, session_id=session))
         assert outcome.status == "answered"

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 
 from app.helpers.auth import get_current_user
+from app.services.conversation.store import ConversationStore
 from app.helpers.ratelimit import chat_limit, limiter
 from app.models.chat import KlaudiaRequest, KlaudiaResponse
 from ledger.store import SpreadsheetNotFoundError
@@ -39,7 +40,8 @@ async def _require_session_owner(
     """
     if session_id is None:
         return
-    owner = await request.app.state.container.db_client.get_session_owner(session_id)
+    conversations: ConversationStore = request.app.state.container.conversations
+    owner = await conversations.get_session_owner(session_id)
     if owner != user_id:
         raise HTTPException(status_code=404, detail="Session not found")
 

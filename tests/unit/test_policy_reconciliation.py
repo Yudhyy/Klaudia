@@ -234,7 +234,7 @@ async def test_main_chat_exposes_policy_reconciliation_with_server_identity():
         [call("reconcile_with_policy", arguments()), AIMessage(content="No records.")]
     )
     outcome = await MainChatService(
-        model, catalogue, database, memory_documents=documents
+        model, catalogue, database, memory_documents=documents, documents=AsyncMock()
     ).run(chat_turn())
     assert outcome.tools_called == ("reconcile_with_policy",)
     catalogue.financial_query.assert_awaited_once()
@@ -264,7 +264,7 @@ async def test_policy_conflict_tells_agent_to_reread_before_retry():
         ]
     )
     outcome = await MainChatService(
-        model, catalogue, database, memory_documents=documents
+        model, catalogue, database, memory_documents=documents, documents=AsyncMock()
     ).run(chat_turn())
     error = next(
         message for message in model.inputs[1] if isinstance(message, ToolMessage)

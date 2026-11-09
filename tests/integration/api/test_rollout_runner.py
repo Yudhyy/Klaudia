@@ -1,5 +1,8 @@
 """Exercise the rollout grader through real HTTP, database and task boundaries."""
 
+from app.adapters.persistence.conversations import PostgresConversationStore
+from app.adapters.persistence.documents import PostgresDocumentStore
+
 import json
 
 from langchain_core.messages import AIMessage
@@ -132,10 +135,11 @@ async def test_rollout_runner_checks_real_state_and_replay(
             container.main_chat = MainChatService(
                 model,
                 container.main_chat._catalogue,
-                container.db_client,
+                PostgresConversationStore(container.db_client.pool),
                 operations=OperationService(container.ledger_store),
                 tasks=container.tasks,
                 memory_documents=container.memory_documents,
+                documents=PostgresDocumentStore(container.db_client.pool),
             )
             existing.client.headers.update(existing.headers)
             observed = {"scenario": scenario}

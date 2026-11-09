@@ -8,6 +8,9 @@ that proves Phase 3 wiring works before pointing at vLLM.
 
 from __future__ import annotations
 
+from app.adapters.persistence.documents import PostgresDocumentStore
+from app.adapters.persistence.extraction_outcomes import PostgresExtractionOutcomes
+
 import asyncio
 import os
 import signal
@@ -143,7 +146,12 @@ async def test_async_image_extraction_via_worker(postgres_db, monkeypatch):
         ocr = KIEClient(settings)
 
         ingest = IngestService(
-            settings=settings, db=db, cache=cache, store=store, ocr=ocr
+            settings=settings,
+            db=PostgresDocumentStore(db.pool),
+            cache=cache,
+            store=store,
+            ocr=ocr,
+            outcomes=PostgresExtractionOutcomes(db.pool, (settings).max_pdf_pages),
         )
 
         att = FileAttachment(

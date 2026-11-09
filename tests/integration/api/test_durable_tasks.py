@@ -1,5 +1,8 @@
 """Real PostgreSQL task recovery, retry identity and concurrent execution checks."""
 
+from app.adapters.persistence.conversations import PostgresConversationStore
+from app.adapters.persistence.documents import PostgresDocumentStore
+
 from unittest.mock import AsyncMock
 
 import pytest
@@ -24,9 +27,10 @@ async def durable_client(main_chat_client):  # noqa: F811
     fixture.container.main_chat = MainChatService(
         fixture.model,
         fixture.container.main_chat._catalogue,
-        fixture.container.db_client,
+        PostgresConversationStore(fixture.container.db_client.pool),
         operations=OperationService(fixture.fixture.store),
         tasks=tasks,
+        documents=PostgresDocumentStore(fixture.container.db_client.pool),
     )
     fixture.client._transport.app.include_router(router, prefix="/v1")
     fixture.session_id = await fixture.container.db_client.create_session(

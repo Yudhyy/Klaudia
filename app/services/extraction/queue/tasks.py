@@ -21,9 +21,8 @@ from typing import Any
 from app.services.extraction.agents.schema import validate_and_merge
 from app.services.extraction.queue.broker import broker
 from app.services.extraction.queue.state import get_context
-from app.services.extraction.outcomes import ExtractionOutcomes, PageOutcome, QueuedPage
+from app.services.documents.contracts import PageOutcome, QueuedPage
 from app.services.extraction.queue.progress import PROGRESS_CHANNEL_FMT
-from config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -45,12 +44,12 @@ async def extract_page_task(
     so the orchestrator can stream completion to the client.
     """
     ctx = get_context()
-    db = ctx.db
+    db = ctx.documents
     cache = ctx.cache
     store = ctx.store
     ocr = ctx.ocr
 
-    outcomes = ExtractionOutcomes(db, get_settings().max_pdf_pages)
+    outcomes = ctx.outcomes
     scope, row = await outcomes.resolve_page(
         QueuedPage(user_id, file_id, blob_id, page)
     )

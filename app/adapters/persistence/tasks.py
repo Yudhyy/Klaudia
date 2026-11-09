@@ -9,7 +9,12 @@ from uuid import uuid4
 
 import asyncpg
 
-from app.adapters.agent.checkpoints import check_saved_access, task_progress
+from app.adapters.agent.checkpoints import (
+    SavedSources,
+    check_saved_access,
+    task_progress,
+)
+from app.adapters.persistence.documents import PostgresDocumentStore
 from app.adapters.ledger.task_operations import TaskOperations, operation_evidence
 from app.adapters.persistence.migrations import check_database
 from app.adapters.persistence.memory import PostgresMemoryReader
@@ -252,7 +257,11 @@ class PostgresTaskStore:
                 connection, {**dict(record), "require_approval": self._require_approval}
             )
             await check_saved_access(
-                connection, dict(record), PostgresMemoryReader(connection)
+                connection,
+                dict(record),
+                SavedSources(
+                    PostgresMemoryReader(connection), PostgresDocumentStore(connection)
+                ),
             )
             await task.set_status("running")
             yield task

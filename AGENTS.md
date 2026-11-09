@@ -27,6 +27,8 @@ a PostgreSQL ledger, document extraction, and an Expo mobile client.
 | `app/services/core/` | Service composition, chat orchestration, checked operations |
 | `app/services/workflow/` | Task coordination and storage, progress, and decision interfaces |
 | `app/services/extraction/` | Document ingestion, extraction, queue, and archive storage |
+| `app/services/documents/` | Document storage interfaces and bounded saved extraction outcomes |
+| `app/services/conversation/` | Session and message storage interface |
 | `app/services/catalogue/` | Resource discovery and table authoring |
 | `app/services/memory/` | Context document contracts and owner-scoped read/edit interfaces |
 | `klaudia/` | Main agent, bounded tools, and versioned runtime skills |

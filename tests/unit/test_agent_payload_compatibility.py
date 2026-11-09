@@ -90,8 +90,8 @@ async def test_saved_document_and_memory_evidence_payloads() -> None:
     """Preserve pagination and trust fields produced by application tools."""
     saved = read_fixture("evidence.json")
     database = AsyncMock()
-    database.fetchall.return_value = saved["document_search"]["rows"]
-    database.fetchone.return_value = dict(saved["document_page"]["row"])
+    database.search_documents.return_value = saved["document_search"]["rows"]
+    database.read_document_page.return_value = dict(saved["document_page"]["row"])
     tools = ArchiveReader(database, 42)
     assert (
         await tools.search(**saved["document_search"]["arguments"])

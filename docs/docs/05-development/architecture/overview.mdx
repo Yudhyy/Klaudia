@@ -216,7 +216,9 @@ session ownership. Retrieved content supplies facts, not execution authority.
 | State | Current implementation |
 | --- | --- |
 | Credential lookup, account creation, last-login updates | `IdentityStore` in `app/services/auth/store.py`, implemented by `app/adapters/identity.py` |
-| Identity table setup, sessions, conversation, document metadata, pages, extraction cache | `AppDBClient` in `app/services/extraction/infra/db_client.py` |
+| Application database pool, startup checks and seed user | `ApplicationDatabase` in `app/adapters/persistence/application.py`; the former `AppDBClient` import remains compatible |
+| Sessions, recent history and conversation messages | `ConversationStore` in `app/services/conversation/store.py`, implemented by `app/adapters/persistence/conversations.py` |
+| Document metadata, pages, extraction cache and saved outcomes | `app/services/documents/` contracts/interfaces, implemented by `app/adapters/persistence/documents.py` and `extraction_outcomes.py` |
 | Sheet grids, resource catalogue, native formulas, operations, receipts | `mcp-ledger/ledger/` |
 | Agent task input, checkpoint storage, status and human-decision routing | `app/services/workflow/` and `app/services/core/main_chat.py` |
 | Human preferences, conventions, accounting policy, revision history | Contracts and interfaces in `app/services/memory/`; PostgreSQL adapter in `app/adapters/persistence/memory.py` |
@@ -241,6 +243,8 @@ They are separate from financial facts and developer-agent notes.
 | Checked financial effects and deterministic calculations | `mcp-ledger/ledger/` |
 | Task recovery and human decisions | `app/services/workflow/`, `app/services/core/main_chat.py` |
 | Document ingestion and background work | `app/services/extraction/` |
+| Document persistence and queued outcomes | `app/services/documents/`, `app/adapters/persistence/documents.py`, `app/adapters/persistence/extraction_outcomes.py` |
+| Session and message persistence | `app/services/conversation/store.py`, `app/adapters/persistence/conversations.py` |
 
 This map points to current paths. At the recorded baseline, `klaudia/` used
 LangChain model/tool types and ledger contracts. The follow-ups below describe
@@ -321,8 +325,9 @@ tools. `MainAgent` retains its framework tool inputs for this step. Fake
 implementations can exercise these tools without application or database code.
 
 The existing backend methods now serve as capability adapters. `ArchiveReader`
-in `app/services/core/archive_tools.py` retains document SQL, file/session owner
-checks and pagination limits. `MemoryReader` in `app/services/memory/tools.py`
+in `app/services/core/archive_tools.py` uses the document archive interface and
+retains pagination and evidence fields. Its persistence adapter checks file and
+session ownership. `MemoryReader` in `app/services/memory/tools.py`
 retains owner-scoped reads and trust labels. `PolicyReconciler` in
 `app/adapters/ledger/reconciliation.py` retains saved policy checks before and
 after the read, source ownership/revisions, exact ledger reconciliation and
@@ -358,6 +363,43 @@ Old memory store and reconciliation paths retain compatibility imports without
 a second implementation. Import checks isolate the memory contracts, interfaces
 and context reader from agent, ledger and infrastructure code. This is an
 application boundary; `memory-core` packaging remains proposed.
+
+### Document and conversation storage boundaries
+
+The [document interfaces](https://github.com/Yudhyy/Klaudia/blob/development/app/services/documents/ports.py)
+separate upload preparation and extraction caches, owner-checked archive reads,
+and saved queued outcomes. [Document contracts](https://github.com/Yudhyy/Klaudia/blob/development/app/services/documents/contracts.py)
+own expected-page identity, bounded saved facts, pending-page state and the
+existing chat payload. Ingestion, archive tools and progress reconciliation use
+these interfaces instead of raw database queries. API and worker composition
+supply the concrete stores.
+
+The [document adapter](https://github.com/Yudhyy/Klaudia/blob/development/app/adapters/persistence/documents.py)
+retains file/session owner checks, literal filename search, page text bounds,
+blob records and extraction cache queries. The
+[queued outcome adapter](https://github.com/Yudhyy/Klaudia/blob/development/app/adapters/persistence/extraction_outcomes.py)
+retains the file/session lock and transaction for page writes and file status.
+Missing pages stay pending; failed retries preserve saved success. Redis events
+still wake a check of saved outcomes. Deadlines retain their current bounds.
+Task replay checks document access through the archive interface on the
+connection holding the task lock.
+
+The [conversation interface](https://github.com/Yudhyy/Klaudia/blob/development/app/services/conversation/store.py)
+serves session routes, chat history and operation recovery evidence without an
+extraction-client dependency. Its
+[PostgreSQL adapter](https://github.com/Yudhyy/Klaudia/blob/development/app/adapters/persistence/conversations.py)
+keeps the existing message order, identifiers and timestamp updates. Authenticated
+callers retain their session ownership checks before reading or writing a
+selected session.
+
+`ApplicationDatabase` owns the existing application pool, migration check and
+seed behavior. The former `AppDBClient` import aliases it; legacy domain methods
+forward to the canonical stores. The former `ExtractionOutcomes` constructor
+adapts a database client to the same pool-based outcome implementation. No second
+SQL implementation remains. Domain contracts and storage interfaces import
+without extraction clients or infrastructure. OCR, object-store and queue
+implementations remain in their current modules; package and process moves
+remain proposed.
 
 ## Ledger capability contracts
 
