@@ -219,7 +219,7 @@ session ownership. Retrieved content supplies facts, not execution authority.
 | Application database pool, startup checks and seed user | `ApplicationDatabase` in `app/adapters/persistence/application.py`; the former `AppDBClient` import remains compatible |
 | Sessions, recent history and conversation messages | `ConversationStore` in `app/services/conversation/store.py`, implemented by `app/adapters/persistence/conversations.py` |
 | Document metadata, pages, extraction cache and saved outcomes | `app/services/documents/` contracts/interfaces, implemented by `app/adapters/persistence/documents.py` and `extraction_outcomes.py` |
-| Sheet grids, resource catalogue, native formulas, operations, receipts | `mcp-ledger/ledger/` |
+| Sheet grids, resource catalogue, checked operations, approvals, receipts | Shared `ledger-postgres` adapters; pure calculations and formulas in `ledger-core` |
 | Agent task input, checkpoint storage, status and human-decision routing | `app/services/workflow/` and `app/services/core/main_chat.py` |
 | Human preferences, conventions, accounting policy, revision history | Contracts and interfaces in `app/services/memory/`; PostgreSQL adapter in `app/adapters/persistence/memory.py` |
 | Source documents and page images | S3-compatible object storage |
@@ -240,7 +240,7 @@ They are separate from financial facts and developer-agent notes.
 | Registration/login rules and adapters | `packages/identity-core/`, `app/adapters/identity.py`, `app/adapters/auth/` |
 | Agent steps, tool context, runtime skill procedures | `packages/agent-core/src/agent_core/agent/`, `packages/agent-skills/src/agent_skills/` |
 | Catalogue, authoring, memory policy | `app/services/catalogue/`, `app/services/memory/`, `app/adapters/ledger/reconciliation.py` and associated ledger modules |
-| Checked financial effects and deterministic calculations | `mcp-ledger/ledger/` |
+| Checked financial effects and deterministic calculations | `packages/ledger-postgres/`, `packages/ledger-core/` |
 | Task recovery and human decisions | `app/services/workflow/`, `app/services/core/main_chat.py` |
 | Document ingestion and background work | `app/services/extraction/` |
 | Document persistence and queued outcomes | `app/services/documents/`, `app/adapters/persistence/documents.py`, `app/adapters/persistence/extraction_outcomes.py` |
@@ -521,6 +521,36 @@ The `workflow-core` package remains a later extraction. Replay checks still use
 application SQL for document and policy access until those modules gain their
 own interfaces. Pools, four execution slots per API process and acquisition
 timeouts retain their behavior; this move does not establish a throughput gain.
+
+## Shared ledger adapters
+
+`packages/ledger-postgres/` owns PostgreSQL storage, checked append/authoring/typed
+execution, concrete approval routing, authoring reads and receipt queries. API
+and standalone MCP composition import the same implementation. The former
+`ledger.*` paths and application authoring/approval paths retain explicit aliases.
+The MCP host retains transport and verified owner-scoped read policy.
+
+Pure financial record queries, matching, comparisons and aging calculations now
+live in `ledger_core.financial` and `ledger_core.financial_records`. The existing
+pure contracts, grid and native formula modules retain their ownership.
+
+The ledger history and existing shared migration helpers ship inside
+`ledger_postgres.migrations`. Application composition supplies both histories in
+ledger-before-application order. Canonical and former standalone CLIs use the
+same runner. Revision IDs, version tables and frozen SQL/JSON assets retain
+their contracts. See the [database architecture](database.mdx).
+
+Saved checkpoint interpretation receives memory, document and workbook readers.
+`WorkbookAccess` in `app/services/catalogue/ports.py` replaces direct ledger SQL
+in the agent adapter. Task composition supplies `CatalogueStore` with the
+connection holding the task lock. Actual backend/lock and revoked-access checks
+protect this path; task-bound effects and receipts retain that same connection.
+
+Installed checks exercise the adapter and standalone initialization without app
+tables, application imports or an MCP distribution. Existing owner, approval,
+exact calculation, migration and process-recovery suites remain the regression
+surface. This package move does not rewrite checked-operation planning or move
+process entrypoints. The larger ledger domain/application tree remains proposed.
 
 ## Verification and next work
 

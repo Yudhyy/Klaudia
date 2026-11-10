@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from app.helpers.auth import get_current_user
 from app.helpers.ratelimit import chat_limit, limiter
 from app.services.core.spreadsheets import SpreadsheetService
-from ledger.store import SpreadsheetExistsError, SpreadsheetNotFoundError
+from ledger_postgres.store import SpreadsheetExistsError, SpreadsheetNotFoundError
 
 logger = logging.getLogger(__name__)
 

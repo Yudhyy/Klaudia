@@ -15,7 +15,7 @@ from mcp.types import ToolAnnotations
 
 from ledger_core import grid as g
 from ledger.authorization import LedgerAuthorization
-from ledger.catalogue import CatalogueStore
+from ledger_postgres.catalogue import CatalogueStore
 from ledger_core.evidence import bounded_evidence as _bounded_evidence
 from ledger_core.evidence import schema_page
 from ledger_core.resources import (
@@ -26,7 +26,7 @@ from ledger_core.resources import (
 )
 from ledger_core.append_contracts import AppendRows
 from ledger_core.query import AggregateQuery, aggregate_grid
-from ledger.store import (
+from ledger_postgres.store import (
     DEFAULT_WORKSPACE,
     LedgerStore,
     SheetExistsError,

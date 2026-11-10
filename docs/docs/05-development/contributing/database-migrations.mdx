@@ -48,13 +48,17 @@ schema SQL at startup. Start the new processes after both histories pass.
 
 ### Standalone ledger
 
-The installed ledger package exposes the same ledger history without application
-imports:
+The installed `ledger-postgres` package exposes the same ledger history without
+application or MCP imports:
 
 ```bash
-python -m ledger.migrations upgrade
-python -m ledger.migrations check
+python -m ledger_postgres.migrations upgrade
+python -m ledger_postgres.migrations check
 ```
+
+The former `python -m ledger.migrations` entrypoint remains supported when the
+MCP distribution is installed. Root `alembic.ini` selects the canonical ledger
+history under `packages/ledger-postgres/src/ledger_postgres/migrations/`.
 
 `LedgerStore.connect()` retains automatic standalone setup through the canonical
 ledger runner and its lock. It does not create application tables. Integrated

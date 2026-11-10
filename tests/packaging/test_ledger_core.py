@@ -24,6 +24,8 @@ CORE_MODULES = (
     "financial_contracts",
     "typed_contracts",
     "formula_engine",
+    "financial",
+    "financial_records",
 )
 
 

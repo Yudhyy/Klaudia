@@ -6,19 +6,15 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "ledger-core",
+    "ledger-postgres",
     "fastmcp==4.0.0b3",
-    "asyncpg>=0.30.0",
     "python-dotenv>=1.0.0",
     "pydantic>=2.0.0",
-    "sqlalchemy[asyncio]>=2.0,<3",
-    "alembic>=1.17,<2",
 ]
 
 [tool.uv.sources]
 ledger-core = { workspace = true }
+ledger-postgres = { workspace = true }
 
 [tool.setuptools.packages.find]
 include = ["ledger", "ledger.*"]
-
-[tool.setuptools.package-data]
-"ledger.migrations" = ["*.sql", "*.json", "*.mako"]

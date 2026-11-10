@@ -1,14 +1,16 @@
 """Execute checked operations on the connection holding the durable task lock."""
 
-import json
 from typing import Any
 
 import asyncpg
 
-from ledger.authoring import prepare_authoring
-from ledger.typed_cells import inspect_workbook, prepare_typed_edit
-from ledger.table_operations import prepare_table_append, execute_prepared_operation
-from ledger.approvals import approval_payload
+from ledger_postgres.authoring import prepare_authoring
+from ledger_postgres.typed_cells import inspect_workbook, prepare_typed_edit
+from ledger_postgres.table_operations import (
+    prepare_table_append,
+    execute_prepared_operation,
+)
+from ledger_postgres.table_operations import operation_evidence as operation_evidence
 from ledger_core.append_contracts import TableAppendProposal
 from ledger_core.authoring_contracts import AuthoringProposal
 from ledger_core.typed_contracts import TypedEditProposal
@@ -167,33 +169,3 @@ class TaskOperations:
         if user_id != self.record["user_id"]:
             raise ResourceNotFoundError("Task not found")
         return await execute_prepared_operation(self.pool, user_id, operation_ref)
-
-
-async def operation_evidence(
-    connection: asyncpg.Connection, user_id: int, references: list[str]
-) -> dict[str, Any]:
-    """Read authoritative receipts and approvals under current workbook ownership.
-
-    Args:
-        connection: Short-lived task metadata connection.
-        user_id: Authenticated task owner.
-        references: Original operation identities found in saved agent state.
-
-    Returns:
-        Committed receipts and exact pending approval payloads.
-    """
-    receipts = await connection.fetch(
-        "SELECT o.* FROM ledger_table_operation o JOIN ledger_spreadsheet w ON w.spreadsheet_id = o.workspace WHERE o.user_id = $1 AND w.user_id = $1 AND o.idempotency_key = ANY($2::text[])",
-        user_id,
-        references,
-    )
-    return {
-        "operation_receipts": [
-            json.loads(row["receipt"]) for row in receipts if row["receipt"] is not None
-        ],
-        "pending_approvals": [
-            approval_payload(row)
-            for row in receipts
-            if row["approval_status"] == "pending" and row["receipt"] is None
-        ],
-    }

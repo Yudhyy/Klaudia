@@ -102,7 +102,7 @@ async def test_task_effect_and_receipt_use_the_lock_connection(migration_databas
 async def test_migration_lock_spans_history_commits(migration_database, monkeypatch):
     """Keep exclusion active after ledger commits and before application setup."""
     from sqlalchemy.util import await_only
-    from ledger.migrations import runtime
+    from ledger_postgres.migrations import runtime
     from app.adapters.persistence.migrations import upgrade_database
 
     database_url, connection = migration_database
@@ -441,7 +441,7 @@ async def test_interrupted_application_revision_can_resume(
     migration_database, monkeypatch
 ):
     """Roll back an interrupted app baseline and retain the committed ledger head."""
-    from ledger.migrations import runtime
+    from ledger_postgres.migrations import runtime
     from app.adapters.persistence.migrations import upgrade_database
 
     database_url, connection = migration_database

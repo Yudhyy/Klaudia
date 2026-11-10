@@ -19,6 +19,8 @@ import pytest
         "financial_contracts",
         "typed_contracts",
         "formula_engine",
+        "financial",
+        "financial_records",
     ],
 )
 def test_legacy_modules_reexport_the_same_core_definitions(module: str) -> None:

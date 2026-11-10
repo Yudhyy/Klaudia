@@ -8,7 +8,7 @@ from pydantic import SecretStr
 
 from app.helpers.auth import get_current_user
 from app.adapters.mcp_client.tool_registry import MCPToolRegistry
-from ledger.store import SpreadsheetNotFoundError
+from ledger_postgres.store import SpreadsheetNotFoundError
 
 logger = logging.getLogger(__name__)
 

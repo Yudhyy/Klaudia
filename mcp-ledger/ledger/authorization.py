@@ -12,7 +12,7 @@ from fastmcp.tools import Tool, ToolResult
 from mcp.types import CallToolRequestParams, ListToolsRequest
 from pydantic import TypeAdapter, ValidationError
 
-from ledger.store import DEFAULT_WORKSPACE
+from ledger_postgres.store import DEFAULT_WORKSPACE
 
 READ_TOOLS = frozenset(
     {

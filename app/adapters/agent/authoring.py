@@ -3,7 +3,7 @@
 from typing import Any
 
 from app.adapters.agent.errors import ledger_failures
-from app.services.catalogue.authoring import AuthoringService
+from ledger_postgres.authoring_reads import AuthoringService
 
 
 class AuthoringAdapter:

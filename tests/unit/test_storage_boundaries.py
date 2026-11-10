@@ -18,6 +18,7 @@ from agent_core.agent.ports.errors import (
 from app.services.documents.ports import DocumentArchive
 from app.services.documents.ports import DocumentIngestionStore, ExtractionOutcomeStore
 from app.services.memory.ports import DocumentReader
+from app.services.catalogue.ports import WorkbookAccess
 from ledger_core.resources import ResourceNotFoundError
 
 
@@ -85,24 +86,21 @@ async def test_replay_checks_document_access_through_the_document_interface(owne
     """A saved input cannot bypass a later change in document/session ownership."""
     documents = AsyncMock(spec=DocumentArchive)
     documents.count_owned_documents.return_value = owned
-    connection = AsyncMock()
-    connection.fetchval.return_value = 0
+    workbooks = AsyncMock(spec=WorkbookAccess)
+    workbooks.count_owned_workbooks.return_value = 0
     record = {
         "user_id": 42,
         "input_payload": json.dumps({"turn": {"document_ids": [7]}}),
         "checkpoint": None,
     }
-    sources = SavedSources(AsyncMock(spec=DocumentReader), documents)
+    sources = SavedSources(AsyncMock(spec=DocumentReader), documents, workbooks)
     if owned:
-        await check_saved_access(connection, record, sources)
+        await check_saved_access(record, sources)
     else:
         with pytest.raises(ResourceNotFoundError, match="Saved task source"):
-            await check_saved_access(connection, record, sources)
+            await check_saved_access(record, sources)
     documents.count_owned_documents.assert_awaited_once_with(42, [7])
-    assert all(
-        "metadata_file" not in call.args[0]
-        for call in connection.fetchval.await_args_list
-    )
+    workbooks.count_owned_workbooks.assert_awaited_once_with(42, [])
 
 
 async def test_inline_ingestion_uses_only_the_document_storage_interface():

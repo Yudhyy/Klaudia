@@ -30,6 +30,7 @@ dependencies = [
     "langchain-openai>=0.3.0",
     "toon-format @ git+https://github.com/toon-format/toon-python.git@e475c82e9da03dfaf88c0b277dee6b5d17100b13",
     "ledger-core",
+    "ledger-postgres",
     "mcp-ledger",
     "langfuse>=4.5.0",
     "blake3>=1.0.0",
@@ -53,6 +54,7 @@ agent-core = { workspace = true }
 agent-skills = { workspace = true }
 identity-core = { workspace = true }
 ledger-core = { workspace = true }
+ledger-postgres = { workspace = true }
 mcp-ledger = { workspace = true }
 
 [tool.uv.workspace]
@@ -60,6 +62,7 @@ members = [
     "klaudia",
     "mcp-ledger",
     "packages/ledger-core",
+    "packages/ledger-postgres",
     "packages/agent-core",
     "packages/agent-skills",
     "packages/identity-core",

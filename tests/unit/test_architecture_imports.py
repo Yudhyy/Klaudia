@@ -23,6 +23,7 @@ LEDGER_IMPLEMENTATIONS = (
     "ledger.financial_store",
     "ledger.authorization",
     "ledger.server",
+    "ledger_postgres",
 )
 PURE_MODULES = (
     "append_contracts",
@@ -36,6 +37,8 @@ PURE_MODULES = (
     "evidence",
     "grid",
     "formula_engine",
+    "financial",
+    "financial_records",
 )
 
 
@@ -55,6 +58,14 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
     ("directory", "forbidden"),
     [
         ("mcp-ledger/ledger", ("app", "klaudia", "config")),
+        (
+            "packages/ledger-postgres/src/ledger_postgres",
+            ("app", "klaudia", "config", "ledger", "fastmcp", "mcp", "fastapi"),
+        ),
+        (
+            "app/adapters/agent/checkpoints.py",
+            ("asyncpg", "ledger", "ledger_postgres"),
+        ),
         ("klaudia", ("app", "config", "fastmcp", "mcp", "ledger", "ledger_core")),
         ("klaudia/core", ("asyncpg", "ledger", "ledger_core")),
         ("klaudia/core/agent/tools.py", ("ledger", "ledger_core")),
@@ -233,6 +244,7 @@ def test_module_dependency_direction(directory, forbidden):
         ("documents", "contracts"),
         ("documents", "ports"),
         ("conversation", "store"),
+        ("catalogue", "ports"),
         *[("memory", module) for module in ("contracts", "policy", "ports", "tools")],
     ],
 )
@@ -254,7 +266,7 @@ class BoundaryImports(MetaPathFinder):
             'app.services.extraction', 'app.services.catalogue',
             'app.services.memory.store', 'app.services.memory.reconciliation',
             'app.services.workflow.store', 'app.services.workflow.approvals',
-            'ledger', 'ledger_core', 'agent_core', 'agent_skills', 'klaudia',
+            'ledger', 'ledger_core', 'ledger_postgres', 'agent_core', 'agent_skills', 'klaudia',
             'config', 'asyncpg', 'sqlalchemy', 'alembic', 'fastapi', 'fastmcp',
             'mcp', 'langchain_core', 'aioboto3', 'taskiq',
         )
@@ -262,6 +274,9 @@ class BoundaryImports(MetaPathFinder):
             'app.services.memory' if sys.argv[2] == 'workflow'
             else 'app.services.workflow',
         )
+        if sys.argv[2] == 'catalogue':
+            blocked = tuple(name for name in blocked if name != 'app.services.catalogue')
+            blocked += ('app.services.catalogue.authoring', 'app.services.catalogue.service')
         if any(fullname == name or fullname.startswith(name + '.') for name in blocked):
             raise ImportError(f'Application boundary import: {fullname}')
 
@@ -298,6 +313,17 @@ def test_entire_core_package_has_only_pure_dependencies():
         ("agent-core", {"agent_core", "agent_skills", "langchain_core", "pydantic"}),
         ("agent-skills", {"agent_skills", "pydantic"}),
         ("identity-core", {"identity_core"}),
+        (
+            "ledger-postgres",
+            {
+                "ledger_postgres",
+                "ledger_core",
+                "asyncpg",
+                "sqlalchemy",
+                "alembic",
+                "dotenv",
+            },
+        ),
     ],
 )
 def test_agent_packages_have_only_consumed_dependencies(package, allowed):

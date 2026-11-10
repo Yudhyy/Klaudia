@@ -159,7 +159,7 @@ async def test_failure_after_cell_write_rolls_back_every_change(
     append_setup, monkeypatch
 ):
     """A failure after SQL writes still restores both grid and catalogue state."""
-    from ledger import table_operations
+    from ledger_postgres import table_operations
 
     store, catalogue, workspace, _, table_id = append_setup
     write_records = table_operations._write_records
@@ -185,7 +185,7 @@ async def test_failure_after_cell_write_rolls_back_every_change(
 
 async def test_ownership_cannot_change_during_append(append_setup, monkeypatch):
     """The ownership lock spans the write and receipt commit."""
-    from ledger import table_operations
+    from ledger_postgres import table_operations
 
     store, _, workspace, _, table_id = append_setup
     write_records = table_operations._write_records
