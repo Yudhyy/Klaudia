@@ -23,7 +23,7 @@ from app.adapters.ledger.reconciliation import PolicyReconciler
 from app.services.memory.ports import DocumentReader
 from app.services.memory.tools import MemoryReader
 from app.adapters.persistence.tasks import PostgresTaskSession, PostgresTaskStore
-from app.services.workflow.service import TaskCompletion, TaskRun, WorkflowService
+from workflow_core.service import TaskCompletion, TaskRun, WorkflowService
 from agent_core.agent.agent import (
     AgentExecutionError,
     AgentRunCancelled,

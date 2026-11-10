@@ -19,7 +19,7 @@ from app.adapters.ledger.task_operations import TaskOperations
 from ledger_postgres.table_operations import operation_evidence
 from app.adapters.persistence.migrations import check_database
 from app.adapters.persistence.memory import PostgresMemoryReader
-from app.services.workflow.ports import TaskBusyError, TaskConflictError
+from workflow_core.ports import TaskBusyError, TaskConflictError
 from ledger_core.resources import ResourceNotFoundError
 from ledger_postgres.catalogue import CatalogueStore
 from ledger_postgres.connections import BorrowedConnection

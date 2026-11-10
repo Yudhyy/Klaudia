@@ -6,6 +6,7 @@ import pytest
 from uuid import uuid4
 
 from identity_core.contracts import Login, Registration
+from workflow_core.service import WorkflowService
 from app.services.core.container import KlaudiaContainer
 from app.services.workflow.approvals import CheckedApprovals
 from config.settings import Settings
@@ -33,6 +34,7 @@ async def test_single_agent_startup_connects_retained_services(migrated_postgres
     container = await KlaudiaContainer.create(settings)
     try:
         assert container.main_chat is not None
+        assert isinstance(container.main_chat._workflow, WorkflowService)
         assert container.tasks is not None
         assert container.memory_documents is not None
         assert container.identity_store is not None

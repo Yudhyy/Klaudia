@@ -25,6 +25,7 @@ COPY packages/ledger-postgres/pyproject.toml ./packages/ledger-postgres/pyprojec
 COPY packages/agent-core/pyproject.toml ./packages/agent-core/pyproject.toml
 COPY packages/agent-skills/pyproject.toml ./packages/agent-skills/pyproject.toml
 COPY packages/identity-core/pyproject.toml ./packages/identity-core/pyproject.toml
+COPY packages/workflow-core/pyproject.toml ./packages/workflow-core/pyproject.toml
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-workspace

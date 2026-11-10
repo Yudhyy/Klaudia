@@ -12,7 +12,7 @@ from app.models.chat import KlaudiaRequest, KlaudiaResponse
 from ledger_postgres.store import SpreadsheetNotFoundError
 from ledger_core.resources import ResourceNotFoundError
 from ledger_core.errors import RevisionConflictError
-from app.services.workflow.ports import TaskBusyError, TaskConflictError
+from workflow_core.ports import TaskBusyError, TaskConflictError
 
 logger = logging.getLogger(__name__)
 

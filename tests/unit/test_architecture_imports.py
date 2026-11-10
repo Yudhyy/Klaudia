@@ -182,6 +182,16 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
             )
             for module in ("ports", "service")
         ],
+        *[
+            (caller, ("app.services.workflow.ports", "app.services.workflow.service"))
+            for caller in (
+                "app/services/core/main_chat.py",
+                "app/adapters/persistence/tasks.py",
+                "app/routes/v1/chat.py",
+                "app/routes/v1/tasks.py",
+                "app/routes/v1/approvals.py",
+            )
+        ],
         (
             "app/routes/v1/auth.py",
             (
@@ -313,6 +323,7 @@ def test_entire_core_package_has_only_pure_dependencies():
         ("agent-core", {"agent_core", "agent_skills", "langchain_core", "pydantic"}),
         ("agent-skills", {"agent_skills", "pydantic"}),
         ("identity-core", {"identity_core"}),
+        ("workflow-core", {"workflow_core"}),
         (
             "ledger-postgres",
             {
