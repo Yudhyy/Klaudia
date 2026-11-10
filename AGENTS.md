@@ -25,7 +25,7 @@ a PostgreSQL ledger, document extraction, and an Expo mobile client.
 | `app/routes/` | HTTP adapters |
 | `app/adapters/` | Concrete infrastructure adapters, including the outbound MCP client |
 | `app/services/core/` | Service composition, chat orchestration, checked operations |
-| `app/services/workflow/` | Task coordination and storage, progress, and decision interfaces |
+| `app/services/workflow/` | Compatibility imports for workflow contracts, coordination and concrete adapters |
 | `app/services/extraction/` | Document ingestion, extraction, queue, and archive storage |
 | `app/services/documents/` | Document storage interfaces and bounded saved extraction outcomes |
 | `app/services/conversation/` | Session and message storage interface |
@@ -35,6 +35,7 @@ a PostgreSQL ledger, document extraction, and an Expo mobile client.
 | `packages/ledger-core/` | Pure ledger contracts, exact financial queries, grid aggregation, and native formulas |
 | `packages/ledger-postgres/` | Shared PostgreSQL ledger storage, checked execution, approvals, and owned migrations |
 | `packages/identity-core/` | Registration and login use cases with supplied account, password and token capabilities |
+| `packages/workflow-core/` | Task, progress and decision interfaces with supplied storage and run coordination |
 | `mcp-ledger/ledger/` | MCP transport, owned-read policy, and compatibility imports |
 | `config/settings.py` | Runtime configuration |
 | `apps/mobile/` | Expo and React Native client |

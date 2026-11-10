@@ -99,11 +99,13 @@ HTTP callers depend on workflow-owned interfaces; concrete adapters retain the
 current SQL, locks and financial checks. The old store and approval paths remain
 compatibility imports.
 
-The lifecycle service and interfaces import without agent or infrastructure
-code. This is an application boundary, not an installed `workflow-core` package.
-Package extraction and process layout remain
-later work. The connection and recovery constraints in the baseline assessment
-still apply. Test results belong to the code PR.
+The lifecycle service and interfaces now live in the installed `workflow-core`
+package, with no third-party dependencies. Existing application paths retain
+aliases to the canonical definitions. An independent installed-wheel check runs
+start/resume, failure recovery and cancellation with application, agent, ledger
+and infrastructure packages absent. Process layout remains later work. The
+connection and recovery constraints in the baseline assessment still apply.
+Test results belong to the code PR.
 
 ## Memory boundary follow-up
 

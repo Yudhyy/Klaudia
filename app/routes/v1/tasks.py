@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query
 from app.helpers.auth import get_current_user
 from app.helpers.ratelimit import chat_limit, limiter
 from app.models.chat import KlaudiaResponse
-from app.services.workflow.ports import TaskBusyError, TaskReader
+from workflow_core.ports import TaskBusyError, TaskReader
 from ledger_core.resources import ResourceNotFoundError
 from ledger_core.errors import RevisionConflictError
 

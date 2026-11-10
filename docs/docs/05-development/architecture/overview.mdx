@@ -220,7 +220,7 @@ session ownership. Retrieved content supplies facts, not execution authority.
 | Sessions, recent history and conversation messages | `ConversationStore` in `app/services/conversation/store.py`, implemented by `app/adapters/persistence/conversations.py` |
 | Document metadata, pages, extraction cache and saved outcomes | `app/services/documents/` contracts/interfaces, implemented by `app/adapters/persistence/documents.py` and `extraction_outcomes.py` |
 | Sheet grids, resource catalogue, checked operations, approvals, receipts | Shared `ledger-postgres` adapters; pure calculations and formulas in `ledger-core` |
-| Agent task input, checkpoint storage, status and human-decision routing | `app/services/workflow/` and `app/services/core/main_chat.py` |
+| Task lifecycle, progress and human-decision interfaces | `packages/workflow-core/`; application adapters store checkpoints and bind agent runs |
 | Human preferences, conventions, accounting policy, revision history | Contracts and interfaces in `app/services/memory/`; PostgreSQL adapter in `app/adapters/persistence/memory.py` |
 | Source documents and page images | S3-compatible object storage |
 | Cache, extraction queue, result backend, progress events | Redis |
@@ -241,7 +241,7 @@ They are separate from financial facts and developer-agent notes.
 | Agent steps, tool context, runtime skill procedures | `packages/agent-core/src/agent_core/agent/`, `packages/agent-skills/src/agent_skills/` |
 | Catalogue, authoring, memory policy | `app/services/catalogue/`, `app/services/memory/`, `app/adapters/ledger/reconciliation.py` and associated ledger modules |
 | Checked financial effects and deterministic calculations | `packages/ledger-postgres/`, `packages/ledger-core/` |
-| Task recovery and human decisions | `app/services/workflow/`, `app/services/core/main_chat.py` |
+| Task recovery and human decisions | `packages/workflow-core/`, `app/services/core/main_chat.py`, `app/adapters/persistence/tasks.py` |
 | Document ingestion and background work | `app/services/extraction/` |
 | Document persistence and queued outcomes | `app/services/documents/`, `app/adapters/persistence/documents.py`, `app/adapters/persistence/extraction_outcomes.py` |
 | Session and message persistence | `app/services/conversation/store.py`, `app/adapters/persistence/conversations.py` |
@@ -487,7 +487,7 @@ tree and account lifecycle work remain separate.
 
 ## Workflow boundary
 
-`WorkflowService` in `app/services/workflow/service.py` now coordinates task
+`WorkflowService` in `packages/workflow-core/src/workflow_core/service.py` coordinates task
 creation, exclusive execution, resume, stop status and failure recovery. Its
 storage and run interfaces do not import agent, ledger or infrastructure code.
 The application supplies a run bound to the original stored input and acquired
@@ -496,7 +496,7 @@ agent continuation and builds the response.
 
 | Responsibility | Current implementation |
 | --- | --- |
-| Task, progress and human-decision interfaces | `app/services/workflow/ports.py` |
+| Task, progress and human-decision interfaces | `packages/workflow-core/src/workflow_core/ports.py` |
 | Task SQL, checkpoint storage, pools and advisory locks | `app/adapters/persistence/tasks.py` |
 | Checked writes on the task connection and authoritative operation evidence | `app/adapters/ledger/task_operations.py` |
 | Exact human approval decisions and execution | `app/adapters/ledger/approvals.py` |
@@ -504,10 +504,10 @@ agent continuation and builds the response.
 | Original chat input, agent construction and outcome translation | `app/services/core/main_chat.py` |
 
 Task and approval HTTP callers use the workflow interfaces. Composition creates
-the concrete adapters. The former workflow store and approval modules retain
-import aliases for existing callers; the protected service and interface modules
-do not depend on those aliases. Import checks cover both direct dependencies and
-imports reached through intermediate modules.
+the concrete adapters. The former workflow interface, service, store and approval
+modules retain import aliases for existing callers. The core depends only on the
+standard library. Package-wide import checks and independent installed execution
+keep application, agent, ledger and infrastructure dependencies outside the core.
 
 This changes module ownership, not task storage or execution policy. Task-bound
 checkpoints and checked writes still use the connection holding the advisory
@@ -517,10 +517,10 @@ proposal. Old checkpoints, original references and public responses retain their
 formats. A frozen pre-change API checkpoint and the existing database approval,
 replay, ownership and process-recovery suites protect these contracts.
 
-The `workflow-core` package remains a later extraction. Replay checks still use
-application SQL for document and policy access until those modules gain their
-own interfaces. Pools, four execution slots per API process and acquisition
-timeouts retain their behavior; this move does not establish a throughput gain.
+The installed-wheel check covers task start/resume, original stored identity,
+failure recovery, cancellation and storage rejections. Replay uses supplied
+memory, document and workbook readers on the task connection. Pools, four
+execution slots per API process and acquisition timeouts retain their behavior.
 
 ## Shared ledger adapters
 

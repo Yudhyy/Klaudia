@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from app.services.workflow.ports import TaskBusyError
-from app.services.workflow.service import TaskCompletion, TaskRun, WorkflowService
+from workflow_core.ports import TaskBusyError
+from workflow_core.service import TaskCompletion, TaskRun, WorkflowService
 
 
 class StoredTasks:
