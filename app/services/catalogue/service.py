@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from ledger.catalogue import CatalogueStore
+from ledger_postgres.catalogue import CatalogueStore
 from ledger_core.calculations import CheckedCalculation
 from ledger_core.financial_contracts import CheckedFinancialRequest
 from ledger_core.evidence import bounded_evidence, schema_page

@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from ledger.store import (
+from ledger_postgres.store import (
     LedgerStore,
     SpreadsheetExistsError,
     SpreadsheetNotFoundError,

@@ -4,36 +4,35 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-import asyncpg
 from pydantic import ValidationError
 
 from agent_core.agent.writes import ExecuteOperation
 from app.services.memory.contracts import DocumentPath
 from app.services.memory.ports import DocumentReader
 from app.services.documents.ports import DocumentArchive
+from app.services.catalogue.ports import WorkbookAccess
 from ledger_core.errors import RevisionConflictError
 from ledger_core.resources import ResourceNotFoundError
 
 
 @dataclass(frozen=True)
 class SavedSources:
-    """Bind memory and document reads to the connection holding the task lock."""
+    """Bind saved source reads to the connection holding the task lock."""
 
     memory: DocumentReader
     documents: DocumentArchive
+    workbooks: WorkbookAccess
 
 
 async def check_saved_access(
-    connection: asyncpg.Connection,
     record: dict[str, Any],
     sources: SavedSources,
 ) -> None:
     """Recheck all saved tool sources before replaying their evidence.
 
     Args:
-        connection: Connection holding the task lock.
         record: Persisted task and original input.
-        sources: Owner-scoped memory and document reads on the task connection.
+        sources: Owner-scoped source readers on the task connection.
 
     Raises:
         ResourceNotFoundError: A saved source is no longer owned.
@@ -73,10 +72,8 @@ async def check_saved_access(
             document_ids.update(item["file_id"] for item in evidence["documents"])
         elif name == "read_document_page":
             document_ids.add(evidence["file_id"])
-    owned_workbooks = await connection.fetchval(
-        "SELECT count(*) FROM ledger_spreadsheet WHERE user_id = $1 AND spreadsheet_id = ANY($2::text[])",
-        record["user_id"],
-        list(workbooks),
+    owned_workbooks = await sources.workbooks.count_owned_workbooks(
+        record["user_id"], list(workbooks)
     )
     owned_documents = await sources.documents.count_owned_documents(
         record["user_id"], list(document_ids)

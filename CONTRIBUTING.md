@@ -29,14 +29,18 @@ uv run pytest tests/unit -q
 uv run pytest tests/packaging -q
 ```
 
-The workspace installs `agent-core`, `agent-skills`, `ledger-core`, `identity-core`, the MCP
-server and the `klaudia` compatibility imports. New agent callers use
+The workspace installs `agent-core`, `agent-skills`, `ledger-core`,
+`ledger-postgres`, `identity-core`, the MCP server and the `klaudia` compatibility
+imports. New agent callers use
 `agent_core.agent` and `agent_skills.registry`. Provider construction belongs
 to `app.adapters.llm.model_factory`. Packaging tests build and install the
 canonical agent wheels outside the checkout with provider libraries absent.
 Identity packaging checks install and run registration/login with only the
 standard library. HTTP, bcrypt, JWT and PostgreSQL implementations stay in the
 application adapters.
+Ledger PostgreSQL adapters and migration assets install without an MCP host or
+application imports. New storage callers use `ledger_postgres`; `ledger.*`
+compatibility paths remain supported.
 
 The mobile CI uses Node 24.12.0. Run these commands from `apps/mobile/`:
 

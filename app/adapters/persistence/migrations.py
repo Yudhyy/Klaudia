@@ -5,8 +5,8 @@ from pathlib import Path
 import asyncpg
 
 from app.adapters.persistence.metadata import metadata
-from ledger.migrations import LEDGER_HISTORY
-from ledger.migrations.runtime import History, check_history, upgrade_histories
+from ledger_postgres.migrations import LEDGER_HISTORY
+from ledger_postgres.migrations.runtime import History, check_history, upgrade_histories
 
 APPLICATION_HISTORY = History(
     "application", "app_0001", "app_alembic_version", Path(__file__).parent, metadata

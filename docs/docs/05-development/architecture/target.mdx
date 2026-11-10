@@ -37,6 +37,9 @@ package extraction and process moves remain proposed.
 Registration and login now use an installed `identity-core` package with supplied
 account, password and token capabilities. PostgreSQL, bcrypt and JWT adapters
 remain in the application. The full identity domain tree remains proposed.
+Shared PostgreSQL ledger adapters and their migration history now live in
+`packages/ledger-postgres/`, used by API and standalone MCP composition.
+Pure financial record queries and comparisons now live in `ledger-core`.
 The overview and assessment distinguish these follow-ups
 from their recorded baseline source.
 
@@ -55,7 +58,7 @@ simpler modules.
 
 | Module | Owns | Current implementation | Proposed package |
 | --- | --- | --- | --- |
-| Ledger | Exact financial calculations, catalogue/table rules, revisions, prepared operations, financial approval requirements and committed receipts | `mcp-ledger/ledger/`, with application catalogue/operation adapters | `ledger-core` |
+| Ledger | Exact financial calculations, catalogue/table rules, revisions, prepared operations, financial approval requirements and committed receipts | Pure contracts/calculations in `ledger-core`; shared storage/checked execution in `ledger-postgres`; application capability bindings and MCP transport | `ledger-core` and `ledger-postgres` adapters |
 | Agent runtime | Model-driven steps, tool selection, run context and continuation payloads | `packages/agent-core/src/agent_core/agent/` and `packages/agent-skills/src/agent_skills/`; `klaudia/core/` keeps compatibility imports | `agent-core` and `agent-skills` (implemented) |
 | Documents | Ingestion, extraction, expected pages, saved outcomes and document lifecycle | `app/services/documents/` contracts/interfaces, `app/services/extraction/` coordination, and PostgreSQL adapters under `app/adapters/persistence/` | `document-intelligence` |
 | Identity | Accounts, credentials, authentication use cases and account access state | Registration/login use cases and interfaces in `packages/identity-core/`; PostgreSQL, bcrypt and JWT adapters in the application | `identity-core` (current use cases implemented) |
@@ -549,6 +552,34 @@ klaudia/
 │   │   ├── tests/
 │   │   └── pyproject.toml
 │   │
+│   ├── ledger-postgres/                  # shared PostgreSQL ledger adapters
+│   │   ├── src/ledger_postgres/
+│   │   │   ├── __init__.py
+│   │   │   ├── store.py
+│   │   │   ├── connections.py
+│   │   │   ├── catalogue.py
+│   │   │   ├── operations.py
+│   │   │   ├── table_operations.py
+│   │   │   ├── authoring.py
+│   │   │   ├── authoring_reads.py
+│   │   │   ├── approvals.py
+│   │   │   ├── approval_service.py
+│   │   │   ├── financial_store.py
+│   │   │   ├── typed_cells.py
+│   │   │   ├── typed_storage.py
+│   │   │   └── migrations/
+│   │   │       ├── versions/
+│   │   │       ├── metadata.py
+│   │   │       ├── runtime.py
+│   │   │       ├── authoring.py
+│   │   │       ├── cli.py
+│   │   │       ├── catalog.py
+│   │   │       ├── env.py
+│   │   │       ├── script.py.mako
+│   │   │       ├── ledger_0001.sql
+│   │   │       └── ledger_0001.json
+│   │   └── pyproject.toml
+│   │
 │   ├── workflow-core/                    # durable task and decision coordination
 │   │   ├── src/workflow_core/
 │   │   │   ├── __init__.py
@@ -738,14 +769,17 @@ migration setup. Its implementation paths are:
 | --- | --- |
 | Authoring configuration for both histories | Root `alembic.ini` |
 | Application metadata, environment, revisions, SQL, and schema contracts | `app/adapters/persistence/` |
-| Ledger metadata, environment, revisions, SQL, and schema contracts | `mcp-ledger/ledger/migrations/` |
+| Ledger metadata, environment, revisions, SQL, and schema contracts | `packages/ledger-postgres/src/ledger_postgres/migrations/` |
+| Shared migration coordination, authoring and CLI helpers | `ledger_postgres.migrations`; supplied history objects select each owner |
 | Integrated ledger-before-application release order | `app/adapters/persistence/migrations.py` |
 
 The proposed `services/api/migrations/` directory shows the application history
 in the future service layout. The ledger history must remain usable without
-application tables or imports. Its final package path and the location of shared
-migration helpers need review when the storage adapters move. This foundation
-leaves those package choices open.
+application tables or imports. Ledger adapters and the existing shared helpers
+now ship in `ledger-postgres`. Both the API and standalone MCP use that package,
+so neither needs a second SQL implementation or an application import from the
+standalone ledger. The service-layout sketch can bind these adapters as its
+process composition moves; it does not require duplicate persistence code.
 
 Module extraction retains two histories, stable revision IDs, predecessor links,
 version-table names, and frozen assets. It does not create a history per domain
@@ -890,7 +924,8 @@ not become client wire contracts by default.
 | Implemented memory boundary | Memory-owned context read/edit interfaces with PostgreSQL persistence and ledger policy adapters | Owner isolation, revision conflicts, atomic history, tombstones, byte limits, policy reconciliation and task-connection replay checks; `memory-core` packaging remains proposed |
 | Implemented document and conversation storage boundaries | Document-owned upload/archive/outcome interfaces and a separate session/message interface, supplied by application persistence adapters | Inline and queued extraction, saved progress, archive owner checks, session/history contracts and task-connection replay regressions; document packaging remains proposed |
 | Implemented identity use cases | Installable registration/login use cases with supplied storage, password and token capabilities; HTTP retains validation and response mapping | Behavior and import checks, independent installed-wheel execution, auth/identity-store and startup regressions; account lifecycle features remain separate |
-| Module by module | Workflow, memory, documents and remaining ledger adapters | Owned entrypoints, durable/owner-isolation regressions and process startup checks for each moved module |
+| Implemented shared ledger adapters | Installable PostgreSQL storage, checked execution, approvals and owned migration assets/helpers, separate from MCP hosting | Installed adapter initialization without app/MCP, compatibility imports, exact financial, ownership, approval, migration and process-recovery checks; saved workbook replay uses its task-lock connection |
+| Module by module | Workflow, memory and document packages with remaining infrastructure adapters | Owned entrypoints, durable/owner-isolation regressions and process startup checks for each moved module |
 | As consumers are ready | API/worker/MCP entrypoints and infrastructure relocated into the proposed service layout | Installed imports and startup for all three processes; Docker, CI, commands and contributor docs match the new paths |
 
 Use the [first-extraction scope and acceptance criteria](assessment.mdx#first-extraction-installable-ledger-core)
@@ -902,8 +937,8 @@ The identity interface and database foundation establish upgrade ownership befor
 stores move. Further schema changes follow the owning history and stay coordinated
 with [issue #9](https://github.com/Yudhyy/Klaudia/issues/9). The ledger's standalone
 initialization remains supported. Extract workflow, memory, and documents through
-their interfaces before relocating process composition. Complete the remaining
-ledger adapter move with its standalone packaging checks.
+their interfaces before relocating process composition. Shared ledger adapter
+installation and standalone migration checks now cover that package move.
 
 Each slice moves a working responsibility with its callers, metadata, tests and
 entrypoints. Preserve public behavior during package moves. Record deliberate

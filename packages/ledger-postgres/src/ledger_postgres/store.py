@@ -1,0 +1,434 @@
+"""Postgres-backed sheet storage for the ledger.
+
+Data model is user -> spreadsheets -> sheets, mirroring Excel/GSheets.
+`ledger_spreadsheet` owns tenancy (user_id); `ledger_sheet.workspace` is
+an FK to it. One row per sheet tab; the cell grid is a single JSONB 2D
+array. All mutations run read-modify-write inside a transaction with
+FOR UPDATE row locking, which preserves spreadsheet semantics with
+receipt-scale data (hundreds of rows per tab). Revisit granularity only
+if tabs grow far beyond that.
+
+`user_id` deliberately has no FK to the app's "user" table: this schema
+is owned by ledger-postgres and must stand alone (the server can boot before
+the app tables exist, and user 0 is the system owner of default/legacy
+workspaces).
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+import uuid
+from dataclasses import dataclass
+from contextlib import contextmanager
+from contextvars import ContextVar
+from collections.abc import Iterator
+from typing import Any, Callable, Optional
+
+import asyncpg
+from ledger_postgres.connections import BorrowedConnection
+
+from ledger_core.errors import SheetNotFoundError
+from ledger_core.append_contracts import AppendRows, TableAppend
+from ledger_postgres.operations import execute_append
+from ledger_postgres.migrations import LEDGER_HISTORY, upgrade_ledger
+from ledger_postgres.migrations.runtime import check_history
+from ledger_postgres.table_operations import (
+    execute_table_append,
+)
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_WORKSPACE = os.environ.get("LEDGER_WORKSPACE", "default")
+
+SYSTEM_USER_ID = 0  # owner of the default workspace and adopted legacy rows
+
+
+@dataclass(frozen=True)
+class SheetSnapshot:
+    """A grid and revision read from the same database row version."""
+
+    sheet_id: int
+    title: str
+    revision: int
+    values: list[list[Any]]
+
+
+class SheetExistsError(Exception):
+    """Raised when creating a sheet whose title is already taken."""
+
+
+class SpreadsheetNotFoundError(Exception):
+    """Raised when a spreadsheet id does not exist."""
+
+
+class SpreadsheetExistsError(Exception):
+    """Raised when a user already has a spreadsheet with that name."""
+
+
+class LedgerStore:
+    """Sheet CRUD + grid read/modify/write on Postgres."""
+
+    def __init__(self, dsn: str) -> None:
+        self._dsn = dsn
+        self._pool: asyncpg.Pool | None = None
+        self._borrowed: ContextVar[BorrowedConnection | None] = ContextVar(
+            "ledger_borrowed_connection", default=None
+        )
+
+    @contextmanager
+    def bind_connection(self, connection: asyncpg.Connection) -> Iterator[None]:
+        """Keep this request's ledger queries on a caller-held connection.
+
+        Args:
+            connection: Connection holding the request's ownership locks.
+
+        Yields:
+            A scope that restores the previous connection even after cancellation.
+        """
+        token = self._borrowed.set(BorrowedConnection(connection))
+        try:
+            yield
+        finally:
+            self._borrowed.reset(token)
+
+    async def connect(self) -> None:
+        """Retain standalone initialization through the canonical ledger history."""
+        await upgrade_ledger(self._dsn)
+        await self.connect_existing()
+
+    async def connect_existing(self) -> None:
+        """Open a runtime pool after the explicit release migration step.
+
+        Raises:
+            RuntimeError: Ledger migrations or owned objects are missing.
+        """
+        self._pool = await asyncpg.create_pool(self._dsn, min_size=1, max_size=5)
+        try:
+            async with self._pool.acquire() as connection:
+                await check_history(connection, LEDGER_HISTORY)
+        except BaseException:
+            await self.close()
+            raise
+        logger.info("Ledger store connected and migration revision checked")
+
+    async def close(self) -> None:
+        if self._pool is not None:
+            await self._pool.close()
+            self._pool = None
+
+    @property
+    def pool(self) -> asyncpg.Pool | BorrowedConnection:
+        """Return the request-bound connection or the store's ordinary pool."""
+        borrowed = self._borrowed.get()
+        if borrowed is not None:
+            return borrowed
+        if self._pool is None:
+            raise RuntimeError("Ledger store not connected")
+        return self._pool
+
+    async def create_spreadsheet(self, user_id: int, name: str) -> dict[str, Any]:
+        """Create a spreadsheet owned by a user.
+
+        Args:
+            user_id: Owning user.
+            name: Display name, unique per user.
+
+        Returns:
+            Dict with spreadsheetId (opaque hex key) and name.
+
+        Raises:
+            SpreadsheetExistsError: If the user already has that name.
+        """
+        spreadsheet_id = uuid.uuid4().hex
+        try:
+            await self.pool.execute(
+                "INSERT INTO ledger_spreadsheet (spreadsheet_id, user_id, name) "
+                "VALUES ($1, $2, $3)",
+                spreadsheet_id,
+                user_id,
+                name,
+            )
+        except asyncpg.UniqueViolationError:
+            raise SpreadsheetExistsError(
+                f"Spreadsheet '{name}' already exists"
+            ) from None
+        return {"spreadsheetId": spreadsheet_id, "name": name}
+
+    async def list_spreadsheets(self, user_id: int) -> list[dict[str, Any]]:
+        rows = await self.pool.fetch(
+            "SELECT spreadsheet_id, name FROM ledger_spreadsheet "
+            "WHERE user_id = $1 ORDER BY created_at, spreadsheet_id",
+            user_id,
+        )
+        return [{"spreadsheetId": r["spreadsheet_id"], "name": r["name"]} for r in rows]
+
+    async def get_spreadsheet(self, spreadsheet_id: str) -> dict[str, Any]:
+        row = await self.pool.fetchrow(
+            "SELECT spreadsheet_id, user_id, name FROM ledger_spreadsheet "
+            "WHERE spreadsheet_id = $1",
+            spreadsheet_id,
+        )
+        if row is None:
+            raise SpreadsheetNotFoundError(f"Spreadsheet '{spreadsheet_id}' not found")
+        return {
+            "spreadsheetId": row["spreadsheet_id"],
+            "userId": row["user_id"],
+            "name": row["name"],
+        }
+
+    async def rename_spreadsheet(self, spreadsheet_id: str, new_name: str) -> None:
+        try:
+            status = await self.pool.execute(
+                "UPDATE ledger_spreadsheet SET name = $2 WHERE spreadsheet_id = $1",
+                spreadsheet_id,
+                new_name,
+            )
+        except asyncpg.UniqueViolationError:
+            raise SpreadsheetExistsError(
+                f"Spreadsheet '{new_name}' already exists"
+            ) from None
+        if status == "UPDATE 0":
+            raise SpreadsheetNotFoundError(f"Spreadsheet '{spreadsheet_id}' not found")
+
+    async def delete_spreadsheet(self, spreadsheet_id: str) -> None:
+        """Delete a spreadsheet; its sheets go with it (FK cascade)."""
+        status = await self.pool.execute(
+            "DELETE FROM ledger_spreadsheet WHERE spreadsheet_id = $1",
+            spreadsheet_id,
+        )
+        if status == "DELETE 0":
+            raise SpreadsheetNotFoundError(f"Spreadsheet '{spreadsheet_id}' not found")
+
+    async def ensure_spreadsheet(
+        self, workspace: str, user_id: int = SYSTEM_USER_ID
+    ) -> None:
+        """Idempotently provision a workspace-keyed spreadsheet.
+
+        Used for the server's default workspace, whose key comes from env
+        rather than create_spreadsheet, so sheet writes satisfy the FK.
+        """
+        await self.pool.execute(
+            "INSERT INTO ledger_spreadsheet (spreadsheet_id, user_id, name) "
+            "VALUES ($1, $2, $1) ON CONFLICT DO NOTHING",
+            workspace,
+            user_id,
+        )
+
+    async def list_sheets(self, workspace: str) -> list[dict[str, Any]]:
+        rows = await self.pool.fetch(
+            "SELECT sheet_id, title, position FROM ledger_sheet "
+            "WHERE workspace = $1 ORDER BY position, sheet_id",
+            workspace,
+        )
+        return [
+            {"title": r["title"], "sheetId": r["sheet_id"], "index": i}
+            for i, r in enumerate(rows)
+        ]
+
+    async def get_recent_activity(
+        self, workspace: str, limit: int = 3
+    ) -> list[dict[str, Any]]:
+        """Return the most recently edited sheets in a workspace.
+
+        Deterministic cross-session continuity signal ("where did I leave
+        off"). Reads ``updated_at`` (bumped on every append/mutate/rename) and
+        derives a compact preview from the grid. Receipt-scale grids make the
+        per-sheet grid read cheap at the small ``limit`` used here; revisit with
+        a denormalized last-row column only if tabs grow far beyond that.
+
+        Args:
+            workspace: Spreadsheet id (workspace key).
+            limit: Maximum sheets to return, most-recently-edited first.
+
+        Returns:
+            List of dicts with ``title``, ``updated_at`` (ISO string or None),
+            ``rows`` (grid length), and ``last_row`` (list or None).
+        """
+        rows = await self.pool.fetch(
+            "SELECT title, updated_at, grid FROM ledger_sheet "
+            "WHERE workspace = $1 ORDER BY updated_at DESC, sheet_id DESC LIMIT $2",
+            workspace,
+            limit,
+        )
+        activity: list[dict[str, Any]] = []
+        for row in rows:
+            grid = json.loads(row["grid"]) if row["grid"] else []
+            updated = row["updated_at"]
+            activity.append(
+                {
+                    "title": row["title"],
+                    "updated_at": updated.isoformat() if updated else None,
+                    "rows": len(grid),
+                    "last_row": grid[-1] if grid else None,
+                }
+            )
+        return activity
+
+    async def get_grid(self, workspace: str, title: str) -> list[list[Any]]:
+        """Read the current grid from a workbook's sheet.
+
+        Args:
+            workspace: Workbook containing the sheet.
+            title: Current sheet title.
+
+        Returns:
+            The sheet's literal cell values.
+
+        Raises:
+            SheetNotFoundError: The sheet is absent from this workbook.
+        """
+        return (await self.get_snapshot(workspace, title)).values
+
+    async def get_snapshot(self, workspace: str, title: str) -> SheetSnapshot:
+        """Read stable identity, revision and values together.
+
+        Args:
+            workspace: Workbook containing the sheet.
+            title: Current display title of the sheet.
+
+        Returns:
+            A snapshot suitable for preparing a checked operation.
+
+        Raises:
+            SheetNotFoundError: The sheet is absent from this workbook.
+        """
+        row = await self.pool.fetchrow(
+            "SELECT sheet_id, title, revision, grid, EXISTS(SELECT 1 FROM ledger_typed_cell c "
+            "WHERE c.sheet_id=ledger_sheet.sheet_id AND c.calculation_status IN ('pending','failed')) AS uncalculated FROM ledger_sheet "
+            "WHERE workspace = $1 AND title = $2",
+            workspace,
+            title,
+        )
+        if row is None:
+            raise SheetNotFoundError(f"Sheet '{title}' not found")
+        if row["uncalculated"]:
+            raise ValueError(
+                "Sheet has failed or pending formulas; inspect typed workbook status"
+            )
+        return SheetSnapshot(
+            row["sheet_id"], row["title"], row["revision"], json.loads(row["grid"])
+        )
+
+    async def append_checked(
+        self, workspace: str, request: AppendRows
+    ) -> dict[str, Any]:
+        """Execute a revision-checked append and return its committed receipt.
+
+        Args:
+            workspace: Workbook bound by the authorisation layer.
+            request: Validated append with an idempotency key.
+
+        Returns:
+            The persisted operation receipt, including on retries.
+
+        Raises:
+            SheetNotFoundError: The sheet is outside the workbook.
+            RevisionConflictError: The requested revision is stale.
+            IdempotencyConflictError: The key was used for another request.
+        """
+        return await execute_append(self.pool, workspace, request)
+
+    async def append_table_owned(
+        self, user_id: int, request: TableAppend
+    ) -> dict[str, Any]:
+        """Append named records with transactional ownership and revision checks.
+
+        Args:
+            user_id: Identity supplied by the authenticated application.
+            request: Table identity, observed revisions, records and stable retry key.
+
+        Returns:
+            A committed receipt, including an exact replay of a prior request.
+
+        Raises:
+            ResourceNotFoundError: The source workbook is absent or foreign.
+            RevisionConflictError: The inspected source or catalogue is stale.
+            IdempotencyConflictError: The retry key belongs to another request.
+            ValueError: Fields, occupied cells or formula content block the append.
+        """
+        return await execute_table_append(self.pool, user_id, request)
+
+    async def create_sheet(
+        self, workspace: str, title: str, grid: Optional[list[list[Any]]] = None
+    ) -> dict[str, Any]:
+        try:
+            row = await self.pool.fetchrow(
+                "INSERT INTO ledger_sheet (workspace, title, position, grid) "
+                "VALUES ($1, $2, "
+                "  COALESCE((SELECT MAX(position) + 1 FROM ledger_sheet "
+                "            WHERE workspace = $1), 0), "
+                "  $3) "
+                "RETURNING sheet_id, title, position",
+                workspace,
+                title,
+                json.dumps(grid or []),
+            )
+        except asyncpg.UniqueViolationError:
+            raise SheetExistsError(f"Sheet '{title}' already exists") from None
+        except asyncpg.ForeignKeyViolationError:
+            raise SpreadsheetNotFoundError(
+                f"Spreadsheet '{workspace}' not found"
+            ) from None
+        return {
+            "sheetId": row["sheet_id"],
+            "title": row["title"],
+            "index": row["position"],
+        }
+
+    async def rename_sheet(self, workspace: str, title: str, new_name: str) -> None:
+        status = await self.pool.execute(
+            "UPDATE ledger_sheet SET title = $3 WHERE workspace = $1 AND title = $2",
+            workspace,
+            title,
+            new_name,
+        )
+        if status == "UPDATE 0":
+            raise SheetNotFoundError(f"Sheet '{title}' not found")
+
+    async def delete_sheet(self, workspace: str, title: str) -> None:
+        status = await self.pool.execute(
+            "DELETE FROM ledger_sheet WHERE workspace = $1 AND title = $2",
+            workspace,
+            title,
+        )
+        if status == "DELETE 0":
+            raise SheetNotFoundError(f"Sheet '{title}' not found")
+
+    async def mutate_grid(
+        self,
+        workspace: str,
+        title: str,
+        mutate: Callable[[list[list[Any]]], list[list[Any]]],
+    ) -> list[list[Any]]:
+        """Atomically apply a pure grid transform under a row lock.
+
+        Args:
+            workspace: Workspace the sheet belongs to.
+            title: Sheet tab title.
+            mutate: Pure function old_grid -> new_grid.
+
+        Returns:
+            The new grid.
+
+        Raises:
+            SheetNotFoundError: If the sheet does not exist.
+        """
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    "SELECT sheet_id, grid FROM ledger_sheet "
+                    "WHERE workspace = $1 AND title = $2 FOR UPDATE",
+                    workspace,
+                    title,
+                )
+                if row is None:
+                    raise SheetNotFoundError(f"Sheet '{title}' not found")
+                new_grid = mutate(json.loads(row["grid"]))
+                await conn.execute(
+                    "UPDATE ledger_sheet SET grid = $2 WHERE sheet_id = $1",
+                    row["sheet_id"],
+                    json.dumps(new_grid),
+                )
+                return new_grid

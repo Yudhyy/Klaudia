@@ -10,7 +10,7 @@ from pathlib import Path
 
 from alembic import op
 
-from ledger.migrations.runtime import execute_baseline
+from ledger_postgres.migrations.runtime import execute_baseline
 
 revision = "ledger_0001"
 down_revision = None

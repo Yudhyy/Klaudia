@@ -1,7 +1,8 @@
 # Ledger core
 
 `ledger-core` contains pure request/value contracts, resource and error types,
-bounded evidence, grid aggregation and native exact-decimal formulas. Its only
+bounded evidence, financial record queries/comparisons, grid aggregation and native
+exact-decimal formulas. Its only
 runtime dependency is Pydantic. Importing it opens no connections and requires
 no PostgreSQL or MCP installation.
 
@@ -14,8 +15,9 @@ from ledger_core.formula_engine import Formula, evaluate_graph
 
 The existing `ledger.*` modules in `mcp-ledger` re-export the same definitions,
 including the original execution-module proposal imports. New consumers should
-import the core directly. Persistence, checked operation execution, approval
-storage and the owned-read MCP host remain in `mcp-ledger`.
+import the core directly. `ledger-postgres` owns persistence, checked operation
+execution, approval storage and migration helpers. The MCP host and owned-read
+transport policy remain in `mcp-ledger`.
 
 From the repository root, install the workspace and run the compatibility and
 standalone wheel checks:
@@ -41,6 +43,5 @@ To build the wheel independently:
 uv build packages/ledger-core --wheel --no-sources
 ```
 
-This is the first ledger-core slice. Agent-owned capability adapters, durable
-workflow extraction and the larger package layout remain later work under
+The larger domain/application tree and further module packaging remain proposed under
 [issue #3](https://github.com/Yudhyy/Klaudia/issues/3).

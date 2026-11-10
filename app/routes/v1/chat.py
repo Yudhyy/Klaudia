@@ -9,7 +9,7 @@ from app.helpers.auth import get_current_user
 from app.services.conversation.store import ConversationStore
 from app.helpers.ratelimit import chat_limit, limiter
 from app.models.chat import KlaudiaRequest, KlaudiaResponse
-from ledger.store import SpreadsheetNotFoundError
+from ledger_postgres.store import SpreadsheetNotFoundError
 from ledger_core.resources import ResourceNotFoundError
 from ledger_core.errors import RevisionConflictError
 from app.services.workflow.ports import TaskBusyError, TaskConflictError

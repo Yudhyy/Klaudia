@@ -8,7 +8,8 @@ import pytest
 
 
 @pytest.mark.parametrize(
-    "module_name", ["app.adapters.persistence", "ledger.migrations"]
+    "module_name",
+    ["app.adapters.persistence", "ledger.migrations", "ledger_postgres.migrations"],
 )
 async def test_release_cli_upgrade_and_read_only_check(migration_database, module_name):
     """Run upgrade, check, and repeated upgrade through the actual CLI."""

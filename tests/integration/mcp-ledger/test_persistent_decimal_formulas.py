@@ -365,7 +365,7 @@ async def test_concurrent_typed_approvals_serialize_without_lock_upgrade_deadloc
         monkeypatch: Pause one approval while the other requests its workbook lock.
     """
     from ledger.approvals import decide_approval
-    import ledger.typed_cells as typed_cells
+    import ledger_postgres.typed_cells as typed_cells
 
     store, workspace, first, _ = typed_workbook
     snapshot = await inspect_workbook(store.pool, 90231, workspace)
@@ -654,7 +654,7 @@ async def test_projection_failure_rolls_back_typed_state_and_receipt(
     typed_workbook, monkeypatch
 ):
     """No typed declaration remains after a failed grid projection."""
-    import ledger.typed_cells as typed_cells
+    import ledger_postgres.typed_cells as typed_cells
 
     store, workspace, first, _ = typed_workbook
     before = await inspect_workbook(store.pool, 90231, workspace)

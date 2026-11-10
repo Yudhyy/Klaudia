@@ -69,7 +69,7 @@ def test_standalone_ledger_has_no_application_foreign_keys():
 async def test_migration_connection_preserves_the_original_dsn(monkeypatch):
     """Retain asyncpg SSL and URL query options during the release connection."""
     from unittest.mock import AsyncMock, Mock
-    from ledger.migrations import runtime
+    from ledger_postgres.migrations import runtime
 
     database_url = "postgresql://fixture:encoded%40password@db.invalid/catalog?sslmode=require&application_name=migration-test"
     engine_factory = Mock(side_effect=RuntimeError("Stop before connection"))

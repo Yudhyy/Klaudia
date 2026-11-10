@@ -15,11 +15,14 @@ from app.adapters.agent.checkpoints import (
     task_progress,
 )
 from app.adapters.persistence.documents import PostgresDocumentStore
-from app.adapters.ledger.task_operations import TaskOperations, operation_evidence
+from app.adapters.ledger.task_operations import TaskOperations
+from ledger_postgres.table_operations import operation_evidence
 from app.adapters.persistence.migrations import check_database
 from app.adapters.persistence.memory import PostgresMemoryReader
 from app.services.workflow.ports import TaskBusyError, TaskConflictError
 from ledger_core.resources import ResourceNotFoundError
+from ledger_postgres.catalogue import CatalogueStore
+from ledger_postgres.connections import BorrowedConnection
 
 
 class PostgresTaskSession:
@@ -257,10 +260,11 @@ class PostgresTaskStore:
                 connection, {**dict(record), "require_approval": self._require_approval}
             )
             await check_saved_access(
-                connection,
                 dict(record),
                 SavedSources(
-                    PostgresMemoryReader(connection), PostgresDocumentStore(connection)
+                    PostgresMemoryReader(connection),
+                    PostgresDocumentStore(connection),
+                    CatalogueStore(BorrowedConnection(connection)),
                 ),
             )
             await task.set_status("running")

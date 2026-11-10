@@ -1,15 +1,15 @@
 """Authenticated access to durable ledger append proposals and receipts."""
 
-from ledger.authoring import prepare_authoring
+from ledger_postgres.authoring import prepare_authoring
 from ledger_core.authoring_contracts import AuthoringProposal
 from ledger_core.append_contracts import TableAppendProposal
 from ledger_core.typed_contracts import TypedEditProposal
-from ledger.typed_cells import inspect_workbook, prepare_typed_edit
+from ledger_postgres.typed_cells import inspect_workbook, prepare_typed_edit
 
 from typing import Any
 
-from ledger.store import LedgerStore
-from ledger.table_operations import (
+from ledger_postgres.store import LedgerStore
+from ledger_postgres.table_operations import (
     prepare_table_append,
     execute_prepared_operation,
 )

@@ -158,6 +158,30 @@ cover adapter behavior. This step preserves current account behavior; roles,
 refresh sessions, deletion and revocation remain separate features. The full
 target identity tree remains proposed. Test results belong to the code PR.
 
+## Shared ledger adapter follow-up
+
+The current source moves PostgreSQL ledger storage, checked execution, concrete
+approval routing, authoring reads and receipt queries to `packages/ledger-postgres/`.
+API and standalone MCP consume the same implementation. Legacy ledger and
+application authoring/approval imports retain canonical object identity.
+
+The owned ledger migration history and existing coordination/authoring/CLI helpers
+ship with that adapter package. Integrated composition still supplies two
+histories. Standalone installation opens no application dependency and creates
+no application tables. Frozen SQL/JSON/template bytes, revision IDs, version
+tables and transaction rules remain intact. Python revision imports use the
+canonical helper path.
+
+Pure financial execution and record helpers now belong to `ledger-core`.
+Saved workbook replay uses a supplied `WorkbookAccess` reader on the task-lock
+connection instead of SQL in checkpoint interpretation. Installed-package,
+actual backend/lock, owner-revocation and existing approval/recovery regressions
+cover these changes. MCP retains its owned-read transport policy.
+
+This is an adapter/package move, not a rewrite of checked-operation planning or
+the larger proposed ledger domain tree. Workflow, memory and document packaging
+and process-layout work remain later steps. Test results belong to the code PR.
+
 ## Completed work and remaining limits
 
 | Change | Implemented in the reviewed source | Remaining limit |

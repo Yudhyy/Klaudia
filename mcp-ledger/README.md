@@ -1,12 +1,19 @@
 # mcp-ledger
 
+The host uses shared storage and checked execution from `ledger-postgres`, and
+pure contracts/calculations from `ledger-core`. Existing `ledger.*` storage and
+migration imports remain compatibility paths. The adapter package can also run
+without the MCP distribution or application tables.
+
 Database setup uses the owned ledger Alembic history. Standalone startup retains
 automatic setup through `LedgerStore.connect()`. To run an explicit release step,
-use `python -m ledger.migrations upgrade`, then `python -m ledger.migrations check`
+use `python -m ledger_postgres.migrations upgrade`, then
+`python -m ledger_postgres.migrations check`
 with `DATABASE_URL` set. Integrated deployments set `LEDGER_SCHEMA_MODE=check`
 after their release command upgrades both histories. See the
 [migration guide](../docs/docs/05-development/contributing/database-migrations.mdx) for
 adoption, revision checks, and recovery.
+The former `python -m ledger.migrations` command remains supported.
 
 Postgres-backed MCP reads with current workbook ownership checks. The default
 surface exposes nine read tools. All fourteen mutation handlers are denied,

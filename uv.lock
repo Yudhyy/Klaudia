@@ -17,6 +17,7 @@ members = [
     "klaudia",
     "klaudia-protocol",
     "ledger-core",
+    "ledger-postgres",
     "mcp-ledger",
 ]
 constraints = [{ name = "fastmcp-slim", specifier = "==4.0.0b3" }]
@@ -1754,6 +1755,7 @@ dependencies = [
     { name = "langchain-openai" },
     { name = "langfuse" },
     { name = "ledger-core" },
+    { name = "ledger-postgres" },
     { name = "mcp-ledger" },
     { name = "openai" },
     { name = "pillow" },
@@ -1804,6 +1806,7 @@ requires-dist = [
     { name = "langchain-openai", specifier = ">=0.3.0" },
     { name = "langfuse", specifier = ">=4.5.0" },
     { name = "ledger-core", editable = "packages/ledger-core" },
+    { name = "ledger-postgres", editable = "packages/ledger-postgres" },
     { name = "mcp-ledger", editable = "mcp-ledger" },
     { name = "openai", specifier = ">=1.54.0" },
     { name = "pillow", specifier = ">=10.0.0" },
@@ -1940,6 +1943,27 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "pydantic", specifier = ">=2.11.0" }]
+
+[[package]]
+name = "ledger-postgres"
+version = "0.1.0"
+source = { editable = "packages/ledger-postgres" }
+dependencies = [
+    { name = "alembic" },
+    { name = "asyncpg" },
+    { name = "ledger-core" },
+    { name = "python-dotenv" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", specifier = ">=1.17,<2" },
+    { name = "asyncpg", specifier = ">=0.30.0" },
+    { name = "ledger-core", editable = "packages/ledger-core" },
+    { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0,<3" },
+]
 
 [[package]]
 name = "limits"
@@ -2137,24 +2161,20 @@ name = "mcp-ledger"
 version = "0.1.0"
 source = { editable = "mcp-ledger" }
 dependencies = [
-    { name = "alembic" },
-    { name = "asyncpg" },
     { name = "fastmcp" },
     { name = "ledger-core" },
+    { name = "ledger-postgres" },
     { name = "pydantic" },
     { name = "python-dotenv" },
-    { name = "sqlalchemy", extra = ["asyncio"] },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "alembic", specifier = ">=1.17,<2" },
-    { name = "asyncpg", specifier = ">=0.30.0" },
     { name = "fastmcp", specifier = "==4.0.0b3" },
     { name = "ledger-core", editable = "packages/ledger-core" },
+    { name = "ledger-postgres", editable = "packages/ledger-postgres" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0,<3" },
 ]
 
 [[package]]

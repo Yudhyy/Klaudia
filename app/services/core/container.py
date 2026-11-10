@@ -29,13 +29,13 @@ from app.services.extraction.agents.base import ExtractionAgent
 from app.services.core.spreadsheets import SpreadsheetService
 from app.services.guardrails import GuardrailsAgent, GuardrailsConfig
 from app.adapters.mcp_client.tool_registry import MCPToolRegistry
-from ledger.store import LedgerStore
-from ledger.catalogue import CatalogueStore
+from ledger_postgres.store import LedgerStore
+from ledger_postgres.catalogue import CatalogueStore
 from app.services.catalogue.service import CatalogueService
-from app.services.catalogue.authoring import AuthoringService
+from ledger_postgres.authoring_reads import AuthoringService
 from app.services.core.main_chat import MainChatService
 from app.adapters.persistence.tasks import PostgresTaskStore
-from app.adapters.ledger.approvals import CheckedApprovals
+from ledger_postgres.approval_service import CheckedApprovals
 from app.services.core.operations import OperationService
 from app.adapters.llm.model_factory import build_chat_llm
 
