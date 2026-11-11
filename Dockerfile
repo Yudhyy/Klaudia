@@ -27,6 +27,7 @@ COPY packages/agent-skills/pyproject.toml ./packages/agent-skills/pyproject.toml
 COPY packages/identity-core/pyproject.toml ./packages/identity-core/pyproject.toml
 COPY packages/workflow-core/pyproject.toml ./packages/workflow-core/pyproject.toml
 COPY packages/memory-core/pyproject.toml ./packages/memory-core/pyproject.toml
+COPY packages/document-intelligence/pyproject.toml ./packages/document-intelligence/pyproject.toml
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-workspace

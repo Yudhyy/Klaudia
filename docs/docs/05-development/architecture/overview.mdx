@@ -218,7 +218,7 @@ session ownership. Retrieved content supplies facts, not execution authority.
 | Credential lookup, account creation, last-login updates | `IdentityStore` in `identity_core.ports`, implemented by `app/adapters/identity.py` |
 | Application database pool, startup checks and seed user | `ApplicationDatabase` in `app/adapters/persistence/application.py`; the former `AppDBClient` import remains compatible |
 | Sessions, recent history and conversation messages | `ConversationStore` in `app/services/conversation/store.py`, implemented by `app/adapters/persistence/conversations.py` |
-| Document metadata, pages, extraction cache and saved outcomes | `app/services/documents/` contracts/interfaces, implemented by `app/adapters/persistence/documents.py` and `extraction_outcomes.py` |
+| Document metadata, pages, extraction cache and saved outcomes | `packages/document-intelligence/` contracts and interfaces. PostgreSQL adapters in `app/adapters/persistence/` |
 | Sheet grids, resource catalogue, checked operations, approvals, receipts | Shared `ledger-postgres` adapters; pure calculations and formulas in `ledger-core` |
 | Task lifecycle, progress and human-decision interfaces | `packages/workflow-core/`; application adapters store checkpoints and bind agent runs |
 | Human preferences, conventions, accounting policy, revision history | Contracts and interfaces in `packages/memory-core/`. PostgreSQL adapter in `app/adapters/persistence/memory.py` |
@@ -243,7 +243,7 @@ They are separate from financial facts and developer-agent notes.
 | Checked financial effects and deterministic calculations | `packages/ledger-postgres/`, `packages/ledger-core/` |
 | Task recovery and human decisions | `packages/workflow-core/`, `app/services/core/main_chat.py`, `app/adapters/persistence/tasks.py` |
 | Document ingestion and background work | `app/services/extraction/` |
-| Document persistence and queued outcomes | `app/services/documents/`, `app/adapters/persistence/documents.py`, `app/adapters/persistence/extraction_outcomes.py` |
+| Document persistence and queued outcomes | `packages/document-intelligence/`, `app/adapters/persistence/documents.py`, `app/adapters/persistence/extraction_outcomes.py` |
 | Session and message persistence | `app/services/conversation/store.py`, `app/adapters/persistence/conversations.py` |
 
 This map points to current paths. At the recorded baseline, `klaudia/` used
@@ -366,9 +366,9 @@ boundary and exercise owner-scoped policy reads with exact decimal values.
 
 ### Document and conversation storage boundaries
 
-The [document interfaces](https://github.com/Yudhyy/Klaudia/blob/development/app/services/documents/ports.py)
+The [document interfaces](https://github.com/Yudhyy/Klaudia/blob/development/packages/document-intelligence/src/document_intelligence/ports.py)
 separate upload preparation and extraction caches, owner-checked archive reads,
-and saved queued outcomes. [Document contracts](https://github.com/Yudhyy/Klaudia/blob/development/app/services/documents/contracts.py)
+and saved queued outcomes. [Document contracts](https://github.com/Yudhyy/Klaudia/blob/development/packages/document-intelligence/src/document_intelligence/contracts.py)
 own expected-page identity, bounded saved facts, pending-page state and the
 existing chat payload. Ingestion, archive tools and progress reconciliation use
 these interfaces instead of raw database queries. API and worker composition
@@ -395,11 +395,15 @@ selected session.
 `ApplicationDatabase` owns the existing application pool, migration check and
 seed behavior. The former `AppDBClient` import aliases it; legacy domain methods
 forward to the canonical stores. The former `ExtractionOutcomes` constructor
-adapts a database client to the same pool-based outcome implementation. No second
-SQL implementation remains. Domain contracts and storage interfaces import
-without extraction clients or infrastructure. OCR, object-store and queue
-implementations remain in their current modules; package and process moves
-remain proposed.
+adapts a database client to the same pool-based outcome implementation.
+
+`document-intelligence` installs the contracts, upload preparation, inline
+ingestion and queued page processing with only the standard library. The API
+adapter translates uploads and errors, and supplies media processing and page
+dispatch. The worker supplies the same storage, cache and OCR capabilities and
+publishes Redis notifications after the page outcome is saved. Taskiq owns job
+registration and retry settings. The progress adapter reads saved outcomes
+through the document interface. Process relocation remains proposed.
 
 ## Ledger capability contracts
 

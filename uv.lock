@@ -13,6 +13,7 @@ resolution-markers = [
 members = [
     "agent-core",
     "agent-skills",
+    "document-intelligence",
     "identity-core",
     "klaudia",
     "klaudia-protocol",
@@ -905,6 +906,11 @@ wheels = [
 ]
 
 [[package]]
+name = "document-intelligence"
+version = "0.1.0"
+source = { editable = "packages/document-intelligence" }
+
+[[package]]
 name = "email-validator"
 version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1744,6 +1750,7 @@ dependencies = [
     { name = "asyncpg" },
     { name = "bcrypt" },
     { name = "blake3" },
+    { name = "document-intelligence" },
     { name = "fastapi" },
     { name = "fastmcp" },
     { name = "google-genai" },
@@ -1797,6 +1804,7 @@ requires-dist = [
     { name = "asyncpg", specifier = ">=0.31.0" },
     { name = "bcrypt", specifier = ">=5.0.0" },
     { name = "blake3", specifier = ">=1.0.0" },
+    { name = "document-intelligence", editable = "packages/document-intelligence" },
     { name = "fastapi", specifier = ">=0.133.0" },
     { name = "fastmcp", specifier = "==4.0.0b3" },
     { name = "google-genai", specifier = ">=1.0.0" },

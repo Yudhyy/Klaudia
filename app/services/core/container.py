@@ -18,7 +18,7 @@ from app.adapters.persistence.conversations import PostgresConversationStore
 from app.adapters.persistence.documents import PostgresDocumentStore
 from app.adapters.persistence.extraction_outcomes import PostgresExtractionOutcomes
 from app.services.conversation.store import ConversationStore
-from app.services.documents.ports import ExtractionOutcomeStore
+from document_intelligence.ports import ExtractionOutcomeStore
 from app.adapters.persistence.memory import PostgresMemoryDocumentStore
 from memory_core.ports import DocumentRepository
 from app.services.extraction.infra.dedup_cache import DedupCache

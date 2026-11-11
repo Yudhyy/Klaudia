@@ -15,6 +15,8 @@ from typing import Iterator
 
 import pypdfium2 as pdfium
 
+from document_intelligence.errors import PDFSplitError as PDFSplitError
+
 from app.services.extraction.infra.normalizer import (
     DEFAULT_JPEG_QUALITY,
     DEFAULT_MAX_LONG_EDGE,
@@ -26,10 +28,6 @@ logger = logging.getLogger(__name__)
 # 200 DPI is the Qwen3.5-4B default for receipt-scale text.
 RENDER_DPI = 200
 RENDER_SCALE = RENDER_DPI / 72
-
-
-class PDFSplitError(ValueError):
-    pass
 
 
 def page_count(pdf_bytes: bytes) -> int:

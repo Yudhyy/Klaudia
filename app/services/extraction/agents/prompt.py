@@ -1,6 +1,6 @@
 import json
 
-from app.services.extraction.agents.config import EXTRACTION_SCHEMA
+from document_intelligence.schema import EXTRACTION_SCHEMA
 
 
 EXTRACTION_RULES = """

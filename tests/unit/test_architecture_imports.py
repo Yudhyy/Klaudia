@@ -72,6 +72,20 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
         ("klaudia/core/agent/ports", ("ledger", "ledger_core")),
         ("app/services/core/archive_tools.py", ("langchain_core",)),
         *[
+            (caller, ("app.services.documents",))
+            for caller in (
+                "app/adapters/agent/checkpoints.py",
+                "app/adapters/persistence/documents.py",
+                "app/adapters/persistence/extraction_outcomes.py",
+                "app/services/core/archive_tools.py",
+                "app/services/core/main_chat.py",
+                "app/services/core/container.py",
+                "app/services/core/orchestrator.py",
+                "app/services/extraction/queue/state.py",
+                "app/services/extraction/queue/progress.py",
+            )
+        ],
+        *[
             (
                 directory,
                 (
@@ -333,6 +347,7 @@ def test_entire_core_package_has_only_pure_dependencies():
         ("identity-core", {"identity_core"}),
         ("workflow-core", {"workflow_core"}),
         ("memory-core", {"memory_core", "pydantic"}),
+        ("document-intelligence", {"document_intelligence"}),
         (
             "ledger-postgres",
             {
