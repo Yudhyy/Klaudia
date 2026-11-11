@@ -12,7 +12,7 @@ The server records the authenticated actor, timestamp and revision.
 
 ## Application boundary
 
-`app/services/memory/` owns document paths, bounded edits, saved policy contracts,
+`packages/memory-core/` owns document paths, bounded edits, saved policy contracts,
 and the `DocumentReader` and `DocumentRepository` interfaces. Agent context reads
 and ledger reconciliation need only `DocumentReader`. Authenticated edit routes
 use `DocumentRepository`, which requires atomic current-value and history writes.
@@ -23,9 +23,8 @@ to check saved policy revisions without acquiring another connection. The ledger
 adapter in `app/adapters/ledger/reconciliation.py` checks stored policy before and
 after exact reconciliation. Memory documents do not grant financial authority.
 
-The former store and reconciliation import paths retain aliases. This boundary
-uses the current application layout; an installed `memory-core` package remains
-proposed.
+The former application memory paths retain aliases for contracts, readers,
+interfaces, and adapters. The installed core depends on Pydantic.
 
 ## API
 

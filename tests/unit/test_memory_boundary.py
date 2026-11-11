@@ -1,6 +1,7 @@
 """Memory callers use owned contracts and connection-bound reads."""
 
 import json
+from importlib import import_module
 from unittest.mock import AsyncMock
 
 import pytest
@@ -140,3 +141,24 @@ def test_old_memory_imports_alias_the_canonical_adapters_and_error():
     assert store.MemoryDocumentStore is PostgresMemoryDocumentStore
     assert store.DocumentConflict is DocumentConflict
     assert reconciliation.PolicyReconciler is PolicyReconciler
+
+
+@pytest.mark.parametrize(
+    ("module", "name"),
+    [
+        ("contracts", "DocumentPath"),
+        ("contracts", "DocumentEdit"),
+        ("contracts", "MemoryDocument"),
+        ("contracts", "ReconciliationPolicy"),
+        ("policy", "ReconciliationPolicy"),
+        ("ports", "DocumentConflict"),
+        ("ports", "DocumentReader"),
+        ("ports", "DocumentRepository"),
+        ("tools", "MemoryReader"),
+    ],
+)
+def test_legacy_memory_contracts_share_canonical_definitions(module, name):
+    """Keep supported imports bound to the installed models and interfaces."""
+    canonical = import_module(f"memory_core.{module}")
+    legacy = import_module(f"app.services.memory.{module}")
+    assert getattr(legacy, name) is getattr(canonical, name)

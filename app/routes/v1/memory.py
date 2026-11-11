@@ -6,13 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
 from app.helpers.auth import get_current_user
 from app.helpers.ratelimit import chat_limit, limiter
-from app.services.memory.contracts import (
+from memory_core.contracts import (
     MAX_EXPECTED_REVISION,
     DocumentEdit,
     DocumentPath,
     MemoryDocument,
 )
-from app.services.memory.ports import DocumentConflict, DocumentRepository
+from memory_core.ports import DocumentConflict, DocumentRepository
 
 router = APIRouter(prefix="/memory", tags=["memory"])
 

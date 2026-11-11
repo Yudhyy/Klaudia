@@ -20,7 +20,7 @@ from app.adapters.persistence.extraction_outcomes import PostgresExtractionOutco
 from app.services.conversation.store import ConversationStore
 from app.services.documents.ports import ExtractionOutcomeStore
 from app.adapters.persistence.memory import PostgresMemoryDocumentStore
-from app.services.memory.ports import DocumentRepository
+from memory_core.ports import DocumentRepository
 from app.services.extraction.infra.dedup_cache import DedupCache
 from app.services.extraction.infra.kie_client import KIEClient
 from app.services.extraction.infra.object_store import MinIOClient

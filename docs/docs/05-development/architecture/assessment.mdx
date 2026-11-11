@@ -117,10 +117,10 @@ Saved task policy checks use that interface on the connection holding the task
 lock. Owner scope, revision conflicts, history, tombstones and byte limits retain
 their current contracts.
 
-Import checks protect the memory contracts, interfaces and context reader from
-agent, ledger and infrastructure dependencies. The old store and reconciliation
-modules retain aliases. An installed `memory-core` package and process moves
-remain proposed. Test results belong to the code PR.
+The contracts, interfaces and context reader now ship in `memory-core`.
+Pydantic is its only direct runtime dependency. An isolated wheel check reads
+an owned policy and preserves its exact decimal and trust labels. The former
+application paths retain aliases. Process moves remain proposed.
 
 ## Document and conversation storage follow-up
 

@@ -146,12 +146,20 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
         *[
             (
                 caller,
-                ("app.services.memory.store", "app.adapters.persistence.memory"),
+                ("app.services.memory", "app.adapters.persistence.memory"),
             )
             for caller in (
                 "app/routes/v1/memory.py",
                 "app/services/core/main_chat.py",
                 "app/adapters/ledger/reconciliation.py",
+            )
+        ],
+        *[
+            (caller, ("app.services.memory",))
+            for caller in (
+                "app/services/core/container.py",
+                "app/adapters/agent/checkpoints.py",
+                "app/adapters/persistence/memory.py",
             )
         ],
         *[
@@ -324,6 +332,7 @@ def test_entire_core_package_has_only_pure_dependencies():
         ("agent-skills", {"agent_skills", "pydantic"}),
         ("identity-core", {"identity_core"}),
         ("workflow-core", {"workflow_core"}),
+        ("memory-core", {"memory_core", "pydantic"}),
         (
             "ledger-postgres",
             {

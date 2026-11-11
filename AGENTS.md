@@ -30,12 +30,13 @@ a PostgreSQL ledger, document extraction, and an Expo mobile client.
 | `app/services/documents/` | Document storage interfaces and bounded saved extraction outcomes |
 | `app/services/conversation/` | Session and message storage interface |
 | `app/services/catalogue/` | Resource discovery and table authoring |
-| `app/services/memory/` | Context document contracts and owner-scoped read/edit interfaces |
+| `app/services/memory/` | Compatibility imports for memory contracts, interfaces and adapters |
 | `klaudia/` | Main agent, bounded tools, and versioned runtime skills |
 | `packages/ledger-core/` | Pure ledger contracts, exact financial queries, grid aggregation, and native formulas |
 | `packages/ledger-postgres/` | Shared PostgreSQL ledger storage, checked execution, approvals, and owned migrations |
 | `packages/identity-core/` | Registration and login use cases with supplied account, password and token capabilities |
 | `packages/workflow-core/` | Task, progress and decision interfaces with supplied storage and run coordination |
+| `packages/memory-core/` | Context document and policy contracts with owner-scoped read/edit interfaces |
 | `mcp-ledger/ledger/` | MCP transport, owned-read policy, and compatibility imports |
 | `config/settings.py` | Runtime configuration |
 | `apps/mobile/` | Expo and React Native client |

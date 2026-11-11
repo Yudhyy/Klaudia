@@ -20,8 +20,8 @@ from app.services.core.operations import OperationService
 from app.services.conversation.store import ConversationStore
 from app.services.documents.ports import DocumentArchive
 from app.adapters.ledger.reconciliation import PolicyReconciler
-from app.services.memory.ports import DocumentReader
-from app.services.memory.tools import MemoryReader
+from memory_core.ports import DocumentReader
+from memory_core.tools import MemoryReader
 from app.adapters.persistence.tasks import PostgresTaskSession, PostgresTaskStore
 from workflow_core.service import TaskCompletion, TaskRun, WorkflowService
 from agent_core.agent.agent import (

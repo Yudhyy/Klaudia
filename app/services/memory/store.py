@@ -3,6 +3,6 @@
 from app.adapters.persistence.memory import (
     PostgresMemoryDocumentStore as MemoryDocumentStore,
 )
-from app.services.memory.ports import DocumentConflict
+from memory_core.ports import DocumentConflict
 
 __all__ = ["DocumentConflict", "MemoryDocumentStore"]
