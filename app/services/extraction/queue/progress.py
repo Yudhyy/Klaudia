@@ -10,8 +10,8 @@ from typing import AsyncIterator
 import redis.asyncio as aioredis
 from redis.exceptions import RedisError
 
-from app.services.documents.contracts import ExtractionScope
-from app.services.documents.ports import ExtractionOutcomeStore
+from document_intelligence.contracts import ExtractionScope
+from document_intelligence.ports import ExtractionOutcomeStore
 
 logger = logging.getLogger(__name__)
 PROGRESS_CHANNEL_FMT = "extraction:file:{file_id}:progress"

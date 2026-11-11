@@ -18,7 +18,7 @@ from app.services.core.archive_tools import ArchiveReader
 from app.services.core.observability import LangfuseService
 from app.services.core.operations import OperationService
 from app.services.conversation.store import ConversationStore
-from app.services.documents.ports import DocumentArchive
+from document_intelligence.ports import DocumentArchive
 from app.adapters.ledger.reconciliation import PolicyReconciler
 from memory_core.ports import DocumentReader
 from memory_core.tools import MemoryReader

@@ -22,6 +22,7 @@ from app.services.extraction.outcomes import (
 from app.services.extraction.queue import tasks
 from app.services.extraction.queue.progress import ProgressWait, stream_progress
 from config.settings import Settings
+from document_intelligence import queued
 from ledger.resources import ResourceNotFoundError
 
 
@@ -309,7 +310,7 @@ async def test_worker_failures_save_terminal_page_and_file(
     elif failure == "ocr":
         ctx.ocr.extract_from_image.side_effect = RuntimeError("OCR failed")
     else:
-        monkeypatch.setattr(tasks, "validate_and_merge", lambda raw: 1 / 0)
+        monkeypatch.setattr(queued, "validate_and_merge", lambda raw: 1 / 0)
     result = await tasks.extract_page_task(
         user_id=1, file_id=scope.file_id, blob_id=blob, page=2
     )

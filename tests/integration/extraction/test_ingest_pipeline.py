@@ -17,6 +17,7 @@ from __future__ import annotations
 from app.adapters.persistence.documents import PostgresDocumentStore
 from app.adapters.persistence.extraction_outcomes import PostgresExtractionOutcomes
 
+import os
 import uuid
 from pathlib import Path
 from typing import AsyncIterator
@@ -42,12 +43,13 @@ _SAMPLE_PDF = _PROJECT_ROOT / "sample-data" / "pdf" / "001-receipt.pdf"
 def _settings_for_test() -> Settings:
     """Return isolated infrastructure settings for one test run."""
     suffix = uuid.uuid4().hex[:8]
+    redis_port = int(os.environ.get("EXTRACTION_TEST_REDIS_PORT", "6379"))
     return Settings(
         _env_file=None,
         MOCK_KIE=True,
         DATABASE_URL=POSTGRES_TEST_URL,
         MINIO_BUCKET=f"klaudia-test-{suffix}",
-        REDIS_URL="redis://localhost:6379/15",  # isolated test DB
+        REDIS_URL=f"redis://localhost:{redis_port}/15",
     )
 
 
@@ -61,7 +63,7 @@ async def ingest_stack(
     try:
         await cache.connect()
     except Exception:
-        pytest.skip("Redis not reachable on localhost:6379")
+        pytest.skip("Test Redis is unavailable")
     store = MinIOClient(settings)
     try:
         await store.ensure_bucket()

@@ -127,7 +127,7 @@ application paths retain aliases. Process moves remain proposed.
 The [storage boundaries](overview.mdx#document-and-conversation-storage-boundaries)
 now give ingestion, archive tools and queued progress document-owned interfaces.
 Expected-page contracts and bounded outcome payloads live in
-`app/services/documents/`. Concrete adapters retain the file/session locks,
+`packages/document-intelligence/`. Concrete adapters retain the file/session locks,
 atomic outcome writes, cache queries and current deadlines. Task replay rechecks
 document access on its held connection through the archive interface.
 
@@ -137,11 +137,10 @@ pool and startup checks moved to `app/adapters/persistence/application.py`;
 `AppDBClient` remains a compatibility alias with forwarding methods. The former
 outcome constructor uses the canonical pool-based adapter.
 
-These interfaces serve production API and worker callers. Import checks isolate
-document contracts and conversation interfaces from extraction clients and
-infrastructure. Storage behavior and public responses remain unchanged.
-Document package extraction, OCR/object-store/queue separation and process moves
-remain later work. Test results belong to the code PR.
+The API and worker run inline and queued extraction through the installed
+`document-intelligence` package. Its standard-library core receives storage,
+cache, OCR, media and queue capabilities from application adapters. The package
+test runs both use cases from an isolated wheel. Process moves remain proposed.
 
 ## Identity use-case follow-up
 
@@ -180,9 +179,9 @@ connection instead of SQL in checkpoint interpretation. Installed-package,
 actual backend/lock, owner-revocation and existing approval/recovery regressions
 cover these changes. MCP retains its owned-read transport policy.
 
-This is an adapter/package move, not a rewrite of checked-operation planning or
-the larger proposed ledger domain tree. Workflow, memory and document packaging
-and process-layout work remain later steps. Test results belong to the code PR.
+The larger checked-operation and ledger domain design remains proposed. The
+workflow, memory and document packages have their own follow-ups above. Process
+layout work follows those packages.
 
 ## Completed work and remaining limits
 

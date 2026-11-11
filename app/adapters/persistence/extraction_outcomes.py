@@ -10,7 +10,7 @@ from typing import Any
 
 import asyncpg
 
-from app.services.documents.contracts import (
+from document_intelligence.contracts import (
     MAX_EXTRACTION_CHARACTERS,
     MAX_ERROR_CHARACTERS,
     ExtractionScope,

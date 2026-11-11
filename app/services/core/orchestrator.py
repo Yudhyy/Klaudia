@@ -15,7 +15,7 @@ from app.services.core.container import KlaudiaContainer
 from app.services.core.main_chat import MainChatTurn
 from agent_core.agent.agent import RunOutcome
 from app.services.core.verifier import verify_reply
-from app.services.extraction.infra.normalizer import is_pdf, is_supported_image
+from document_intelligence.media import is_pdf, is_supported_image
 from app.services.core.context import (
     ExtractionContextFormat,
     build_extraction_context,
@@ -632,7 +632,7 @@ class KlaudiaOrchestrator:
         """Enqueue pages and consume owner-checked saved extraction outcomes."""
         from app.exceptions import IngestRejectedError
         from app.services.extraction.queue.progress import ProgressWait, stream_progress
-        from app.services.documents.contracts import ExtractionScope
+        from document_intelligence.contracts import ExtractionScope
 
         settings = self._c.settings
         cache = self._c.dedup_cache

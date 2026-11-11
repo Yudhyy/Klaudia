@@ -20,7 +20,8 @@ import re
 from app.exceptions import IngestRejectedError
 from app.models.attachment import FileAttachment
 from app.services.core.observability import LangfuseService
-from app.services.extraction.ingest import IngestOutcome, IngestService
+from app.services.extraction.ingest import IngestService
+from document_intelligence.ingest import IngestOutcome
 
 logger = logging.getLogger(__name__)
 

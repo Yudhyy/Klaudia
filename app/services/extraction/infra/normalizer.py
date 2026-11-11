@@ -16,10 +16,18 @@ from __future__ import annotations
 
 import io
 import logging
-from pathlib import PurePath
-from typing import Final
 
 from PIL import Image, ImageOps
+
+from document_intelligence.errors import UnsupportedImageError as UnsupportedImageError
+from document_intelligence.media import (
+    SUPPORTED_IMAGE_EXTENSIONS as SUPPORTED_IMAGE_EXTENSIONS,
+)
+from document_intelligence.media import (
+    SUPPORTED_IMAGE_MIME_TYPES as SUPPORTED_IMAGE_MIME_TYPES,
+)
+from document_intelligence.media import is_pdf as is_pdf
+from document_intelligence.media import is_supported_image as is_supported_image
 
 logger = logging.getLogger(__name__)
 
@@ -32,53 +40,10 @@ except ImportError:  # pragma: no cover
     logger.warning("pillow-heif not installed; HEIC uploads will fail")
 
 
-SUPPORTED_IMAGE_EXTENSIONS: Final = (
-    ".jpg",
-    ".jpeg",
-    ".png",
-    ".webp",
-    ".heic",
-    ".heif",
-    ".tiff",
-    ".tif",
-    ".bmp",
-)
-
-SUPPORTED_IMAGE_MIME_TYPES: Final = (
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "image/heic",
-    "image/heif",
-    "image/tiff",
-    "image/bmp",
-)
-
 # Qwen3.5-4B vision encoder downsamples; >2048 long edge wastes tokens without
 # improving recognition on receipts.
 DEFAULT_MAX_LONG_EDGE = 2048
 DEFAULT_JPEG_QUALITY = 92
-
-
-class UnsupportedImageError(ValueError):
-    pass
-
-
-def is_supported_image(filename: str | None, content_type: str | None) -> bool:
-    if content_type and content_type.lower() in SUPPORTED_IMAGE_MIME_TYPES:
-        return True
-    if filename:
-        ext = PurePath(filename).suffix.lower()
-        return ext in SUPPORTED_IMAGE_EXTENSIONS
-    return False
-
-
-def is_pdf(filename: str | None, content_type: str | None) -> bool:
-    if content_type and content_type.lower() == "application/pdf":
-        return True
-    if filename and PurePath(filename).suffix.lower() == ".pdf":
-        return True
-    return False
 
 
 def to_canonical_jpg(

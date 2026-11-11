@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from agent_core.agent.writes import ExecuteOperation
 from memory_core.contracts import DocumentPath
 from memory_core.ports import DocumentReader
-from app.services.documents.ports import DocumentArchive
+from document_intelligence.ports import DocumentArchive
 from app.services.catalogue.ports import WorkbookAccess
 from ledger_core.errors import RevisionConflictError
 from ledger_core.resources import ResourceNotFoundError

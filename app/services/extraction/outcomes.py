@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from app.adapters.persistence.extraction_outcomes import PostgresExtractionOutcomes
-from app.services.documents.contracts import (
+from document_intelligence.contracts import (
     MAX_EXTRACTION_CHARACTERS,
     MAX_ERROR_CHARACTERS,
     ExtractionScope,

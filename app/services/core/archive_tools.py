@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from app.services.documents.contracts import DocumentPage
-from app.services.documents.ports import DocumentArchive
+from document_intelligence.contracts import DocumentPage
+from document_intelligence.ports import DocumentArchive
 from agent_core.agent.ports.errors import ResourceNotFoundError
 
 

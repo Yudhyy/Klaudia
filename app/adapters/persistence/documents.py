@@ -5,7 +5,7 @@ from typing import Any
 
 import asyncpg
 
-from app.services.documents.contracts import DocumentPage, FileUpload, PageOutcome
+from document_intelligence.contracts import DocumentPage, FileUpload, PageOutcome
 
 
 class PostgresDocumentStore:

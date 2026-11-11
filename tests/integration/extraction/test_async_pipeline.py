@@ -31,15 +31,16 @@ _SAMPLE_IMAGE = _PROJECT_ROOT / "sample-data" / "receipt" / "001-receipt.jpeg"
 
 def _isolated_env(suffix: str) -> dict[str, str]:
     """Build isolated infrastructure settings for the worker test."""
+    redis_port = int(os.environ.get("EXTRACTION_TEST_REDIS_PORT", "6379"))
     return {
         "MOCK_KIE": "true",
         "EXTRACTION_MODE": "async",
         "DATABASE_URL": POSTGRES_TEST_URL,
         "MINIO_BUCKET": f"klaudia-test-{suffix}",
         # Isolate Redis namespaces per-run: cache=10, broker=11, results=12
-        "REDIS_URL": "redis://localhost:6379/10",
-        "TASKIQ_BROKER_URL": "redis://localhost:6379/11",
-        "TASKIQ_RESULT_BACKEND_URL": "redis://localhost:6379/12",
+        "REDIS_URL": f"redis://localhost:{redis_port}/10",
+        "TASKIQ_BROKER_URL": f"redis://localhost:{redis_port}/11",
+        "TASKIQ_RESULT_BACKEND_URL": f"redis://localhost:{redis_port}/12",
         "TASKIQ_QUEUE_NAME": f"ocr:test:{suffix}",
         # Cut langfuse / GCP from worker env to avoid noise
         "LANGFUSE_ENABLED": "false",
@@ -59,14 +60,14 @@ async def test_async_image_extraction_via_worker(postgres_db, monkeypatch):
     import redis.asyncio as aioredis
 
     try:
-        for db in (10, 11, 12):
-            c = aioredis.from_url(f"redis://localhost:6379/{db}", decode_responses=True)
+        for key in ("REDIS_URL", "TASKIQ_BROKER_URL", "TASKIQ_RESULT_BACKEND_URL"):
+            c = aioredis.from_url(env_overrides[key], decode_responses=True)
             try:
                 await c.flushdb()
             finally:
                 await c.aclose()
     except Exception:
-        pytest.skip("Redis not reachable on localhost:6379")
+        pytest.skip("Test Redis is unavailable")
 
     import httpx
 

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from app.services.core.observability import LangfuseService
-from app.services.extraction.agents.config import EXTRACTION_SCHEMA
+from document_intelligence.schema import EXTRACTION_SCHEMA
 from app.services.extraction.infra.deepseek_kie import DeepSeekKIEClient
 from app.services.extraction.infra.gemini_kie import GeminiKIEClient
 from app.services.extraction.infra.hasher import hash_bytes

@@ -16,7 +16,7 @@ from taskiq import TaskiqEvents
 from app.adapters.persistence.application import ApplicationDatabase
 from app.adapters.persistence.documents import PostgresDocumentStore
 from app.adapters.persistence.extraction_outcomes import PostgresExtractionOutcomes
-from app.services.documents.ports import DocumentIngestionStore, ExtractionOutcomeStore
+from document_intelligence.ports import DocumentIngestionStore, ExtractionOutcomeStore
 from app.services.extraction.infra.dedup_cache import DedupCache
 from app.services.extraction.infra.object_store import MinIOClient
 from app.services.extraction.infra.kie_client import KIEClient

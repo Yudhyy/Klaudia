@@ -27,6 +27,7 @@ dependencies = [
     "identity-core",
     "workflow-core",
     "memory-core",
+    "document-intelligence",
     "langchain-core>=1.6.0,<2.0.0",
     "langchain-google-genai>=4.0.0",
     "langchain-openai>=0.3.0",
@@ -57,6 +58,7 @@ agent-skills = { workspace = true }
 identity-core = { workspace = true }
 workflow-core = { workspace = true }
 memory-core = { workspace = true }
+document-intelligence = { workspace = true }
 ledger-core = { workspace = true }
 ledger-postgres = { workspace = true }
 mcp-ledger = { workspace = true }
@@ -72,6 +74,7 @@ members = [
     "packages/identity-core",
     "packages/workflow-core",
     "packages/memory-core",
+    "packages/document-intelligence",
 ]
 
 [tool.uv]
