@@ -27,9 +27,9 @@ packages; application adapters own model-provider construction.
 Workflow interfaces and lifecycle coordination now live in the installed
 `workflow-core` package. Application adapters retain task SQL, locks, agent-state
 checks and ledger binding. The full workflow domain tree remains proposed.
-Memory context reads and edits now use memory-owned interfaces, with PostgreSQL
-storage and saved-policy ledger reconciliation in application adapters.
-The `memory-core` package remains proposed.
+The installed `memory-core` package owns context contracts, read/edit interfaces
+and the owner-scoped reader. Application adapters supply PostgreSQL storage and
+saved-policy ledger reconciliation.
 Document ingestion, archive reads and queued outcomes now use document-owned
 storage interfaces. Session and message callers use a separate conversation
 interface. PostgreSQL adapters share the existing application pool; document
@@ -63,7 +63,7 @@ simpler modules.
 | Documents | Ingestion, extraction, expected pages, saved outcomes and document lifecycle | `app/services/documents/` contracts/interfaces, `app/services/extraction/` coordination, and PostgreSQL adapters under `app/adapters/persistence/` | `document-intelligence` |
 | Identity | Accounts, credentials, authentication use cases and account access state | Registration/login use cases and interfaces in `packages/identity-core/`; PostgreSQL, bcrypt and JWT adapters in the application | `identity-core` (current use cases implemented) |
 | Workflow | Durable task identity/status, checkpoint persistence, exclusive task execution, resume coordination and human-decision routing | Interfaces and lifecycle coordination in `packages/workflow-core/`; persistence, agent-state and ledger adapters under `app/adapters/`; chat binding in `main_chat.py` | `workflow-core` (current lifecycle implemented) |
-| Memory | Owner-scoped context documents, preferences, policy documents and their revisions | `app/services/memory/` contracts and interfaces; persistence and policy reconciliation under `app/adapters/` | `memory-core` |
+| Memory | Owner-scoped context documents, preferences, policy documents and their revisions | Contracts, interfaces and reader in `packages/memory-core/`. Persistence and policy reconciliation under `app/adapters/` | `memory-core` (current contracts and reader implemented) |
 
 Ownership describes rules and interfaces, not a requirement to create every
 package at once. The agent defines how to serialize and interpret its
@@ -921,12 +921,13 @@ not become client wire contracts by default.
 | Implemented identity interface | `IdentityStore` separates identity persistence from auth callers while retaining schema and behavior, delivered by [#40](https://github.com/Yudhyy/Klaudia/pull/40) for [#16](https://github.com/Yudhyy/Klaudia/issues/16) | Auth, identity-store, and existing route regressions |
 | Database foundation in [#38](https://github.com/Yudhyy/Klaudia/issues/38) | Owned metadata, two histories, checked adoption, release coordination, and runtime checks | Blank/populated/standalone/retry/interruption tests, ownership filters, installed assets, and financial recovery checks |
 | Implemented workflow boundary | Application workflow interfaces and lifecycle service with concrete persistence, agent-state and ledger adapters | Pre-change API checkpoint replay, lifecycle/import checks, durable tasks, approval, shared-connection and process-recovery tests |
-| Implemented memory boundary | Memory-owned context read/edit interfaces with PostgreSQL persistence and ledger policy adapters | Owner isolation, revision conflicts, atomic history, tombstones, byte limits, policy reconciliation and task-connection replay checks; `memory-core` packaging remains proposed |
+| Implemented memory boundary | Memory-owned context read/edit interfaces with PostgreSQL persistence and ledger policy adapters | Owner isolation, revision conflicts, atomic history, tombstones, byte limits, policy reconciliation and task-connection replay checks |
 | Implemented document and conversation storage boundaries | Document-owned upload/archive/outcome interfaces and a separate session/message interface, supplied by application persistence adapters | Inline and queued extraction, saved progress, archive owner checks, session/history contracts and task-connection replay regressions; document packaging remains proposed |
 | Implemented identity use cases | Installable registration/login use cases with supplied storage, password and token capabilities; HTTP retains validation and response mapping | Behavior and import checks, independent installed-wheel execution, auth/identity-store and startup regressions; account lifecycle features remain separate |
 | Implemented shared ledger adapters | Installable PostgreSQL storage, checked execution, approvals and owned migration assets/helpers, separate from MCP hosting | Installed adapter initialization without app/MCP, compatibility imports, exact financial, ownership, approval, migration and process-recovery checks; saved workbook replay uses its task-lock connection |
 | Implemented workflow package | Installable task, progress and decision interfaces with lifecycle coordination through supplied storage/run capabilities | Independent installed start/resume, recovery and cancellation; package-wide import and compatibility checks; existing task, approval, startup and recovery regressions |
-| Module by module | Memory and document packages with remaining infrastructure adapters | Owned entrypoints, durable/owner-isolation regressions and process startup checks for each moved module |
+| Implemented memory package | Installable context and policy contracts, read/edit interfaces and owner-scoped reader | Independent installed policy read, exact decimal serialization, compatibility aliases, import checks and memory/reconciliation regressions |
+| Next module | Document package with remaining extraction adapters | Installed document contracts and use cases, inline and queued extraction, owner isolation and worker startup |
 | As consumers are ready | API/worker/MCP entrypoints and infrastructure relocated into the proposed service layout | Installed imports and startup for all three processes; Docker, CI, commands and contributor docs match the new paths |
 
 Use the [first-extraction scope and acceptance criteria](assessment.mdx#first-extraction-installable-ledger-core)
@@ -937,8 +938,8 @@ of CI configuration does not establish a remote pass.
 The identity interface and database foundation establish upgrade ownership before
 stores move. Further schema changes follow the owning history and stay coordinated
 with [issue #9](https://github.com/Yudhyy/Klaudia/issues/9). The ledger's standalone
-initialization remains supported. Workflow now has an installed core; extract
-memory and documents through their interfaces before relocating process
+initialization remains supported. Workflow and memory have installed cores.
+Extract documents through their interfaces before relocating process
 composition. Shared ledger adapter installation and standalone migration checks
 cover that package move.
 

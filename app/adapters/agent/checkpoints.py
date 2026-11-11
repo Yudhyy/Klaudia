@@ -7,8 +7,8 @@ from typing import Any
 from pydantic import ValidationError
 
 from agent_core.agent.writes import ExecuteOperation
-from app.services.memory.contracts import DocumentPath
-from app.services.memory.ports import DocumentReader
+from memory_core.contracts import DocumentPath
+from memory_core.ports import DocumentReader
 from app.services.documents.ports import DocumentArchive
 from app.services.catalogue.ports import WorkbookAccess
 from ledger_core.errors import RevisionConflictError

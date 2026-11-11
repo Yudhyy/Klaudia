@@ -19,6 +19,7 @@ members = [
     "ledger-core",
     "ledger-postgres",
     "mcp-ledger",
+    "memory-core",
     "workflow-core",
 ]
 constraints = [{ name = "fastmcp-slim", specifier = "==4.0.0b3" }]
@@ -1758,6 +1759,7 @@ dependencies = [
     { name = "ledger-core" },
     { name = "ledger-postgres" },
     { name = "mcp-ledger" },
+    { name = "memory-core" },
     { name = "openai" },
     { name = "pillow" },
     { name = "pillow-heif" },
@@ -1810,6 +1812,7 @@ requires-dist = [
     { name = "ledger-core", editable = "packages/ledger-core" },
     { name = "ledger-postgres", editable = "packages/ledger-postgres" },
     { name = "mcp-ledger", editable = "mcp-ledger" },
+    { name = "memory-core", editable = "packages/memory-core" },
     { name = "openai", specifier = ">=1.54.0" },
     { name = "pillow", specifier = ">=10.0.0" },
     { name = "pillow-heif", specifier = ">=0.18.0" },
@@ -2201,6 +2204,17 @@ sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec9
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload-time = "2022-08-14T12:40:09.779Z" },
 ]
+
+[[package]]
+name = "memory-core"
+version = "0.1.0"
+source = { editable = "packages/memory-core" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2.11.0" }]
 
 [[package]]
 name = "more-itertools"

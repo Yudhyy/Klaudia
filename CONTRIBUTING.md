@@ -30,8 +30,8 @@ uv run pytest tests/packaging -q
 ```
 
 The workspace installs `agent-core`, `agent-skills`, `ledger-core`,
-`ledger-postgres`, `identity-core`, `workflow-core`, the MCP server and the `klaudia` compatibility
-imports. New agent callers use
+`ledger-postgres`, `identity-core`, `workflow-core`, `memory-core`, the MCP server,
+and the `klaudia` compatibility imports. New agent callers use
 `agent_core.agent` and `agent_skills.registry`. Provider construction belongs
 to `app.adapters.llm.model_factory`. Packaging tests build and install the
 canonical agent wheels outside the checkout with provider libraries absent.
@@ -42,6 +42,9 @@ Workflow packaging checks install and run task start/resume, recovery and
 cancellation with only the standard library. New callers use `workflow_core`;
 task SQL, locks, agent-state interpretation and ledger binding stay in application
 adapters. Former workflow interface and service paths retain compatibility imports.
+Memory packaging checks install the contracts and run an owner-scoped policy
+read with Pydantic as the only direct runtime dependency. New callers use
+`memory_core`. Application adapters supply persistence and ledger reconciliation.
 Ledger PostgreSQL adapters and migration assets install without an MCP host or
 application imports. New storage callers use `ledger_postgres`; `ledger.*`
 compatibility paths remain supported.

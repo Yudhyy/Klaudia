@@ -13,8 +13,8 @@ from ledger_core.financial_contracts import (
 from ledger_core.resources import ResourceInspection
 
 from app.services.catalogue.service import CatalogueService
-from app.services.memory.contracts import DocumentPath
-from app.services.memory.ports import DocumentReader
+from memory_core.contracts import DocumentPath
+from memory_core.ports import DocumentReader
 from agent_core.agent.ports.reconciliation import PolicyReconciliation
 
 

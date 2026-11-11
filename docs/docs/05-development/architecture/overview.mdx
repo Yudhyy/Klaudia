@@ -221,7 +221,7 @@ session ownership. Retrieved content supplies facts, not execution authority.
 | Document metadata, pages, extraction cache and saved outcomes | `app/services/documents/` contracts/interfaces, implemented by `app/adapters/persistence/documents.py` and `extraction_outcomes.py` |
 | Sheet grids, resource catalogue, checked operations, approvals, receipts | Shared `ledger-postgres` adapters; pure calculations and formulas in `ledger-core` |
 | Task lifecycle, progress and human-decision interfaces | `packages/workflow-core/`; application adapters store checkpoints and bind agent runs |
-| Human preferences, conventions, accounting policy, revision history | Contracts and interfaces in `app/services/memory/`; PostgreSQL adapter in `app/adapters/persistence/memory.py` |
+| Human preferences, conventions, accounting policy, revision history | Contracts and interfaces in `packages/memory-core/`. PostgreSQL adapter in `app/adapters/persistence/memory.py` |
 | Source documents and page images | S3-compatible object storage |
 | Cache, extraction queue, result backend, progress events | Redis |
 
@@ -239,7 +239,7 @@ They are separate from financial facts and developer-agent notes.
 | Startup wiring, configured providers | `app/services/core/container.py`, `config/settings.py`, `app/adapters/llm/model_factory.py` |
 | Registration/login rules and adapters | `packages/identity-core/`, `app/adapters/identity.py`, `app/adapters/auth/` |
 | Agent steps, tool context, runtime skill procedures | `packages/agent-core/src/agent_core/agent/`, `packages/agent-skills/src/agent_skills/` |
-| Catalogue, authoring, memory policy | `app/services/catalogue/`, `app/services/memory/`, `app/adapters/ledger/reconciliation.py` and associated ledger modules |
+| Catalogue, authoring, memory policy | `app/services/catalogue/`, `packages/memory-core/`, `app/adapters/ledger/reconciliation.py` and associated ledger modules |
 | Checked financial effects and deterministic calculations | `packages/ledger-postgres/`, `packages/ledger-core/` |
 | Task recovery and human decisions | `packages/workflow-core/`, `app/services/core/main_chat.py`, `app/adapters/persistence/tasks.py` |
 | Document ingestion and background work | `app/services/extraction/` |
@@ -327,7 +327,7 @@ implementations can exercise these tools without application or database code.
 The existing backend methods now serve as capability adapters. `ArchiveReader`
 in `app/services/core/archive_tools.py` uses the document archive interface and
 retains pagination and evidence fields. Its persistence adapter checks file and
-session ownership. `MemoryReader` in `app/services/memory/tools.py`
+session ownership. `MemoryReader` in `memory_core.tools`
 retains owner-scoped reads and trust labels. `PolicyReconciler` in
 `app/adapters/ledger/reconciliation.py` retains saved policy checks before and
 after the read, source ownership/revisions, exact ledger reconciliation and
@@ -345,7 +345,7 @@ existing implementations.
 
 ### Memory storage boundary
 
-The [memory interfaces](https://github.com/Yudhyy/Klaudia/blob/development/app/services/memory/ports.py)
+The [memory interfaces](https://github.com/Yudhyy/Klaudia/blob/development/packages/memory-core/src/memory_core/ports.py)
 separate owner-scoped context reads from human edits. `DocumentReader` returns
 the current document, tombstone or missing state. `DocumentRepository` adds
 expected-revision writes and deletion, with current value and history committed
@@ -359,10 +359,10 @@ on the task connection that holds the lock; they no longer contain memory SQL.
 Changed, deleted or restored policy revisions still stop saved reconciliation
 replay. Document and workbook access checks retain their current implementation.
 
-Old memory store and reconciliation paths retain compatibility imports without
-a second implementation. Import checks isolate the memory contracts, interfaces
-and context reader from agent, ledger and infrastructure code. This is an
-application boundary; `memory-core` packaging remains proposed.
+The installed `memory-core` package contains the contracts, interfaces and
+context reader, with Pydantic as its only direct runtime dependency. The former
+application memory paths retain aliases. Import and wheel checks protect this
+boundary and exercise owner-scoped policy reads with exact decimal values.
 
 ### Document and conversation storage boundaries
 

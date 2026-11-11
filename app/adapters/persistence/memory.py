@@ -7,8 +7,8 @@ import asyncpg
 from app.adapters.persistence.migrations import APPLICATION_HISTORY
 from ledger_postgres.migrations.runtime import check_history
 
-from app.services.memory.contracts import DocumentEdit, DocumentPath, MemoryDocument
-from app.services.memory.ports import DocumentConflict
+from memory_core.contracts import DocumentEdit, DocumentPath, MemoryDocument
+from memory_core.ports import DocumentConflict
 
 
 class PostgresMemoryReader:
