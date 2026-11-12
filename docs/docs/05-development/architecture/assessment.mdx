@@ -58,9 +58,9 @@ retained to explain the scope and remaining module work.
 ## MCP client separation follow-up
 
 The application owns the outbound client at
-`app/adapters/mcp_client/tool_registry.py`. Container and sheet-route callers use
-that path; the old `klaudia.interfaces` client exports are removed. The root
-manifest declares FastMCP directly, and the agent manifest drops FastMCP and MCP.
+`services/api/src/klaudia_api/adapters/mcp_client/tool_registry.py`. Container and sheet-route callers use
+that path; the old `klaudia.interfaces` client exports are removed. The service
+API extra declares FastMCP directly, and the agent manifest drops FastMCP and MCP.
 The wheel no longer includes the client package. Import checks prohibit MCP
 imports throughout the agent package.
 
@@ -80,15 +80,17 @@ The registry and procedure files belong to
 registry modules re-export their definitions. Application callers use the
 canonical imports. This keeps one implementation and one copy of each skill.
 
-Provider construction moved to `app/adapters/llm/model_factory.py` with the same
+Provider construction moved to `services/api/src/klaudia_api/adapters/llm/model_factory.py` with the same
 configuration and failures. The old `klaudia.core.agent.llm` path is removed.
-The root application declares the provider libraries and its TOON encoder.
+The service API extra declares the provider libraries and its TOON encoder.
 The runtime retains LangChain model/tool types, Pydantic and the skills package.
 It has no application, ledger, database, MCP or concrete provider dependency.
 Skills depend on Pydantic alone. Standalone wheel checks cover those boundaries
 and legacy object identity; saved release fixtures protect tool, prompt, skill
-and continuation compatibility. Storage and process-layout moves remain later
-work. The full target tree remains a proposal.
+and continuation compatibility. The later
+[service layout](overview.mdx#service-layout-and-process-composition) now owns
+process startup and concrete adapters. The full target tree includes further
+proposed work.
 
 ## Workflow boundary follow-up
 
@@ -103,7 +105,7 @@ The lifecycle service and interfaces now live in the installed `workflow-core`
 package, with no third-party dependencies. Existing application paths retain
 aliases to the canonical definitions. An independent installed-wheel check runs
 start/resume, failure recovery and cancellation with application, agent, ledger
-and infrastructure packages absent. Process layout remains later work. The
+and infrastructure packages absent. The service now owns process composition. The
 connection and recovery constraints in the baseline assessment still apply.
 Test results belong to the code PR.
 
@@ -120,7 +122,7 @@ their current contracts.
 The contracts, interfaces and context reader now ship in `memory-core`.
 Pydantic is its only direct runtime dependency. An isolated wheel check reads
 an owned policy and preserves its exact decimal and trust labels. The former
-application paths retain aliases. Process moves remain proposed.
+application paths retain installed aliases in the service distribution.
 
 ## Document and conversation storage follow-up
 
@@ -133,14 +135,15 @@ document access on its held connection through the archive interface.
 
 `ConversationStore` gives session routes and chat a separate history interface.
 The PostgreSQL adapter retains message order and recovery writes. The application
-pool and startup checks moved to `app/adapters/persistence/application.py`;
+pool and startup checks moved to `services/api/src/klaudia_api/adapters/persistence/application.py`;
 `AppDBClient` remains a compatibility alias with forwarding methods. The former
 outcome constructor uses the canonical pool-based adapter.
 
 The API and worker run inline and queued extraction through the installed
 `document-intelligence` package. Its standard-library core receives storage,
 cache, OCR, media and queue capabilities from application adapters. The package
-test runs both use cases from an isolated wheel. Process moves remain proposed.
+test runs both use cases from an isolated wheel. The service supplies the
+concrete adapters and process roots.
 
 ## Identity use-case follow-up
 
@@ -148,8 +151,8 @@ Registration and login now run through `IdentityService` in
 `packages/identity-core/`. The package owns account decisions and token issuance
 order through supplied account storage, password and token interfaces. HTTP
 retains field validation, rate limits, status codes and response mapping.
-PostgreSQL stays in `app/adapters/identity.py`; bcrypt and JWT implementations
-live in `app/adapters/auth/`. Composition supplies the current pool and token
+PostgreSQL stays in `services/api/src/klaudia_api/adapters/identity.py`; bcrypt and JWT implementations
+live in `services/api/src/klaudia_api/adapters/auth/`. Composition supplies the current pool and token
 settings. Former auth imports retain canonical type and function identity.
 
 Package-wide import checks allow only the standard library. Installed-wheel
@@ -180,8 +183,20 @@ actual backend/lock, owner-revocation and existing approval/recovery regressions
 cover these changes. MCP retains its owned-read transport policy.
 
 The larger checked-operation and ledger domain design remains proposed. The
-workflow, memory and document packages have their own follow-ups above. Process
-layout work follows those packages.
+workflow, memory and document packages have their own follow-ups above. The
+installed service now composes those packages.
+
+## Service layout follow-up
+
+The [installed service](overview.mdx#service-layout-and-process-composition)
+owns API, extraction-worker and MCP composition and concrete adapters under
+`services/api/`. Its process extras keep standalone MCP dependencies separate
+from API/model dependencies. Compatibility imports ship in installed wheels.
+Docker runs those wheels without checkout Python source or a repository path.
+Application migration assets ship with the service; ledger history remains
+independent. Installed process checks and existing ownership, approval,
+recovery and extraction tests cover this move. Remaining target modules and
+deployment-file moves still need their own selected scope.
 
 ## Completed work and remaining limits
 

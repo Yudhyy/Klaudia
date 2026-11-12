@@ -7,7 +7,7 @@ pairwise sums/differences of those), or a number the user/extraction
 context supplied. One wrong digit fails the check.
 """
 
-from app.services.core.verifier import (
+from klaudia_api.adapters.guardrails.verifier import (
     VerificationResult,
     extract_claims,
     grounded_values,

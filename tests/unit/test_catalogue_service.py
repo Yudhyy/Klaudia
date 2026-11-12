@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.services.catalogue.service import CatalogueService
+from klaudia_api.adapters.ledger.catalogue.service import CatalogueService
 from ledger.resources import ResourceInspection, ResourceSearch
 
 

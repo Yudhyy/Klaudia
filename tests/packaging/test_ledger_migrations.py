@@ -6,7 +6,13 @@ from tests.packaging.test_ledger_core import install_agent_packages, probe
 def test_installed_ledger_migration_assets(tmp_path):
     """Load the ledger history outside the checkout without application imports."""
     python = install_agent_packages(
-        tmp_path, ("packages/ledger-core", "packages/ledger-postgres", "mcp-ledger")
+        tmp_path,
+        (
+            "packages/ledger-core",
+            "packages/ledger-postgres",
+            "services/api",
+            "mcp-ledger",
+        ),
     )
     assert (
         probe(

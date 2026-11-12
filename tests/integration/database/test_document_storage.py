@@ -4,9 +4,9 @@ import json
 
 import pytest
 
-from app.adapters.persistence.conversations import PostgresConversationStore
-from app.adapters.persistence.documents import PostgresDocumentStore
-from app.adapters.persistence.tasks import PostgresTaskStore
+from klaudia_api.adapters.persistence.conversations import PostgresConversationStore
+from klaudia_api.adapters.persistence.documents import PostgresDocumentStore
+from klaudia_api.adapters.persistence.tasks import PostgresTaskStore
 from app.services.documents.contracts import DocumentPage, FileUpload, PageOutcome
 from ledger_core.resources import ResourceNotFoundError
 from tests.integration.postgres import POSTGRES_TEST_URL

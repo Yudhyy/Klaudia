@@ -13,9 +13,9 @@ from fastapi import FastAPI
 import httpx
 import pytest
 
-from app.routes.v1.approvals import router as approval_router
-from app.routes.v1.chat import router as chat_router
-from app.routes.v1.tasks import router as task_router
+from klaudia_api.interfaces.http.v1.approvals import router as approval_router
+from klaudia_api.interfaces.http.v1.chat import router as chat_router
+from klaudia_api.interfaces.http.v1.tasks import router as task_router
 from app.services.auth.tokens import create_access_token
 from tests.e2e.comparison_owner import comparison_owner
 from tests.e2e.conftest import requires_live
@@ -46,7 +46,7 @@ def formula_report():
     Yields:
         Evidence report and its unique file path.
     """
-    from config.settings import get_settings
+    from klaudia_api.composition.settings import get_settings
 
     settings = get_settings()
     if not sandbox_enabled() or os.environ.get("E2E_SANDBOX_ACTIVE") != "1":

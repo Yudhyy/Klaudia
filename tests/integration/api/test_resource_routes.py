@@ -7,10 +7,10 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
-from app.routes.v1.resources import router
-from app.services.catalogue.service import CatalogueService
+from klaudia_api.interfaces.http.v1.resources import router
+from klaudia_api.adapters.ledger.catalogue.service import CatalogueService
 from app.services.auth.tokens import create_access_token
-from config.settings import get_settings
+from klaudia_api.composition.settings import get_settings
 from ledger.catalogue import CatalogueStore
 from ledger.resources import TableRegistration
 from ledger.store import LedgerStore

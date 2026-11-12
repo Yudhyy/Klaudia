@@ -57,32 +57,48 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
 @pytest.mark.parametrize(
     ("directory", "forbidden"),
     [
+        ("services/api/src/klaudia_api", ("app", "config", "ledger")),
         ("mcp-ledger/ledger", ("app", "klaudia", "config")),
         (
             "packages/ledger-postgres/src/ledger_postgres",
-            ("app", "klaudia", "config", "ledger", "fastmcp", "mcp", "fastapi"),
+            (
+                "app",
+                "klaudia",
+                "config",
+                "klaudia_api",
+                "ledger",
+                "fastmcp",
+                "mcp",
+                "fastapi",
+            ),
         ),
         (
-            "app/adapters/agent/checkpoints.py",
+            "services/api/src/klaudia_api/adapters/capabilities/agent/checkpoints.py",
             ("asyncpg", "ledger", "ledger_postgres"),
         ),
-        ("klaudia", ("app", "config", "fastmcp", "mcp", "ledger", "ledger_core")),
+        (
+            "klaudia",
+            ("app", "config", "klaudia_api", "fastmcp", "mcp", "ledger", "ledger_core"),
+        ),
         ("klaudia/core", ("asyncpg", "ledger", "ledger_core")),
         ("klaudia/core/agent/tools.py", ("ledger", "ledger_core")),
         ("klaudia/core/agent/ports", ("ledger", "ledger_core")),
-        ("app/services/core/archive_tools.py", ("langchain_core",)),
+        (
+            "services/api/src/klaudia_api/adapters/capabilities/archive_tools.py",
+            ("langchain_core",),
+        ),
         *[
             (caller, ("app.services.documents",))
             for caller in (
-                "app/adapters/agent/checkpoints.py",
-                "app/adapters/persistence/documents.py",
-                "app/adapters/persistence/extraction_outcomes.py",
-                "app/services/core/archive_tools.py",
-                "app/services/core/main_chat.py",
-                "app/services/core/container.py",
-                "app/services/core/orchestrator.py",
-                "app/services/extraction/queue/state.py",
-                "app/services/extraction/queue/progress.py",
+                "services/api/src/klaudia_api/adapters/capabilities/agent/checkpoints.py",
+                "services/api/src/klaudia_api/adapters/persistence/documents.py",
+                "services/api/src/klaudia_api/adapters/persistence/extraction_outcomes.py",
+                "services/api/src/klaudia_api/adapters/capabilities/archive_tools.py",
+                "services/api/src/klaudia_api/adapters/capabilities/main_chat.py",
+                "services/api/src/klaudia_api/composition/api.py",
+                "services/api/src/klaudia_api/interfaces/http/orchestrator.py",
+                "services/api/src/klaudia_api/composition/extraction_worker.py",
+                "services/api/src/klaudia_api/adapters/documents/queue/progress.py",
             )
         ],
         *[
@@ -92,6 +108,9 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
                     "app.adapters",
                     "app.services.extraction",
                     "app.services.core",
+                    "klaudia_api.adapters",
+                    "klaudia_api.composition",
+                    "klaudia_api.interfaces",
                     "agent_core",
                     "agent_skills",
                     "klaudia",
@@ -108,7 +127,10 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
                     "taskiq",
                 ),
             )
-            for directory in ("app/services/documents", "app/services/conversation")
+            for directory in (
+                "services/api/src/app/services/documents",
+                "services/api/src/klaudia_api/adapters/capabilities/conversation.py",
+            )
         ],
         *[
             (
@@ -120,30 +142,39 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
                     "app.adapters.persistence.conversations",
                     "app.adapters.persistence.documents",
                     "app.adapters.persistence.extraction_outcomes",
+                    "klaudia_api.adapters.documents.database",
+                    "klaudia_api.adapters.documents.outcomes",
+                    "klaudia_api.adapters.persistence.application",
+                    "klaudia_api.adapters.persistence.conversations",
+                    "klaudia_api.adapters.persistence.documents",
+                    "klaudia_api.adapters.persistence.extraction_outcomes",
                     "asyncpg",
                 ),
             )
             for caller in (
-                "app/services/core/main_chat.py",
-                "app/services/core/archive_tools.py",
-                "app/services/core/orchestrator.py",
-                "app/services/extraction/ingest.py",
-                "app/services/extraction/queue/progress.py",
-                "app/services/extraction/queue/tasks.py",
-                "app/routes/v1/chat.py",
-                "app/routes/v1/sessions.py",
+                "services/api/src/klaudia_api/adapters/capabilities/main_chat.py",
+                "services/api/src/klaudia_api/adapters/capabilities/archive_tools.py",
+                "services/api/src/klaudia_api/interfaces/http/orchestrator.py",
+                "services/api/src/klaudia_api/adapters/documents/ingest.py",
+                "services/api/src/klaudia_api/adapters/documents/queue/progress.py",
+                "services/api/src/klaudia_api/interfaces/workers/extraction_worker.py",
+                "services/api/src/klaudia_api/interfaces/http/v1/chat.py",
+                "services/api/src/klaudia_api/interfaces/http/v1/sessions.py",
             )
         ],
-        ("app/services/memory/tools.py", ("langchain_core",)),
-        ("app/services/memory/reconciliation.py", ("langchain_core",)),
+        ("services/api/src/app/services/memory/tools.py", ("langchain_core",)),
+        ("services/api/src/app/services/memory/reconciliation.py", ("langchain_core",)),
         *[
             (
-                f"app/services/memory/{module}.py",
+                f"services/api/src/app/services/memory/{module}.py",
                 (
                     "app.adapters",
                     "app.services.catalogue",
                     "app.services.memory.store",
                     "app.services.memory.reconciliation",
+                    "klaudia_api.adapters",
+                    "klaudia_api.composition",
+                    "klaudia_api.interfaces",
                     "agent_core",
                     "ledger",
                     "ledger_core",
@@ -160,31 +191,38 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
         *[
             (
                 caller,
-                ("app.services.memory", "app.adapters.persistence.memory"),
+                (
+                    "app.services.memory",
+                    "app.adapters.persistence.memory",
+                    "klaudia_api.adapters.persistence.memory",
+                ),
             )
             for caller in (
-                "app/routes/v1/memory.py",
-                "app/services/core/main_chat.py",
-                "app/adapters/ledger/reconciliation.py",
+                "services/api/src/klaudia_api/interfaces/http/v1/memory.py",
+                "services/api/src/klaudia_api/adapters/capabilities/main_chat.py",
+                "services/api/src/klaudia_api/adapters/ledger/reconciliation.py",
             )
         ],
         *[
             (caller, ("app.services.memory",))
             for caller in (
-                "app/services/core/container.py",
-                "app/adapters/agent/checkpoints.py",
-                "app/adapters/persistence/memory.py",
+                "services/api/src/klaudia_api/composition/api.py",
+                "services/api/src/klaudia_api/adapters/capabilities/agent/checkpoints.py",
+                "services/api/src/klaudia_api/adapters/persistence/memory.py",
             )
         ],
         *[
             (
-                f"app/services/workflow/{module}.py",
+                f"services/api/src/app/services/workflow/{module}.py",
                 (
                     "app.adapters",
                     "app.models",
                     "app.services.core",
                     "app.services.extraction",
                     "app.services.memory",
+                    "klaudia_api.adapters",
+                    "klaudia_api.composition",
+                    "klaudia_api.interfaces",
                     "agent_core",
                     "agent_skills",
                     "klaudia",
@@ -207,18 +245,20 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
         *[
             (caller, ("app.services.workflow.ports", "app.services.workflow.service"))
             for caller in (
-                "app/services/core/main_chat.py",
-                "app/adapters/persistence/tasks.py",
-                "app/routes/v1/chat.py",
-                "app/routes/v1/tasks.py",
-                "app/routes/v1/approvals.py",
+                "services/api/src/klaudia_api/adapters/capabilities/main_chat.py",
+                "services/api/src/klaudia_api/adapters/persistence/tasks.py",
+                "services/api/src/klaudia_api/interfaces/http/v1/chat.py",
+                "services/api/src/klaudia_api/interfaces/http/v1/tasks.py",
+                "services/api/src/klaudia_api/interfaces/http/v1/approvals.py",
             )
         ],
         (
-            "app/routes/v1/auth.py",
+            "services/api/src/klaudia_api/interfaces/http/v1/auth.py",
             (
                 "app.adapters",
                 "app.services.auth",
+                "klaudia_api.adapters",
+                "klaudia_api.composition.settings",
                 "identity_core.ports",
                 "config",
                 "asyncpg",
@@ -227,17 +267,25 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
             ),
         ),
         (
-            "app/services/auth",
+            "services/api/src/app/services/auth",
             (
                 "app.services.extraction",
+                "klaudia_api.adapters.documents",
                 "asyncpg",
                 "aioboto3",
                 "taskiq",
             ),
         ),
         (
-            "app/adapters/identity.py",
-            ("app.services.extraction", "config", "aioboto3", "taskiq"),
+            "services/api/src/klaudia_api/adapters/identity.py",
+            (
+                "app.services.extraction",
+                "klaudia_api.adapters.documents",
+                "klaudia_api.composition.settings",
+                "config",
+                "aioboto3",
+                "taskiq",
+            ),
         ),
         *[
             (
@@ -255,6 +303,8 @@ def test_module_dependency_direction(directory, forbidden):
     import_root = (
         REPO_ROOT / "mcp-ledger" if directory.startswith("mcp-ledger/") else REPO_ROOT
     )
+    if directory.startswith("services/api/src/"):
+        import_root = REPO_ROOT / "services/api/src"
     for source in sources:
         package = ".".join(source.parent.relative_to(import_root).parts)
         for line, imported in imported_modules(source.read_text(), package):
@@ -301,6 +351,11 @@ class BoundaryImports(MetaPathFinder):
             'ledger', 'ledger_core', 'ledger_postgres', 'agent_core', 'agent_skills', 'klaudia',
             'config', 'asyncpg', 'sqlalchemy', 'alembic', 'fastapi', 'fastmcp',
             'mcp', 'langchain_core', 'aioboto3', 'taskiq',
+            'klaudia_api.composition', 'klaudia_api.interfaces',
+            'klaudia_api.adapters.persistence', 'klaudia_api.adapters.documents',
+            'klaudia_api.adapters.llm', 'klaudia_api.adapters.guardrails',
+            'klaudia_api.adapters.observability', 'klaudia_api.adapters.capabilities.agent',
+            'klaudia_api.adapters.capabilities.main_chat',
         )
         blocked += (
             'app.services.memory' if sys.argv[2] == 'workflow'
@@ -428,7 +483,7 @@ sys.path[:0] = sys.argv[2:]
 
 class NoInfrastructure(MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        blocked = {'asyncpg', 'fastmcp', 'mcp', 'fastapi', 'app', 'config'}
+        blocked = {'asyncpg', 'fastmcp', 'mcp', 'fastapi', 'app', 'config', 'klaudia_api'}
         if sys.argv[1].startswith(('ledger_core.', 'klaudia.')):
             blocked.add('ledger')
         if sys.argv[1].startswith('klaudia.'):

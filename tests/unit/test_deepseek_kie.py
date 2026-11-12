@@ -8,11 +8,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.exceptions import OCRError
-from app.services.extraction.agents.prompt import build_extraction_prompt
-from app.services.extraction.infra.deepseek_kie import DeepSeekKIEClient
-from app.services.extraction.infra.kie_client import KIEClient
-from config.settings import Settings
+from klaudia_api.exceptions import OCRError
+from klaudia_api.adapters.documents.extraction.prompt import build_extraction_prompt
+from klaudia_api.adapters.documents.kie.deepseek import DeepSeekKIEClient
+from klaudia_api.adapters.documents.kie.client import KIEClient
+from klaudia_api.composition.settings import Settings
 
 
 MODEL = "deepseek-flash"
@@ -54,7 +54,7 @@ async def test_deepseek_kie_sends_prompt_and_image_in_supported_messages(
         close=AsyncMock(),
     )
     monkeypatch.setattr(
-        "app.services.extraction.infra.deepseek_kie.AsyncOpenAI",
+        "klaudia_api.adapters.documents.kie.deepseek.AsyncOpenAI",
         lambda **_kwargs: fake_client,
     )
     client = DeepSeekKIEClient(_settings())
@@ -107,7 +107,7 @@ async def test_deepseek_kie_rejects_empty_response(
         close=AsyncMock(),
     )
     monkeypatch.setattr(
-        "app.services.extraction.infra.deepseek_kie.AsyncOpenAI",
+        "klaudia_api.adapters.documents.kie.deepseek.AsyncOpenAI",
         lambda **_kwargs: fake_client,
     )
     client = DeepSeekKIEClient(_settings())
@@ -130,7 +130,7 @@ async def test_deepseek_kie_wraps_transport_error(
         close=AsyncMock(),
     )
     monkeypatch.setattr(
-        "app.services.extraction.infra.deepseek_kie.AsyncOpenAI",
+        "klaudia_api.adapters.documents.kie.deepseek.AsyncOpenAI",
         lambda **_kwargs: fake_client,
     )
     client = DeepSeekKIEClient(_settings())
@@ -147,7 +147,7 @@ async def test_deepseek_kie_closes_api_client(
     close = AsyncMock()
     fake_client = SimpleNamespace(close=close)
     monkeypatch.setattr(
-        "app.services.extraction.infra.deepseek_kie.AsyncOpenAI",
+        "klaudia_api.adapters.documents.kie.deepseek.AsyncOpenAI",
         lambda **_kwargs: fake_client,
     )
     client = DeepSeekKIEClient(_settings())
@@ -175,7 +175,7 @@ async def test_kie_client_calls_deepseek_backend(
         shutdown=AsyncMock(),
     )
     monkeypatch.setattr(
-        "app.services.extraction.infra.kie_client.DeepSeekKIEClient",
+        "klaudia_api.adapters.documents.kie.client.DeepSeekKIEClient",
         lambda *_args: backend,
     )
     client = KIEClient(_settings())

@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from app.services.extraction.infra.normalizer import (
+from klaudia_api.adapters.documents.media.normalizer import (
     UnsupportedImageError,
     is_pdf,
     is_supported_image,

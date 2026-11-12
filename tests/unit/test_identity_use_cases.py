@@ -216,7 +216,7 @@ def test_legacy_identity_contracts_share_canonical_types():
 
 def test_auth_helpers_share_the_canonical_adapter_functions():
     """Retain password and token imports for current supported callers."""
-    from app.adapters.auth import passwords, tokens
+    from klaudia_api.adapters.auth import passwords, tokens
     from app.services.auth import passwords as legacy_passwords
     from app.services.auth import tokens as legacy_tokens
 

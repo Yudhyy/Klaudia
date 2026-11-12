@@ -11,7 +11,7 @@ from tests.unit.test_main_agent import ScriptedModel, call
 
 async def test_main_adapter_records_submitted_append_values_without_repairing_them():
     """Reports distinguish the user's request from a shortened model proposal."""
-    from app.models.chat import KlaudiaMessage
+    from klaudia_api.interfaces.http.models.chat import KlaudiaMessage
     from tests.e2e.sut import MainAgentSUT, TurnRequest
     from tests.unit.test_agent_discovery_tools import descriptor
     from klaudia.core.skills.registry import SkillRegistry
@@ -127,7 +127,7 @@ async def test_main_adapter_observes_calculation_evidence():
     """The adapter captures tool results without exposing expected answers to the model."""
     from tests.e2e.sut import MainAgentSUT, TurnRequest
     from tests.unit.test_agent_discovery_tools import descriptor
-    from app.models.chat import KlaudiaMessage
+    from klaudia_api.interfaces.http.models.chat import KlaudiaMessage
 
     service = AsyncMock()
     service.inspect.return_value = descriptor()

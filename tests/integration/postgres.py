@@ -2,7 +2,7 @@
 
 import os
 
-from app.services.extraction.infra.db_client import AppDBClient
+from klaudia_api.adapters.documents.database import AppDBClient
 
 POSTGRES_TEST_URL = os.environ.get(
     "PG_TEST_URL",

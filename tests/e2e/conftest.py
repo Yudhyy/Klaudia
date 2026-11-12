@@ -68,9 +68,9 @@ requires_live = pytest.mark.skipif(
 @pytest_asyncio.fixture(scope="module", loop_scope="module")
 async def container():
     """Build the real KlaudiaContainer once for the module."""
-    from app.services.core.container import KlaudiaContainer
-    from config.settings import get_settings
-    from app.adapters.persistence.migrations import upgrade_database
+    from klaudia_api.composition.api import KlaudiaContainer
+    from klaudia_api.composition.settings import get_settings
+    from klaudia_api.adapters.persistence.migrations import upgrade_database
 
     await upgrade_database(get_settings().database_url)
     c = await KlaudiaContainer.create(get_settings())
@@ -80,7 +80,7 @@ async def container():
 
 @pytest_asyncio.fixture(scope="module", loop_scope="module")
 async def orchestrator(container):
-    from app.services.core.orchestrator import KlaudiaOrchestrator
+    from klaudia_api.interfaces.http.orchestrator import KlaudiaOrchestrator
 
     return KlaudiaOrchestrator(container)
 

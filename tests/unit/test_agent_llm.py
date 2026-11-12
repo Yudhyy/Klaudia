@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 from langchain_core.tools import tool
 
-from app.adapters.llm.model_factory import build_chat_llm
+from klaudia_api.adapters.llm.model_factory import build_chat_llm
 
 
 @tool

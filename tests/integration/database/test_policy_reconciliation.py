@@ -1,20 +1,20 @@
 """Policy-backed reconciliation against real owned PostgreSQL tables."""
 
-from app.adapters.persistence.conversations import PostgresConversationStore
-from app.adapters.persistence.documents import PostgresDocumentStore
+from klaudia_api.adapters.persistence.conversations import PostgresConversationStore
+from klaudia_api.adapters.persistence.documents import PostgresDocumentStore
 
-from app.adapters.agent.reconciliation import ReconciliationAdapter
+from klaudia_api.adapters.capabilities.agent.reconciliation import ReconciliationAdapter
 
 import json
 from uuid import uuid4
 
 import pytest
 
-from app.services.catalogue.service import CatalogueService
+from klaudia_api.adapters.ledger.catalogue.service import CatalogueService
 from app.services.memory.contracts import DocumentEdit, DocumentPath
-from app.adapters.ledger.reconciliation import PolicyReconciler
+from klaudia_api.adapters.ledger.reconciliation import PolicyReconciler
 from klaudia.core.agent.reconciliation import PolicyReconciliationTools
-from app.adapters.persistence.memory import (
+from klaudia_api.adapters.persistence.memory import (
     PostgresMemoryDocumentStore,
     PostgresMemoryReader,
 )
@@ -202,7 +202,7 @@ async def test_scripted_chat_uses_policy_skill_and_preserves_evidence(
     policy_setup, postgres_db
 ):
     """Exercise context read, versioned skill and checked comparison through chat."""
-    from app.services.core.main_chat import MainChatService
+    from klaudia_api.adapters.capabilities.main_chat import MainChatService
     from langchain_core.messages import AIMessage
     from tests.unit.test_main_agent import ScriptedModel, call
     from tests.unit.test_main_chat import chat_turn
@@ -239,7 +239,7 @@ async def test_task_replay_rechecks_policy_and_source_access(
     policy_setup, postgres_db, change
 ):
     """Saved reconciliation evidence cannot bypass later policy or ownership changes."""
-    from app.services.core.main_chat import MainChatService
+    from klaudia_api.adapters.capabilities.main_chat import MainChatService
     from app.services.workflow.store import TaskStore
     from langchain_core.messages import AIMessage
     from tests.unit.test_main_agent import ScriptedModel, call
@@ -308,7 +308,7 @@ async def test_task_policy_reads_use_the_connection_holding_the_lock(
     policy_setup, postgres_db, monkeypatch
 ):
     """Replay reads use the task backend without another application pool slot."""
-    from app.adapters.persistence.tasks import PostgresTaskStore
+    from klaudia_api.adapters.persistence.tasks import PostgresTaskStore
 
     session_id = await postgres_db.create_session(1)
     tasks = PostgresTaskStore(POSTGRES_TEST_URL)

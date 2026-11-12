@@ -1,6 +1,6 @@
 """Opt-in live candidate checks; historical benchmark reports remain separate."""
 
-from app.adapters.agent.operations import OperationAdapter
+from klaudia_api.adapters.capabilities.agent.operations import OperationAdapter
 
 from datetime import datetime, timezone
 import os
@@ -42,7 +42,7 @@ def capability_report():
     Yields:
         Runtime-labelled accumulator with model, seed and source revision.
     """
-    from config.settings import get_settings
+    from klaudia_api.composition.settings import get_settings
 
     settings = get_settings()
     report = Report(
@@ -80,10 +80,10 @@ def capability_report():
 )
 async def test_main_agent_capability(scenario, container, capability_report):
     """Grade live model behavior using the same runner as scripted integration tests."""
-    from app.adapters.agent.catalogue import CatalogueAdapter
-    from app.services.core.operations import OperationService
+    from klaudia_api.adapters.capabilities.agent.catalogue import CatalogueAdapter
+    from klaudia_api.adapters.capabilities.operations import OperationService
     from klaudia.core.agent.agent import MainAgent
-    from app.adapters.llm.model_factory import build_chat_llm
+    from klaudia_api.adapters.llm.model_factory import build_chat_llm
 
     if container.ledger_store is None or container.catalogue is None:
         raise RuntimeError("Candidate capability benchmark requires the ledger backend")

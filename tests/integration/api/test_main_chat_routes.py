@@ -1,7 +1,7 @@
 """Authenticated main chat uses real catalogue, ledger and conversation storage."""
 
-from app.adapters.persistence.conversations import PostgresConversationStore
-from app.adapters.persistence.documents import PostgresDocumentStore
+from klaudia_api.adapters.persistence.conversations import PostgresConversationStore
+from klaudia_api.adapters.persistence.documents import PostgresDocumentStore
 
 import json
 from types import SimpleNamespace
@@ -13,16 +13,16 @@ import pytest
 from fastapi import FastAPI
 from langchain_core.messages import AIMessage
 
-from app.routes.v1.chat import router as chat_router
-from app.routes.v1.sessions import router as session_router
+from klaudia_api.interfaces.http.v1.chat import router as chat_router
+from klaudia_api.interfaces.http.v1.sessions import router as session_router
 from app.services.auth.tokens import create_access_token
-from app.services.catalogue.service import CatalogueService
-from app.services.core.main_chat import MainChatService
-from app.services.core.operations import OperationService
-from app.services.core.orchestrator import KlaudiaOrchestrator
-from app.services.core.spreadsheets import SpreadsheetService
-from app.services.extraction.infra.db_client import AppDBClient
-from config.settings import Settings, get_settings
+from klaudia_api.adapters.ledger.catalogue.service import CatalogueService
+from klaudia_api.adapters.capabilities.main_chat import MainChatService
+from klaudia_api.adapters.capabilities.operations import OperationService
+from klaudia_api.interfaces.http.orchestrator import KlaudiaOrchestrator
+from klaudia_api.adapters.ledger.spreadsheets import SpreadsheetService
+from klaudia_api.adapters.documents.database import AppDBClient
+from klaudia_api.composition.settings import Settings, get_settings
 from ledger.catalogue import CatalogueStore
 from ledger.store import LedgerStore
 from tests.e2e.capability_cases import seeded_capability_case
@@ -243,7 +243,7 @@ async def test_archived_document_is_retrievable_outside_history_with_owner_check
     main_chat_client,
 ):
     """Bounded archive tools retrieve older pages without leaking foreign metadata."""
-    from app.services.core.archive_tools import ArchiveReader
+    from klaudia_api.adapters.capabilities.archive_tools import ArchiveReader
     from klaudia.core.agent.ports.errors import ResourceNotFoundError
 
     fixture = main_chat_client

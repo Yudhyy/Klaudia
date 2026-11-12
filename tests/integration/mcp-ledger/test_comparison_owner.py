@@ -4,8 +4,8 @@ from uuid import uuid4
 
 import pytest
 
-from app.services.extraction.infra.db_client import AppDBClient
-from config.settings import Settings
+from klaudia_api.adapters.documents.database import AppDBClient
+from klaudia_api.composition.settings import Settings
 from tests.e2e.comparison_owner import comparison_owner
 from tests.integration.postgres import POSTGRES_TEST_URL
 

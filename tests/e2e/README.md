@@ -112,7 +112,7 @@ would be trusted. Set `E2E_SANDBOX=0` to run against development on purpose.
 
 The E2E container fixture runs the integrated Alembic release command against
 the selected sandbox before it starts runtime services. For a host API or
-worker, run `uv run python -m app.adapters.persistence upgrade` with the
+worker, run `uv run python -m klaudia_api.adapters.persistence upgrade` with the
 intended sandbox `DATABASE_URL` first. Unknown or partial owned layouts fail
 the upgrade; do not stamp them to bypass the check. The current runtime does
 not require the legacy `vector` extension. See the

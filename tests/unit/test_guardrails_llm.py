@@ -8,9 +8,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.exceptions import LLMError
-from app.services.guardrails.config import GuardrailsConfig
-from app.services.guardrails.llm import (
+from klaudia_api.exceptions import LLMError
+from klaudia_api.adapters.guardrails.config import GuardrailsConfig
+from klaudia_api.adapters.guardrails.llm import (
     DeepSeekGuardrailLLM,
     GuardrailsLLMRouter,
 )

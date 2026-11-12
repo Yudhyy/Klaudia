@@ -8,7 +8,7 @@ import pytest
 
 async def test_identity_adapter_borrows_pool_without_schema_or_lifecycle(monkeypatch):
     """Use the caller's pool for all three operations without owning its lifetime."""
-    from app.adapters.identity import PostgresIdentityStore
+    from klaudia_api.adapters.identity import PostgresIdentityStore
 
     create_pool = AsyncMock(side_effect=AssertionError("Unexpected identity pool"))
     monkeypatch.setattr(asyncpg, "create_pool", create_pool)
@@ -41,7 +41,7 @@ async def test_identity_adapter_keeps_connection_failures(
     method, arguments, pool_method
 ):
     """Leave database failures visible to the caller's existing error handling."""
-    from app.adapters.identity import PostgresIdentityStore
+    from klaudia_api.adapters.identity import PostgresIdentityStore
 
     pool = AsyncMock(spec=asyncpg.Pool)
     getattr(pool, pool_method).side_effect = ConnectionError("store unavailable")

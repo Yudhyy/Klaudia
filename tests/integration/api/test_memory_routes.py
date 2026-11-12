@@ -6,10 +6,10 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
-from app.routes.v1.memory import router
+from klaudia_api.interfaces.http.v1.memory import router
 from app.services.auth.tokens import create_access_token
-from app.adapters.persistence.memory import PostgresMemoryDocumentStore
-from config.settings import get_settings
+from klaudia_api.adapters.persistence.memory import PostgresMemoryDocumentStore
+from klaudia_api.composition.settings import get_settings
 
 
 @pytest.fixture

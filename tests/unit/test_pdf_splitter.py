@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from app.services.extraction.infra.pdf_splitter import (
+from klaudia_api.adapters.documents.media.pdf_splitter import (
     PDFSplitError,
     iter_pages_as_jpg,
     page_count,

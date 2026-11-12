@@ -134,9 +134,9 @@ services:
     command:
       - taskiq
       - worker
-      - app.services.extraction.queue.broker:broker
-      - app.services.extraction.queue.tasks
-      - app.services.extraction.queue.state
+      - klaudia_api.interfaces.workers.broker:broker
+      - klaudia_api.interfaces.workers.extraction_worker
+      - klaudia_api.composition.extraction_worker
       - --workers
       - "${WORKER_COUNT:-1}"
       - --max-async-tasks
@@ -164,7 +164,7 @@ services:
       - .env
     environment:
       <<: *klaudia-environment
-    command: ["python", "-m", "app.adapters.persistence", "upgrade"]
+    command: ["python", "-m", "klaudia_api.adapters.persistence", "upgrade"]
     depends_on:
       postgres:
         condition: service_healthy

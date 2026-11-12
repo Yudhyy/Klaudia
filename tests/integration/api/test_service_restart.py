@@ -1,12 +1,12 @@
 """Service restart preserves pending approvals and committed ledger effects."""
 
-from app.adapters.persistence.conversations import PostgresConversationStore
-from app.adapters.persistence.documents import PostgresDocumentStore
+from klaudia_api.adapters.persistence.conversations import PostgresConversationStore
+from klaudia_api.adapters.persistence.documents import PostgresDocumentStore
 
 import pytest
 
-from app.services.core.main_chat import MainChatService
-from app.services.core.operations import OperationService
+from klaudia_api.adapters.capabilities.main_chat import MainChatService
+from klaudia_api.adapters.capabilities.operations import OperationService
 from app.services.workflow.store import TaskStore
 from tests.integration.api.test_durable_tasks import approval_client, durable_client  # noqa: F401
 from tests.integration.api.test_main_chat_routes import main_chat_client  # noqa: F401

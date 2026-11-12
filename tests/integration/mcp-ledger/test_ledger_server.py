@@ -21,7 +21,7 @@ from ledger.catalogue import CatalogueStore
 from ledger.resources import TableRegistration
 from ledger.store import LedgerStore
 from tests.integration.postgres import POSTGRES_TEST_URL
-from app.adapters.mcp_client.tool_registry import MCPToolRegistry
+from klaudia_api.adapters.mcp_client.tool_registry import MCPToolRegistry
 
 SERVER_DIR = Path(__file__).resolve().parents[3] / "mcp-ledger"
 TRANSPORT_SECRET = "transport-fixture-secret-with-at-least-32-bytes"
@@ -341,7 +341,7 @@ async def test_ownership_revocation_applies_to_existing_stdio_session(owned_ledg
 
 async def test_parallel_reads_reuse_the_ownership_connection(owned_ledger, monkeypatch):
     """Five authorized reads finish without acquiring a second pool connection."""
-    from ledger.server import mcp
+    from klaudia_api.interfaces.mcp.ledger.server import mcp
 
     reached = 0
     ready = asyncio.Event()

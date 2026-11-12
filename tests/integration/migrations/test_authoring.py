@@ -13,7 +13,7 @@ from alembic.script import ScriptDirectory
 import pytest
 from sqlalchemy import Column, MetaData, Text
 
-from app.adapters.persistence.migrations import HISTORIES, upgrade_database
+from klaudia_api.adapters.persistence.migrations import HISTORIES, upgrade_database
 from ledger.migrations.runtime import MIGRATION_LOCK, upgrade_histories
 
 ROOT = Path(__file__).resolve().parents[3]

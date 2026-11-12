@@ -206,7 +206,7 @@ def test_zzz_synthetic_report():
     if not _REPORT.records:
         pytest.skip("no synthetic cases executed")
 
-    from config.settings import get_settings
+    from klaudia_api.composition.settings import get_settings
 
     settings = get_settings()
     model = settings.llm_model

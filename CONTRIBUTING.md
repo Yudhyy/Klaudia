@@ -23,18 +23,23 @@ The backend uses Python 3.11 or later and a uv workspace:
 
 ```bash
 uv sync --all-packages --group dev
-uv run ruff check app/ klaudia/ config/ mcp-ledger/ packages/ tests/
-uv run ruff format --check app/ klaudia/ config/ mcp-ledger/ packages/ tests/
+uv run ruff check services/api/ klaudia/ mcp-ledger/ packages/ tests/
+uv run ruff format --check services/api/ klaudia/ mcp-ledger/ packages/ tests/
 uv run pytest tests/unit -q
 uv run pytest tests/packaging -q
 ```
+
+The installed service lives in `services/api/src/klaudia_api/`. The root
+workspace selects its `api`, `worker` and `mcp` extras. Canonical process commands
+use `klaudia_api`; supported `app.*`, `config.*` and MCP imports remain aliases.
+The shared image runs installed wheels without a checkout Python path.
 
 The workspace installs `agent-core`, `agent-skills`, `ledger-core`,
 `ledger-postgres`, `identity-core`, `workflow-core`, `memory-core`,
 `document-intelligence`, the MCP server, and the `klaudia` compatibility
 imports. New agent callers use
 `agent_core.agent` and `agent_skills.registry`. Provider construction belongs
-to `app.adapters.llm.model_factory`. Packaging tests build and install the
+to `klaudia_api.adapters.llm.model_factory`. Packaging tests build and install the
 canonical agent wheels outside the checkout with provider libraries absent.
 Identity packaging checks install and run registration/login with only the
 standard library. HTTP, bcrypt, JWT and PostgreSQL implementations stay in the
@@ -64,7 +69,7 @@ npm test
 See [README.md](README.md) for local services and
 [tests/e2e/README.md](tests/e2e/README.md) for integration and evaluation setup.
 Host API and worker processes require the release step first:
-`uv run python -m app.adapters.persistence upgrade` with the intended
+`uv run python -m klaudia_api.adapters.persistence upgrade` with the intended
 `DATABASE_URL`. Compose runs this step through its `migrate` service. Read the
 [migration guide](docs/docs/05-development/contributing/database-migrations.mdx) before
 adopting an existing database or adding a revision.

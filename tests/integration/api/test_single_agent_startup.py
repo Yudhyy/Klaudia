@@ -7,9 +7,9 @@ from uuid import uuid4
 
 from identity_core.contracts import Login, Registration
 from workflow_core.service import WorkflowService
-from app.services.core.container import KlaudiaContainer
+from klaudia_api.composition.api import KlaudiaContainer
 from app.services.workflow.approvals import CheckedApprovals
-from config.settings import Settings
+from klaudia_api.composition.settings import Settings
 from tests.integration.postgres import POSTGRES_TEST_URL
 
 

@@ -1,16 +1,16 @@
 """Real PostgreSQL task recovery, retry identity and concurrent execution checks."""
 
-from app.adapters.persistence.conversations import PostgresConversationStore
-from app.adapters.persistence.documents import PostgresDocumentStore
+from klaudia_api.adapters.persistence.conversations import PostgresConversationStore
+from klaudia_api.adapters.persistence.documents import PostgresDocumentStore
 
 from unittest.mock import AsyncMock
 
 import pytest
 from langchain_core.messages import AIMessage
 
-from app.routes.v1.tasks import router
-from app.services.core.main_chat import MainChatService
-from app.services.core.operations import OperationService
+from klaudia_api.interfaces.http.v1.tasks import router
+from klaudia_api.adapters.capabilities.main_chat import MainChatService
+from klaudia_api.adapters.capabilities.operations import OperationService
 from app.services.workflow.store import TaskSession, TaskStore
 from tests.integration.api.test_main_chat_routes import main_chat_client  # noqa: F401
 from tests.integration.postgres import POSTGRES_TEST_URL
@@ -142,7 +142,7 @@ async def test_running_task_cannot_be_resumed_concurrently(durable_client):
 @pytest.fixture
 async def approval_client(durable_client):
     """Enable explicit checked-append approval through the existing decision API."""
-    from app.routes.v1.approvals import router as approvals_router
+    from klaudia_api.interfaces.http.v1.approvals import router as approvals_router
     from app.services.workflow.approvals import CheckedApprovals
 
     fixture = durable_client

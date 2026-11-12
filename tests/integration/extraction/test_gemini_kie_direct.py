@@ -22,9 +22,9 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
-from app.services.extraction.infra.gemini_kie import GeminiKIEClient
-from app.services.extraction.infra.normalizer import to_canonical_jpg
-from config.settings import Settings
+from klaudia_api.adapters.documents.kie.gemini import GeminiKIEClient
+from klaudia_api.adapters.documents.media.normalizer import to_canonical_jpg
+from klaudia_api.composition.settings import Settings
 
 load_dotenv()
 

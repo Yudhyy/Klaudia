@@ -1,6 +1,6 @@
 """Policy-dependent reads must fail closed before returning financial evidence."""
 
-from app.adapters.agent.reconciliation import ReconciliationAdapter
+from klaudia_api.adapters.capabilities.agent.reconciliation import ReconciliationAdapter
 
 from unittest.mock import AsyncMock
 
@@ -8,7 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.services.memory.contracts import DocumentPath, MemoryDocument
-from app.adapters.ledger.reconciliation import PolicyReconciler
+from klaudia_api.adapters.ledger.reconciliation import PolicyReconciler
 from klaudia.core.agent.reconciliation import PolicyReconciliationTools
 from klaudia.core.agent.ports.errors import RevisionConflictError
 from tests.unit.test_accounting_policy import policy_fields
@@ -222,7 +222,7 @@ async def test_generic_main_tool_cannot_bypass_saved_policy():
 
 async def test_main_chat_exposes_policy_reconciliation_with_server_identity():
     """Wire checked policy reconciliation into the authenticated chat runtime."""
-    from app.services.core.main_chat import MainChatService
+    from klaudia_api.adapters.capabilities.main_chat import MainChatService
     from langchain_core.messages import AIMessage
     from tests.unit.test_main_agent import ScriptedModel, call
     from tests.unit.test_main_chat import chat_turn
@@ -244,7 +244,7 @@ async def test_main_chat_exposes_policy_reconciliation_with_server_identity():
 async def test_policy_conflict_tells_agent_to_reread_before_retry():
     """Expose the right recovery action and let the agent retry the observed revision."""
     import json
-    from app.services.core.main_chat import MainChatService
+    from klaudia_api.adapters.capabilities.main_chat import MainChatService
     from langchain_core.messages import AIMessage, ToolMessage
     from tests.unit.test_main_agent import ScriptedModel, call
     from tests.unit.test_main_chat import chat_turn

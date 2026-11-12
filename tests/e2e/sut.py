@@ -8,7 +8,7 @@ from uuid import UUID
 
 from langchain_core.callbacks import BaseCallbackHandler
 
-from app.models.chat import KlaudiaMessage
+from klaudia_api.interfaces.http.models.chat import KlaudiaMessage
 from klaudia.core.agent.agent import MainAgent, AgentExecutionError
 from klaudia.core.agent.context import TaskContext
 from tests.e2e.checks import ResponseView

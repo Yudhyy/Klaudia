@@ -17,7 +17,9 @@ the ledger MCP server as a stdio subprocess.
 This page describes code at
 [5a33e39](https://github.com/Yudhyy/Klaudia/tree/5a33e394748c9a1c7863488402acfa8b96780bd7),
 checked on 2026-10-29. It records source structure, not a fresh runtime test or a
-release qualification. The [proposed architecture](target.mdx) is separate.
+release qualification. The [service layout follow-up](#service-layout-and-process-composition)
+records the current installed process paths. The [proposed architecture](target.mdx)
+also includes work that has not been implemented.
 The [ledger-core follow-up](#ledger-core-extraction-follow-up) records the package
 extraction added after that revision; the earlier source links remain pinned.
 [Issue #3](https://github.com/Yudhyy/Klaudia/issues/3) tracks the assessment and
@@ -215,13 +217,13 @@ session ownership. Retrieved content supplies facts, not execution authority.
 
 | State | Current implementation |
 | --- | --- |
-| Credential lookup, account creation, last-login updates | `IdentityStore` in `identity_core.ports`, implemented by `app/adapters/identity.py` |
-| Application database pool, startup checks and seed user | `ApplicationDatabase` in `app/adapters/persistence/application.py`; the former `AppDBClient` import remains compatible |
-| Sessions, recent history and conversation messages | `ConversationStore` in `app/services/conversation/store.py`, implemented by `app/adapters/persistence/conversations.py` |
-| Document metadata, pages, extraction cache and saved outcomes | `packages/document-intelligence/` contracts and interfaces. PostgreSQL adapters in `app/adapters/persistence/` |
+| Credential lookup, account creation, last-login updates | `IdentityStore` in `identity_core.ports`, implemented by `services/api/src/klaudia_api/adapters/identity.py` |
+| Application database pool, startup checks and seed user | `ApplicationDatabase` in `services/api/src/klaudia_api/adapters/persistence/application.py`; the former `AppDBClient` import remains compatible |
+| Sessions, recent history and conversation messages | `ConversationStore` in `services/api/src/klaudia_api/adapters/capabilities/conversation.py`, implemented by `services/api/src/klaudia_api/adapters/persistence/conversations.py` |
+| Document metadata, pages, extraction cache and saved outcomes | `packages/document-intelligence/` contracts and interfaces. PostgreSQL adapters in `services/api/src/klaudia_api/adapters/persistence/` |
 | Sheet grids, resource catalogue, checked operations, approvals, receipts | Shared `ledger-postgres` adapters; pure calculations and formulas in `ledger-core` |
 | Task lifecycle, progress and human-decision interfaces | `packages/workflow-core/`; application adapters store checkpoints and bind agent runs |
-| Human preferences, conventions, accounting policy, revision history | Contracts and interfaces in `packages/memory-core/`. PostgreSQL adapter in `app/adapters/persistence/memory.py` |
+| Human preferences, conventions, accounting policy, revision history | Contracts and interfaces in `packages/memory-core/`. PostgreSQL adapter in `services/api/src/klaudia_api/adapters/persistence/memory.py` |
 | Source documents and page images | S3-compatible object storage |
 | Cache, extraction queue, result backend, progress events | Redis |
 
@@ -235,16 +237,16 @@ They are separate from financial facts and developer-agent notes.
 
 | Change area | Start here |
 | --- | --- |
-| HTTP contract or mobile caller | `app/routes/v1/`, `app/models/`, `apps/mobile/services/` |
-| Startup wiring, configured providers | `app/services/core/container.py`, `config/settings.py`, `app/adapters/llm/model_factory.py` |
-| Registration/login rules and adapters | `packages/identity-core/`, `app/adapters/identity.py`, `app/adapters/auth/` |
+| HTTP contract or mobile caller | `services/api/src/klaudia_api/interfaces/http/v1/`, `services/api/src/klaudia_api/interfaces/http/models/`, `apps/mobile/services/` |
+| Startup wiring, configured providers | `services/api/src/klaudia_api/composition/api.py`, `services/api/src/klaudia_api/composition/settings.py`, `services/api/src/klaudia_api/adapters/llm/model_factory.py` |
+| Registration/login rules and adapters | `packages/identity-core/`, `services/api/src/klaudia_api/adapters/identity.py`, `services/api/src/klaudia_api/adapters/auth/` |
 | Agent steps, tool context, runtime skill procedures | `packages/agent-core/src/agent_core/agent/`, `packages/agent-skills/src/agent_skills/` |
-| Catalogue, authoring, memory policy | `app/services/catalogue/`, `packages/memory-core/`, `app/adapters/ledger/reconciliation.py` and associated ledger modules |
+| Catalogue, authoring, memory policy | `services/api/src/klaudia_api/adapters/ledger/catalogue/`, `packages/memory-core/`, `services/api/src/klaudia_api/adapters/ledger/reconciliation.py` and associated ledger modules |
 | Checked financial effects and deterministic calculations | `packages/ledger-postgres/`, `packages/ledger-core/` |
-| Task recovery and human decisions | `packages/workflow-core/`, `app/services/core/main_chat.py`, `app/adapters/persistence/tasks.py` |
-| Document ingestion and background work | `app/services/extraction/` |
-| Document persistence and queued outcomes | `packages/document-intelligence/`, `app/adapters/persistence/documents.py`, `app/adapters/persistence/extraction_outcomes.py` |
-| Session and message persistence | `app/services/conversation/store.py`, `app/adapters/persistence/conversations.py` |
+| Task recovery and human decisions | `packages/workflow-core/`, `services/api/src/klaudia_api/adapters/capabilities/main_chat.py`, `services/api/src/klaudia_api/adapters/persistence/tasks.py` |
+| Document ingestion and background work | `services/api/src/app/services/extraction/` |
+| Document persistence and queued outcomes | `packages/document-intelligence/`, `services/api/src/klaudia_api/adapters/persistence/documents.py`, `services/api/src/klaudia_api/adapters/persistence/extraction_outcomes.py` |
+| Session and message persistence | `services/api/src/klaudia_api/adapters/capabilities/conversation.py`, `services/api/src/klaudia_api/adapters/persistence/conversations.py` |
 
 This map points to current paths. At the recorded baseline, `klaudia/` used
 LangChain model/tool types and ledger contracts. The follow-ups below describe
@@ -293,11 +295,11 @@ broader ownership migration remains in the [target](target.mdx#migration-sequenc
 
 ## MCP client separation follow-up
 
-The outbound client now lives in `app/adapters/mcp_client/tool_registry.py`.
+The outbound client now lives in `services/api/src/klaudia_api/adapters/mcp_client/tool_registry.py`.
 Application composition and sheet routes import it there. The old
 `klaudia.interfaces.MCPToolRegistry` and `klaudia.interfaces.tool_registry`
 imports are removed; no compatibility shim imports application code into the
-agent. The root application declares FastMCP directly. The agent wheel excludes
+agent. The service API extra declares FastMCP directly. The agent wheel excludes
 the client and no longer declares FastMCP or MCP dependencies.
 
 The client retains stdio, Streamable HTTP, signed owner forwarding, tool schema
@@ -319,17 +321,17 @@ interfaces do not import application stores or saved policy models. The memory
 tool has its own path enum; the backend converts it to its stored document path.
 Policy intent now uses agent-owned field types from the ledger capability split.
 
-[MainChatService](https://github.com/Yudhyy/Klaudia/blob/development/app/services/core/main_chat.py)
+[MainChatService](https://github.com/Yudhyy/Klaudia/blob/development/services/api/src/klaudia_api/adapters/capabilities/main_chat.py)
 binds each backend to the authenticated turn owner, then supplies the agent-owned
 tools. `MainAgent` retains its framework tool inputs for this step. Fake
 implementations can exercise these tools without application or database code.
 
 The existing backend methods now serve as capability adapters. `ArchiveReader`
-in `app/services/core/archive_tools.py` uses the document archive interface and
+in `services/api/src/klaudia_api/adapters/capabilities/archive_tools.py` uses the document archive interface and
 retains pagination and evidence fields. Its persistence adapter checks file and
 session ownership. `MemoryReader` in `memory_core.tools`
 retains owner-scoped reads and trust labels. `PolicyReconciler` in
-`app/adapters/ledger/reconciliation.py` retains saved policy checks before and
+`services/api/src/klaudia_api/adapters/ledger/reconciliation.py` retains saved policy checks before and
 after the read, source ownership/revisions, exact ledger reconciliation and
 evidence limits. Agent code does not select accounting rules or calculate
 financial results. The old application tool-builder classes have no compatibility
@@ -351,7 +353,7 @@ the current document, tombstone or missing state. `DocumentRepository` adds
 expected-revision writes and deletion, with current value and history committed
 together. Memory owns the bounded document and structured policy contracts.
 
-The [PostgreSQL adapter](https://github.com/Yudhyy/Klaudia/blob/development/app/adapters/persistence/memory.py)
+The [PostgreSQL adapter](https://github.com/Yudhyy/Klaudia/blob/development/services/api/src/klaudia_api/adapters/persistence/memory.py)
 retains the existing SQL, transactions, migration check and application pool.
 Composition supplies it to routes and chat. Context tools and saved-policy
 reconciliation depend on the read interface. Replay checks use the same reader
@@ -374,20 +376,20 @@ existing chat payload. Ingestion, archive tools and progress reconciliation use
 these interfaces instead of raw database queries. API and worker composition
 supply the concrete stores.
 
-The [document adapter](https://github.com/Yudhyy/Klaudia/blob/development/app/adapters/persistence/documents.py)
+The [document adapter](https://github.com/Yudhyy/Klaudia/blob/development/services/api/src/klaudia_api/adapters/persistence/documents.py)
 retains file/session owner checks, literal filename search, page text bounds,
 blob records and extraction cache queries. The
-[queued outcome adapter](https://github.com/Yudhyy/Klaudia/blob/development/app/adapters/persistence/extraction_outcomes.py)
+[queued outcome adapter](https://github.com/Yudhyy/Klaudia/blob/development/services/api/src/klaudia_api/adapters/persistence/extraction_outcomes.py)
 retains the file/session lock and transaction for page writes and file status.
 Missing pages stay pending; failed retries preserve saved success. Redis events
 still wake a check of saved outcomes. Deadlines retain their current bounds.
 Task replay checks document access through the archive interface on the
 connection holding the task lock.
 
-The [conversation interface](https://github.com/Yudhyy/Klaudia/blob/development/app/services/conversation/store.py)
+The [conversation interface](https://github.com/Yudhyy/Klaudia/blob/development/services/api/src/klaudia_api/adapters/capabilities/conversation.py)
 serves session routes, chat history and operation recovery evidence without an
 extraction-client dependency. Its
-[PostgreSQL adapter](https://github.com/Yudhyy/Klaudia/blob/development/app/adapters/persistence/conversations.py)
+[PostgreSQL adapter](https://github.com/Yudhyy/Klaudia/blob/development/services/api/src/klaudia_api/adapters/persistence/conversations.py)
 keeps the existing message order, identifiers and timestamp updates. Authenticated
 callers retain their session ownership checks before reading or writing a
 selected session.
@@ -414,7 +416,7 @@ retain their release descriptions, defaults and nested definitions, including
 the native formula request shape. The agent does not include formula evaluation,
 grid arithmetic, receipt storage or ledger approval rules.
 
-[Application adapters](https://github.com/Yudhyy/Klaudia/tree/development/app/adapters/agent)
+[Application adapters](https://github.com/Yudhyy/Klaudia/tree/development/services/api/src/klaudia_api/adapters/capabilities/agent)
 translate those requests into canonical ledger models and map only the expected
 failures. Backend validation still checks authoring actions, decimal bounds,
 formula arity, typed values and required rounding before persistence. Unknown
@@ -446,9 +448,9 @@ their names, versions, descriptions and exact bytes stay unchanged.
 
 Application composition and capability adapters import `agent_core.agent` and
 `agent_skills`. Model construction now belongs to
-`app/adapters/llm/model_factory.py`. The old `klaudia.core.agent.llm` path is
+`services/api/src/klaudia_api/adapters/llm/model_factory.py`. The old `klaudia.core.agent.llm` path is
 removed; it cannot re-export application code into the compatibility package.
-The root application owns the provider libraries and its TOON context encoder
+The service API extra declares provider libraries and its TOON context encoder
 dependency. The runtime depends on LangChain core, Pydantic and agent-skills;
 the skills package depends on Pydantic alone.
 
@@ -470,10 +472,10 @@ order. They receive `IdentityStore`, `PasswordHasher` and `TokenIssuer` capabili
 from composition. HTTP retains validation, rate limits and response mapping.
 
 `IdentityStore` now lives in `identity_core.ports`. The PostgreSQL adapter in
-`app/adapters/identity.py` owns credential lookup, account creation and last-login
+`services/api/src/klaudia_api/adapters/identity.py` owns credential lookup, account creation and last-login
 SQL. Composition supplies the existing application pool after
 `ApplicationDatabase.connect`; the adapter does not create a pool, initialize
-tables or close shared resources. `app/adapters/auth/` owns bcrypt and JWT helpers
+tables or close shared resources. `services/api/src/klaudia_api/adapters/auth/` owns bcrypt and JWT helpers
 and supplies the configured password and token implementations.
 
 The three existing `AppDBClient` method names remain thin forwards for retained
@@ -501,11 +503,11 @@ agent continuation and builds the response.
 | Responsibility | Current implementation |
 | --- | --- |
 | Task, progress and human-decision interfaces | `packages/workflow-core/src/workflow_core/ports.py` |
-| Task SQL, checkpoint storage, pools and advisory locks | `app/adapters/persistence/tasks.py` |
-| Checked writes on the task connection and authoritative operation evidence | `app/adapters/ledger/task_operations.py` |
-| Exact human approval decisions and execution | `app/adapters/ledger/approvals.py` |
-| Saved-agent-state interpretation and replay access checks | `app/adapters/agent/checkpoints.py` |
-| Original chat input, agent construction and outcome translation | `app/services/core/main_chat.py` |
+| Task SQL, checkpoint storage, pools and advisory locks | `services/api/src/klaudia_api/adapters/persistence/tasks.py` |
+| Checked writes on the task connection and authoritative operation evidence | `services/api/src/klaudia_api/adapters/ledger/task_operations.py` |
+| Exact human approval decisions and execution | `services/api/src/klaudia_api/adapters/ledger/approvals.py` |
+| Saved-agent-state interpretation and replay access checks | `services/api/src/klaudia_api/adapters/capabilities/agent/checkpoints.py` |
+| Original chat input, agent construction and outcome translation | `services/api/src/klaudia_api/adapters/capabilities/main_chat.py` |
 
 Task and approval HTTP callers use the workflow interfaces. Composition creates
 the concrete adapters. The former workflow interface, service, store and approval
@@ -545,7 +547,7 @@ same runner. Revision IDs, version tables and frozen SQL/JSON assets retain
 their contracts. See the [database architecture](database.mdx).
 
 Saved checkpoint interpretation receives memory, document and workbook readers.
-`WorkbookAccess` in `app/services/catalogue/ports.py` replaces direct ledger SQL
+`WorkbookAccess` in `services/api/src/klaudia_api/adapters/ledger/catalogue/ports.py` replaces direct ledger SQL
 in the agent adapter. Task composition supplies `CatalogueStore` with the
 connection holding the task lock. Actual backend/lock and revoked-access checks
 protect this path; task-bound effects and receipts retain that same connection.
@@ -555,6 +557,52 @@ tables, application imports or an MCP distribution. Existing owner, approval,
 exact calculation, migration and process-recovery suites remain the regression
 surface. This package move does not rewrite checked-operation planning or move
 process entrypoints. The larger ledger domain/application tree remains proposed.
+
+## Service layout and process composition
+
+`services/api/` now builds the installed `klaudia-api` distribution. The API,
+Taskiq extraction worker and MCP host have separate composition roots in that
+package. Each process creates and closes its own pools and external clients.
+The existing core packages supply use cases and contracts; concrete adapters
+remain in the service.
+
+| Responsibility | Current path under `services/api/src/klaudia_api/` |
+| --- | --- |
+| ASGI application and HTTP adapters | `main.py`, `interfaces/http/` |
+| API service construction | `composition/api.py` |
+| Worker broker and page task | `interfaces/workers/` |
+| Worker-local resources | `composition/extraction_worker.py` |
+| MCP transport, token verification and owned-read policy | `interfaces/mcp/` |
+| MCP-local ledger store | `composition/mcp.py` |
+| Settings and launch-file resolution | `composition/settings.py`, `composition/paths.py` |
+| PostgreSQL, model, document, cache, object-store and tracing implementations | `adapters/` |
+
+The API starts its stdio MCP child with the installed
+`klaudia_api.interfaces.mcp.host` module. It supplies the same database,
+request-token secret and `LEDGER_SCHEMA_MODE=check`. The worker retains the
+`ocr.extract_page` job name, payload, retries and saved-progress contract.
+MCP still exposes only owned reads. This move changes no HTTP routes, financial
+execution rules, task locks, approval payloads, checkpoints or receipts.
+
+The service wheel includes the application history from `services/api/migrations/`.
+Source authoring uses that directory; installed execution uses the wheel assets.
+Ledger keeps its independent history in `ledger-postgres`. The coordinated
+release command runs ledger before application, and runtime stores check both
+required revisions.
+
+Install extras `api`, `worker` and `mcp` select process dependencies. The root
+workspace and shared image select all three. `mcp-ledger` forwards its supported
+host imports and launcher to `klaudia-api[mcp]`, which has no API or model-provider
+dependency. The service never imports that compatibility distribution.
+Supported `app.*` and `config.*` forwards also ship in the service wheel.
+
+The runtime image contains installed wheels and mock sample files, with no
+checkout Python source or repository `PYTHONPATH`. Host launches supply their
+environment or run from the repository root. MCP dotenv discovery starts at the
+launch directory. Relative Google credential paths use the local environment
+file directory, or the working directory when no file exists. Mock OCR reads
+optional `sample-data/` files from that same directory and keeps its fallback
+when no matching fixture exists.
 
 ## Verification and next work
 

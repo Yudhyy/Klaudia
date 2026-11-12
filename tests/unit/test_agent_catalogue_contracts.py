@@ -49,7 +49,7 @@ async def test_adapter_translates_read_requests(
     Args:
         case: Capability method, schema modules, request class and saved tool name.
     """
-    from app.adapters.agent.catalogue import CatalogueAdapter
+    from klaudia_api.adapters.capabilities.agent.catalogue import CatalogueAdapter
 
     method, consumer_module, ledger_module, contract, tool_name = case
     consumer_type = getattr(
@@ -101,7 +101,7 @@ async def test_adapter_maps_only_expected_read_failures(
     from ledger_core.errors import RevisionConflictError
     from ledger_core.resources import ResourceNotFoundError
 
-    from app.adapters.agent.catalogue import CatalogueAdapter
+    from klaudia_api.adapters.capabilities.agent.catalogue import CatalogueAdapter
     from klaudia.core.agent.ports import catalogue, errors
     from klaudia.core.agent.ports.calculations import CheckedCalculation
     from klaudia.core.agent.ports.financial import CheckedFinancialRequest
@@ -148,7 +148,7 @@ async def test_adapter_preserves_unmapped_failures(failure: Exception) -> None:
     Args:
         failure: Failure that the adapter must not replace.
     """
-    from app.adapters.agent.catalogue import CatalogueAdapter
+    from klaudia_api.adapters.capabilities.agent.catalogue import CatalogueAdapter
     from klaudia.core.agent.ports.catalogue import ResourceInspection
 
     service = AsyncMock()

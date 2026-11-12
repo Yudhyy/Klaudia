@@ -9,9 +9,9 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
-from app.routes.v1 import auth
-from app.adapters.auth.passwords import BcryptPasswords
-from app.adapters.auth.tokens import JwtTokenIssuer
+from klaudia_api.interfaces.http.v1 import auth
+from klaudia_api.adapters.auth.passwords import BcryptPasswords
+from klaudia_api.adapters.auth.tokens import JwtTokenIssuer
 from app.services.auth.passwords import hash_password, verify_password
 from identity_core.contracts import AuthenticatedAccount, Login, Registration
 from identity_core.service import IdentityService

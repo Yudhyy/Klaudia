@@ -1,6 +1,6 @@
 """Resource identity, freshness and discovery within a bound workbook."""
 
-from app.adapters.agent.catalogue import CatalogueAdapter
+from klaudia_api.adapters.capabilities.agent.catalogue import CatalogueAdapter
 
 import asyncio
 import uuid
@@ -343,7 +343,7 @@ async def test_owner_discovery_spans_workbooks_without_foreign_counts(catalogue_
 
 async def test_agent_discovery_tools_recheck_real_ownership(catalogue_setup):
     """Task tools preserve database ownership checks after selecting a resource."""
-    from app.services.catalogue.service import CatalogueService
+    from klaudia_api.adapters.ledger.catalogue.service import CatalogueService
     from klaudia.core.agent.context import TaskContext
     from klaudia.core.agent.tools import DiscoveryTools
     from klaudia.core.agent.ports.errors import ResourceNotFoundError
@@ -379,7 +379,7 @@ async def test_main_agent_discovers_and_inspects_real_catalogue(catalogue_setup)
 
     from langchain_core.messages import AIMessage
 
-    from app.services.catalogue.service import CatalogueService
+    from klaudia_api.adapters.ledger.catalogue.service import CatalogueService
     from klaudia.core.agent.agent import MainAgent
     from klaudia.core.agent.context import TaskContext
 

@@ -1,8 +1,8 @@
 """Owned table appends preserve neighbouring regions and replay committed receipts."""
 
-from app.adapters.agent.operations import OperationAdapter
+from klaudia_api.adapters.capabilities.agent.operations import OperationAdapter
 
-from app.adapters.agent.catalogue import CatalogueAdapter
+from klaudia_api.adapters.capabilities.agent.catalogue import CatalogueAdapter
 
 import asyncio
 import uuid
@@ -446,8 +446,8 @@ async def test_main_agent_prepares_executes_and_retries_real_append(append_setup
     import json
 
     from langchain_core.messages import AIMessage, ToolMessage
-    from app.services.catalogue.service import CatalogueService
-    from app.services.core.operations import OperationService
+    from klaudia_api.adapters.ledger.catalogue.service import CatalogueService
+    from klaudia_api.adapters.capabilities.operations import OperationService
     from klaudia.core.agent.agent import MainAgent
     from klaudia.core.agent.context import TaskContext
     from tests.unit.test_main_agent import call
@@ -503,8 +503,8 @@ async def test_main_agent_prepares_executes_and_retries_real_append(append_setup
 
 async def test_lost_commit_response_recovers_through_operation_service(append_setup):
     """An agent failure after commit retains a reference that replays without duplicates."""
-    from app.services.catalogue.service import CatalogueService
-    from app.services.core.operations import OperationService
+    from klaudia_api.adapters.ledger.catalogue.service import CatalogueService
+    from klaudia_api.adapters.capabilities.operations import OperationService
     from klaudia.core.agent.agent import MainAgent, AgentExecutionError
     from klaudia.core.agent.context import TaskContext
     from tests.unit.test_main_agent import ScriptedModel, call

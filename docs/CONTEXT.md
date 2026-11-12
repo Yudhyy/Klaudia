@@ -17,10 +17,10 @@ and the `DocumentReader` and `DocumentRepository` interfaces. Agent context read
 and ledger reconciliation need only `DocumentReader`. Authenticated edit routes
 use `DocumentRepository`, which requires atomic current-value and history writes.
 
-`app/adapters/persistence/memory.py` implements these interfaces with the existing
+`services/api/src/klaudia_api/adapters/persistence/memory.py` implements these interfaces with the existing
 application pool. Task replay supplies its held connection to `PostgresMemoryReader`
 to check saved policy revisions without acquiring another connection. The ledger
-adapter in `app/adapters/ledger/reconciliation.py` checks stored policy before and
+adapter in `services/api/src/klaudia_api/adapters/ledger/reconciliation.py` checks stored policy before and
 after exact reconciliation. Memory documents do not grant financial authority.
 
 The former application memory paths retain aliases for contracts, readers,

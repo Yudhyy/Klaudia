@@ -28,7 +28,7 @@ def test_supported_workflow_imports_share_one_definition(module, name):
 
 def test_main_chat_uses_the_canonical_workflow_service():
     """The production chat path runs the installed lifecycle implementation."""
-    from app.services.core import main_chat
+    from klaudia_api.adapters.capabilities import main_chat
     from workflow_core.service import WorkflowService
 
     assert main_chat.WorkflowService is WorkflowService

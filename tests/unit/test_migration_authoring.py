@@ -10,7 +10,7 @@ from alembic import command
 from alembic.config import Config
 import pytest
 
-from app.adapters.persistence.migrations import HISTORIES
+from klaudia_api.adapters.persistence.migrations import HISTORIES
 
 ROOT = Path(__file__).resolve().parents[2]
 

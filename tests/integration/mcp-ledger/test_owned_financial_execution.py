@@ -1,12 +1,12 @@
 """Financial reads use one owned snapshot and retain revision-labelled evidence."""
 
-from app.adapters.agent.catalogue import CatalogueAdapter
+from klaudia_api.adapters.capabilities.agent.catalogue import CatalogueAdapter
 
 import uuid
 
 import pytest
 
-from app.services.catalogue.service import CatalogueService
+from klaudia_api.adapters.ledger.catalogue.service import CatalogueService
 from klaudia.core.agent.context import TaskContext
 from klaudia.core.agent.tools import DiscoveryTools
 from ledger.catalogue import CatalogueStore

@@ -7,8 +7,8 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
-from app.routes.v1.chat import router as chat_router
-from app.routes.v1.tasks import router as task_router
+from klaudia_api.interfaces.http.v1.chat import router as chat_router
+from klaudia_api.interfaces.http.v1.tasks import router as task_router
 from ledger.errors import RevisionConflictError
 from tests.integration.api.test_memory_routes import headers
 

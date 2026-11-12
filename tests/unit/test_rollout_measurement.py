@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from tests.e2e.rollout_measurement import UsageMeter, qualify, rollout_configuration
-from config.settings import Settings
+from klaudia_api.composition.settings import Settings
 from tests.e2e.rollout_cases import measured_post
 
 

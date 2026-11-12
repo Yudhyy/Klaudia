@@ -1,0 +1,307 @@
+import logging
+from datetime import timedelta
+import os
+import sys
+from pathlib import Path
+
+from klaudia_api.composition.paths import runtime_directory
+from typing import Optional
+
+from klaudia_api.adapters.identity import PostgresIdentityStore
+from klaudia_api.adapters.auth.passwords import BcryptPasswords
+from klaudia_api.adapters.auth.tokens import JwtTokenIssuer
+from identity_core.ports import IdentityStore
+from identity_core.service import IdentityService
+from klaudia_api.composition.settings import Settings
+from klaudia_api.adapters.llm.client import LLMClient
+from klaudia_api.adapters.observability.langfuse import LangfuseService
+from klaudia_api.adapters.persistence.application import ApplicationDatabase
+from klaudia_api.adapters.persistence.conversations import PostgresConversationStore
+from klaudia_api.adapters.persistence.documents import PostgresDocumentStore
+from klaudia_api.adapters.persistence.extraction_outcomes import (
+    PostgresExtractionOutcomes,
+)
+from klaudia_api.adapters.capabilities.conversation import ConversationStore
+from document_intelligence.ports import ExtractionOutcomeStore
+from klaudia_api.adapters.persistence.memory import PostgresMemoryDocumentStore
+from memory_core.ports import DocumentRepository
+from klaudia_api.adapters.documents.cache.redis import DedupCache
+from klaudia_api.adapters.documents.kie.client import KIEClient
+from klaudia_api.adapters.documents.object_store.s3 import MinIOClient
+from klaudia_api.adapters.documents.ingest import IngestService
+from klaudia_api.adapters.documents.extraction.base import ExtractionAgent
+from klaudia_api.adapters.ledger.spreadsheets import SpreadsheetService
+from klaudia_api.adapters.guardrails import GuardrailsAgent, GuardrailsConfig
+from klaudia_api.adapters.mcp_client.tool_registry import MCPToolRegistry
+from ledger_postgres.store import LedgerStore
+from ledger_postgres.catalogue import CatalogueStore
+from klaudia_api.adapters.ledger.catalogue.service import CatalogueService
+from ledger_postgres.authoring_reads import AuthoringService
+from klaudia_api.adapters.capabilities.main_chat import MainChatService
+from klaudia_api.adapters.persistence.tasks import PostgresTaskStore
+from ledger_postgres.approval_service import CheckedApprovals
+from klaudia_api.adapters.capabilities.operations import OperationService
+from klaudia_api.adapters.llm.model_factory import build_chat_llm
+
+logger = logging.getLogger(__name__)
+
+
+def _ensure_gcp_credentials(settings: Settings) -> None:
+    """Resolve GOOGLE_APPLICATION_CREDENTIALS to an absolute path and export it.
+
+    The Google SDKs (google-genai, langchain-google-genai)
+    read this env var directly. A relative path breaks for MCP subprocesses that
+    use a different working directory. Resolving once at startup keeps the
+    file discoverable regardless of CWD and lets subprocesses inherit it.
+    """
+    raw = settings.google_application_credentials
+    if not raw:
+        return
+    candidate = Path(raw)
+    if not candidate.is_absolute():
+        candidate = (runtime_directory() / raw).resolve()
+    if not candidate.is_file():
+        logger.warning(
+            "GOOGLE_APPLICATION_CREDENTIALS=%s does not exist (resolved=%s)",
+            raw,
+            candidate,
+        )
+        return
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(candidate)
+    logger.info("GOOGLE_APPLICATION_CREDENTIALS resolved to %s", candidate)
+
+
+def _build_ledger_registry(settings: Settings) -> MCPToolRegistry:
+    """Build the ledger read transport used by the sheet API.
+
+    Args:
+        settings: Server-owned transport and database configuration.
+
+    Returns:
+        Ledger tool registry for the configured transport.
+
+    Raises:
+        ValueError: The requested transport is unsupported.
+    """
+    transport = settings.mcp_transport.lower()
+    if transport == "stdio":
+        return MCPToolRegistry.from_stdio(
+            "mcp-ledger",
+            command=sys.executable,
+            args=["-m", "klaudia_api.interfaces.mcp.host", "--transport", "stdio"],
+            env={
+                **os.environ,
+                "DATABASE_URL": settings.database_url,
+                "JWT_SECRET": settings.jwt_secret,
+                "MCP_USER_ID": "",
+                "LEDGER_SCHEMA_MODE": "check",
+            },
+        )
+    if transport == "http":
+        return MCPToolRegistry(
+            "mcp-ledger",
+            settings.mcp_ledger_url,
+            auth_token=settings.mcp_auth_token or None,
+        )
+    raise ValueError("MCP_TRANSPORT must be stdio or http")
+
+
+class KlaudiaContainer:
+    """Service container - manages lifecycle of all services."""
+
+    def __init__(self) -> None:
+        self.settings: Optional[Settings] = None
+        self.llm_client: Optional[LLMClient] = None
+        self.kie_client: Optional[KIEClient] = None
+        self.db_client: Optional[ApplicationDatabase] = None
+        self.conversations: Optional[ConversationStore] = None
+        self.documents: Optional[PostgresDocumentStore] = None
+        self.document_outcomes: Optional[ExtractionOutcomeStore] = None
+        self.identity_store: Optional[IdentityStore] = None
+        self.identity_service: Optional[IdentityService] = None
+        self.memory_documents: Optional[DocumentRepository] = None
+        self.dedup_cache: Optional[DedupCache] = None
+        self.object_store: Optional[MinIOClient] = None
+        self.ingest_service: Optional[IngestService] = None
+        self.mcp_ledger: Optional[MCPToolRegistry] = None
+        self.guardrails: Optional[GuardrailsAgent] = None
+        self.ledger_store: Optional[LedgerStore] = None
+        self.spreadsheets: Optional[SpreadsheetService] = None
+        self.catalogue: Optional[CatalogueService] = None
+        self.authoring: Optional[AuthoringService] = None
+        self.main_chat: Optional[MainChatService] = None
+        self.tasks: Optional[PostgresTaskStore] = None
+        self.approvals: Optional[CheckedApprovals] = None
+        self.extraction_agent: Optional[ExtractionAgent] = None
+        self.langfuse: Optional[LangfuseService] = None
+
+    @classmethod
+    async def create(cls, settings: Settings) -> "KlaudiaContainer":
+        container = cls()
+        container.settings = settings
+        _ensure_gcp_credentials(settings)
+        container.langfuse = LangfuseService(settings)
+        container.llm_client = LLMClient(settings, langfuse=container.langfuse)
+        container.kie_client = KIEClient(settings, langfuse=container.langfuse)
+        container.db_client = ApplicationDatabase(settings)
+        await container.db_client.connect()
+        container.conversations = PostgresConversationStore(container.db_client.pool)
+        container.documents = PostgresDocumentStore(container.db_client.pool)
+        container.document_outcomes = PostgresExtractionOutcomes(
+            container.db_client.pool, settings.max_pdf_pages
+        )
+        container.identity_store = PostgresIdentityStore(container.db_client.pool)
+        container.identity_service = IdentityService(
+            container.identity_store,
+            BcryptPasswords(),
+            JwtTokenIssuer(
+                settings.jwt_secret, timedelta(days=settings.jwt_expires_days)
+            ),
+        )
+        memory_documents = PostgresMemoryDocumentStore(container.db_client.pool)
+        await memory_documents.initialize()
+        container.memory_documents = memory_documents
+        container.dedup_cache = DedupCache(settings)
+        try:
+            await container.dedup_cache.connect()
+        except Exception as e:
+            logger.warning(
+                "Redis unavailable (%s). Dedup cache disabled; database fallback active.",
+                e,
+            )
+            container.dedup_cache = None
+        container.object_store = MinIOClient(settings)
+        try:
+            await container.object_store.ensure_bucket()
+        except Exception as e:
+            logger.error("MinIO unavailable (%s). Image/PDF uploads will fail.", e)
+        container.ledger_store = LedgerStore(settings.database_url)
+        await container.ledger_store.connect_existing()
+        container.spreadsheets = SpreadsheetService(container.ledger_store)
+        container.catalogue = CatalogueService(
+            CatalogueStore(container.ledger_store.pool)
+        )
+        container.mcp_ledger = _build_ledger_registry(settings)
+        await container.mcp_ledger.connect()
+        container.approvals = CheckedApprovals(container.ledger_store.pool)
+
+        if container.dedup_cache is None:
+            container.dedup_cache = _NullDedupCache()  # type: ignore[assignment]
+
+        container.ingest_service = IngestService(
+            settings=settings,
+            db=container.documents,
+            outcomes=container.document_outcomes,
+            cache=container.dedup_cache,  # type: ignore[arg-type]
+            store=container.object_store,
+            ocr=container.kie_client,
+            langfuse=container.langfuse,
+        )
+
+        container.extraction_agent = ExtractionAgent(
+            ingest_service=container.ingest_service,
+            langfuse=container.langfuse,
+        )
+
+        guardrails_config = GuardrailsConfig(
+            enabled=settings.guardrails_enabled,
+            groq_api_key=settings.groq_api_key,
+            groq_model=settings.llm_guardrails_prompt_inj,
+            guardrails_model=settings.llm_guardrails_model,
+            guardrails_provider=settings.guardrails_provider,
+            deepseek_base_url=settings.deepseek_base_url,
+            deepseek_api_key=settings.deepseek_api_key,
+            disable_thinking=settings.llm_disable_thinking,
+        )
+        container.guardrails = GuardrailsAgent(
+            container.llm_client, guardrails_config, langfuse=container.langfuse
+        )
+
+        container.authoring = AuthoringService(
+            container.ledger_store.pool,
+            require_approval=settings.main_chat_require_approval,
+        )
+        openai_base_url, openai_api_key = settings.active_openai_endpoint()
+        container.tasks = PostgresTaskStore(
+            settings.database_url,
+            require_approval=settings.main_chat_require_approval,
+        )
+        await container.tasks.connect()
+        model = build_chat_llm(
+            model=settings.llm_model,
+            provider=settings.model_provider,
+            temperature=settings.llm_temperature,
+            use_vertexai=settings.google_genai_use_vertexai,
+            llm_api_key=settings.llm_api_key,
+            google_cloud_project=settings.google_cloud_project,
+            google_cloud_location=settings.google_cloud_location,
+            openai_base_url=openai_base_url,
+            openai_api_key=openai_api_key,
+            thinking_level=settings.llm_thinking_level,
+            disable_thinking=settings.llm_disable_thinking,
+        )
+        container.main_chat = MainChatService(
+            model,
+            container.catalogue,
+            container.conversations,
+            documents=container.documents,
+            operations=OperationService(container.ledger_store),
+            tasks=container.tasks,
+            authoring=container.authoring,
+            memory_documents=container.memory_documents,
+            langfuse=container.langfuse,
+        )
+
+        logger.info("KlaudiaContainer initialized")
+        return container
+
+    async def shutdown(self) -> None:
+        logger.info("Starting graceful shutdown...")
+        if self.guardrails:
+            await self.guardrails.shutdown()
+        if self.llm_client:
+            await self.llm_client.shutdown()
+        if self.kie_client:
+            await self.kie_client.shutdown()
+        if self.mcp_ledger:
+            await self.mcp_ledger.disconnect()
+        if self.tasks:
+            await self.tasks.close()
+        if self.ledger_store:
+            await self.ledger_store.close()
+        if isinstance(self.dedup_cache, DedupCache):
+            await self.dedup_cache.close()
+        if self.db_client:
+            await self.db_client.close()
+        if self.langfuse:
+            self.langfuse.shutdown()
+        logger.info("Shutdown complete")
+
+
+class _NullDedupCache:
+    """Null-object replacement for DedupCache when Redis is down.
+
+    Every read misses, every write is a no-op. IngestService keeps working
+    against PostgreSQL alone, with higher extraction latency.
+    """
+
+    async def get_blob(self, *_a, **_kw):  # noqa: D401
+        return None
+
+    async def set_blob(self, *_a, **_kw):
+        return None
+
+    async def get_extraction(self, *_a, **_kw):
+        return None
+
+    async def set_extraction(self, *_a, **_kw):
+        return None
+
+    async def delete_extraction(self, *_a, **_kw):
+        return None
+
+    async def queue_depth(self, *_a, **_kw):
+        return 0
+
+    async def close(self):
+        return None
