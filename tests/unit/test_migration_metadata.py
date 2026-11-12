@@ -20,7 +20,7 @@ import pytest
             },
         ),
         (
-            "app.adapters.persistence.metadata",
+            "klaudia_api.adapters.persistence.metadata",
             {
                 "user",
                 "session",
@@ -47,9 +47,9 @@ def test_metadata_registers_the_complete_owned_set(module_name, owned_tables):
 @pytest.mark.parametrize("history_name", ["ledger", "application"])
 def test_history_filters_exclude_other_tables(history_name):
     """Exclude foreign tables and both revision tables before reflection."""
-    history = importlib.import_module("app.adapters.persistence.migrations").HISTORIES[
-        history_name
-    ]
+    history = importlib.import_module(
+        "klaudia_api.adapters.persistence.migrations"
+    ).HISTORIES[history_name]
     for table_name in {"unrelated", "app_alembic_version", "ledger_alembic_version"}:
         assert not history.include_name(table_name, "table", {"schema_name": None})
     for table_name in history.metadata.tables:

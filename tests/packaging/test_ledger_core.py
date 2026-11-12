@@ -82,12 +82,17 @@ def installed_core(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return python
 
 
-def install_agent_packages(directory: Path, distributions: tuple[str, ...]) -> Path:
+def install_agent_packages(
+    directory: Path,
+    distributions: tuple[str, ...],
+    extras: dict[str, tuple[str, ...]] | None = None,
+) -> Path:
     """Build and install selected agent wheels with locked third-party versions.
 
     Args:
         directory: Build and environment directory outside the checkout.
         distributions: Workspace package directories to build.
+        extras: Optional install extras by distribution name.
 
     Returns:
         Python executable in the fresh environment.
@@ -127,6 +132,12 @@ def install_agent_packages(directory: Path, distributions: tuple[str, ...]) -> P
         )
         + "\n"
     )
+    requirements = []
+    for wheel in sorted(wheels.glob("*.whl")):
+        name = wheel.name.split("-")[0].replace("_", "-")
+        selected_extras = (extras or {}).get(name, ())
+        suffix = "[" + ",".join(selected_extras) + "]" if selected_extras else ""
+        requirements.append(str(wheel) + suffix)
     run_command(
         [
             "uv",
@@ -136,7 +147,7 @@ def install_agent_packages(directory: Path, distributions: tuple[str, ...]) -> P
             str(python),
             "--constraint",
             str(constraints),
-            *map(str, sorted(wheels.glob("*.whl"))),
+            *requirements,
         ],
         directory,
     )

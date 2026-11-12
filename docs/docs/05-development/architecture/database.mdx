@@ -15,8 +15,10 @@ schema changes. Runtime stores use asyncpg, with their existing pools and
 transaction rules. Domain and agent contracts do not import persistence metadata.
 The shared `ledger-postgres` package owns ledger adapters, metadata, revisions
 and the existing migration helpers. API and standalone MCP composition use the
-same implementation. Application history assets remain in
-`app/adapters/persistence/`, with ledger-before-application release order there.
+same implementation. Application history assets live in
+`services/api/migrations/` and ship inside the service wheel.
+`klaudia_api.adapters.persistence.migrations` composes ledger-before-application
+release order. Metadata remains in the service persistence adapter.
 [ADR 0001](decisions/0001-database-migration-schema.mdx) explains these choices,
 the Polar reference, and their costs. The
 [migration guide](../contributing/database-migrations.mdx) covers contributor and

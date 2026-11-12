@@ -3,8 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
-from app.services.core.container import _build_ledger_registry
-from config.settings import Settings
+from klaudia_api.composition.api import _build_ledger_registry
+from klaudia_api.composition.settings import Settings
 
 
 def test_ledger_registry_uses_the_application_database():
@@ -15,7 +15,8 @@ def test_ledger_registry_uses_the_application_database():
     )
     assert registry._name == "mcp-ledger"
     assert registry._stdio_env["DATABASE_URL"] == database_url
-    assert registry._stdio_cwd.endswith("/mcp-ledger")
+    assert registry._stdio_cwd is None
+    assert registry._stdio_args[:2] == ["-m", "klaudia_api.interfaces.mcp.host"]
 
 
 def test_database_url_cannot_be_empty():

@@ -108,8 +108,8 @@ async def purge_kie_file(container: Any, user_id: int, file_name: str) -> int:
 
 
 async def _main(file_names: list[str], user_id: int) -> None:
-    from app.services.core.container import KlaudiaContainer
-    from config.settings import get_settings
+    from klaudia_api.composition.api import KlaudiaContainer
+    from klaudia_api.composition.settings import get_settings
 
     container = await KlaudiaContainer.create(get_settings())
     try:

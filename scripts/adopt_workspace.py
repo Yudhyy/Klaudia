@@ -16,12 +16,9 @@ Requires: DATABASE_URL (Postgres DSN) in the environment or .env.
 import argparse
 import asyncio
 import os
-import sys
-from pathlib import Path
 
 from dotenv import load_dotenv
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "mcp-ledger"))
 
 load_dotenv()
 

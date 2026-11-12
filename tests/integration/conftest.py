@@ -7,15 +7,15 @@ from uuid import uuid4
 import asyncpg
 import pytest
 
-from app.services.extraction.infra.db_client import AppDBClient
-from config.settings import Settings
+from klaudia_api.adapters.documents.database import AppDBClient
+from klaudia_api.composition.settings import Settings
 from tests.integration.postgres import POSTGRES_TEST_URL, reset_postgres_database
 
 
 @pytest.fixture(scope="session")
 def migrated_postgres() -> None:
     """Apply the release histories once for tests that require the application."""
-    from app.adapters.persistence.migrations import upgrade_database
+    from klaudia_api.adapters.persistence.migrations import upgrade_database
 
     asyncio.run(upgrade_database(POSTGRES_TEST_URL))
 

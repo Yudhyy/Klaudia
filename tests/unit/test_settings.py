@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from config.settings import Settings
+from klaudia_api.composition.settings import DEFAULT_DATABASE_URL, Settings
 
 
 def test_deepseek_vision_is_default_kie_model():
@@ -51,9 +51,11 @@ def test_settings_repr_hides_credentials():
 
 
 def test_production_rejects_development_database_url():
+    """Reject the development URL even when the test runner sets a database."""
     settings = Settings(
         _env_file=None,
         STAGE="production",
+        DATABASE_URL=DEFAULT_DATABASE_URL,
         JWT_SECRET="production-test-secret-at-least-32-bytes",
     )
 

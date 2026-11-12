@@ -5,6 +5,7 @@ description = "MCP server exposing the Google Sheets tool surface backed by Post
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "klaudia-api[mcp]",
     "ledger-core",
     "ledger-postgres",
     "fastmcp==4.0.0b3",
@@ -13,6 +14,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
+klaudia-api = { workspace = true }
 ledger-core = { workspace = true }
 ledger-postgres = { workspace = true }
 

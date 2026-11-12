@@ -5,7 +5,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.adapters.agent.checkpoints import SavedSources, check_saved_access
+from klaudia_api.adapters.capabilities.agent.checkpoints import (
+    SavedSources,
+    check_saved_access,
+)
 from app.services.documents.ports import DocumentArchive
 from app.services.memory.ports import DocumentReader
 from ledger_core.resources import ResourceNotFoundError
@@ -14,7 +17,7 @@ from ledger_core.resources import ResourceNotFoundError
 @pytest.fixture
 def sources():
     """Supply source interfaces without a raw query capability."""
-    from app.services.catalogue.ports import WorkbookAccess
+    from klaudia_api.adapters.ledger.catalogue.ports import WorkbookAccess
 
     memory = AsyncMock(spec=DocumentReader)
     documents = AsyncMock(spec=DocumentArchive)

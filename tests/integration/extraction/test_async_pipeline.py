@@ -8,8 +8,10 @@ that proves Phase 3 wiring works before pointing at vLLM.
 
 from __future__ import annotations
 
-from app.adapters.persistence.documents import PostgresDocumentStore
-from app.adapters.persistence.extraction_outcomes import PostgresExtractionOutcomes
+from klaudia_api.adapters.persistence.documents import PostgresDocumentStore
+from klaudia_api.adapters.persistence.extraction_outcomes import (
+    PostgresExtractionOutcomes,
+)
 
 import asyncio
 import os
@@ -21,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from app.models.attachment import FileAttachment
+from klaudia_api.interfaces.http.models.attachment import FileAttachment
 from tests.integration.postgres import POSTGRES_TEST_URL
 
 
@@ -84,9 +86,9 @@ async def test_async_image_extraction_via_worker(postgres_db, monkeypatch):
             "-m",
             "taskiq",
             "worker",
-            "app.services.extraction.queue.broker:broker",
-            "app.services.extraction.queue.tasks",
-            "app.services.extraction.queue.state",
+            "klaudia_api.interfaces.workers.broker:broker",
+            "klaudia_api.interfaces.workers.extraction_worker",
+            "klaudia_api.composition.extraction_worker",
             "--workers",
             "1",
             "--max-async-tasks",
@@ -115,24 +117,24 @@ async def test_async_image_extraction_via_worker(postgres_db, monkeypatch):
 
         from importlib import reload
 
-        import config.settings as settings_mod
+        import klaudia_api.composition.settings as settings_mod
 
         settings_mod.get_settings.cache_clear()
         settings = settings_mod.get_settings()
 
-        from app.services.extraction.infra.dedup_cache import DedupCache
-        from app.services.extraction.infra.object_store import MinIOClient
-        from app.services.extraction.infra.kie_client import KIEClient
-        from app.services.extraction.ingest import IngestService
+        from klaudia_api.adapters.documents.cache.redis import DedupCache
+        from klaudia_api.adapters.documents.object_store.s3 import MinIOClient
+        from klaudia_api.adapters.documents.kie.client import KIEClient
+        from klaudia_api.adapters.documents.ingest import IngestService
 
         # IMPORTANT: orchestrator needs the same broker module the worker uses,
         # but on the FastAPI side we just call ingest.enqueue which kicks tasks
         # via Taskiq's HTTP/Redis broker — no separate broker init needed.
         # Reload the broker module to pick up the test TASKIQ_BROKER_URL env.
-        import app.services.extraction.queue.broker as broker_mod
+        import klaudia_api.interfaces.workers.broker as broker_mod
 
         reload(broker_mod)
-        import app.services.extraction.queue.tasks as tasks_mod
+        import klaudia_api.interfaces.workers.extraction_worker as tasks_mod
 
         reload(tasks_mod)
 
@@ -169,8 +171,14 @@ async def test_async_image_extraction_via_worker(postgres_db, monkeypatch):
         assert ef.cached_hits == 0
 
         # Subscribe to progress; wait up to 30s
-        from app.services.extraction.outcomes import ExtractionOutcomes, ExtractionScope
-        from app.services.extraction.queue.progress import ProgressWait, stream_progress
+        from klaudia_api.adapters.documents.outcomes import (
+            ExtractionOutcomes,
+            ExtractionScope,
+        )
+        from klaudia_api.adapters.documents.queue.progress import (
+            ProgressWait,
+            stream_progress,
+        )
 
         events = []
         async for ev in stream_progress(

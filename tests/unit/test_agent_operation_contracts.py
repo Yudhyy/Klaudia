@@ -8,9 +8,9 @@ from ledger_core.errors import ApprovalRequiredError, IdempotencyConflictError
 from ledger_core.resources import ResourceExistsError
 from pydantic import ValidationError
 
-from app.adapters.agent.authoring import AuthoringAdapter
-from app.adapters.agent.errors import ledger_failures
-from app.adapters.agent.operations import OperationAdapter
+from klaudia_api.adapters.capabilities.agent.authoring import AuthoringAdapter
+from klaudia_api.adapters.capabilities.agent.errors import ledger_failures
+from klaudia_api.adapters.capabilities.agent.operations import OperationAdapter
 from klaudia.core.agent.ports import errors
 from klaudia.core.agent.ports.authoring import AuthoringProposal
 from klaudia.core.agent.ports.typed import TypedEditProposal

@@ -10,7 +10,7 @@ import secrets
 import asyncpg
 import pytest
 
-from app.services.core.spreadsheets import SpreadsheetService
+from klaudia_api.adapters.ledger.spreadsheets import SpreadsheetService
 from ledger.store import (
     LedgerStore,
     SpreadsheetExistsError,

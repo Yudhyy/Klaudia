@@ -18,6 +18,7 @@ WORKDIR /app
 
 # Copy workspace manifests first so dependency layers can be cached.
 COPY pyproject.toml uv.lock ./
+COPY services/api/pyproject.toml ./services/api/pyproject.toml
 COPY klaudia/pyproject.toml ./klaudia/pyproject.toml
 COPY mcp-ledger/pyproject.toml ./mcp-ledger/pyproject.toml
 COPY packages/ledger-core/pyproject.toml ./packages/ledger-core/pyproject.toml
@@ -35,8 +36,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY . /app
 
 # Install the workspace packages after their source files are available.
-# The root workspace project is intentionally not installed as a package;
-# FastAPI imports app/ from /app; agent, ledger core and MCP are workspace packages.
+# Install the service and core wheels; the root project provides workspace tooling.
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-install-project --no-editable
 
@@ -45,7 +45,6 @@ FROM python:3.11-slim-bookworm AS runtime
 
 ENV VIRTUAL_ENV=/opt/venv \
     PATH="/opt/venv/bin:${PATH}" \
-    PYTHONPATH=/app \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
@@ -55,10 +54,10 @@ RUN groupadd --system --gid 10001 klaudia \
 WORKDIR /app
 
 COPY --from=builder --chown=10001:10001 /opt/venv /opt/venv
-COPY --from=builder --chown=10001:10001 /app /app
+COPY --from=builder --chown=10001:10001 /app/sample-data /app/sample-data
 
 USER 10001:10001
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "klaudia_api.main:app", "--host", "0.0.0.0", "--port", "8000"]

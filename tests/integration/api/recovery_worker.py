@@ -1,20 +1,20 @@
 """Disposable child process for testing durable task recovery after SIGKILL."""
 
-from app.adapters.persistence.conversations import PostgresConversationStore
-from app.adapters.persistence.documents import PostgresDocumentStore
+from klaudia_api.adapters.persistence.conversations import PostgresConversationStore
+from klaudia_api.adapters.persistence.documents import PostgresDocumentStore
 
 import asyncio
 import json
 import sys
 
-from app.models.chat import ChatMetadata
-from app.services.catalogue.service import CatalogueService
-from app.services.core.main_chat import MainChatService, MainChatTurn
-from app.services.core.operations import OperationService
-from app.services.extraction.infra.db_client import AppDBClient
-from app.adapters.ledger.task_operations import TaskOperations
+from klaudia_api.interfaces.http.models.chat import ChatMetadata
+from klaudia_api.adapters.ledger.catalogue.service import CatalogueService
+from klaudia_api.adapters.capabilities.main_chat import MainChatService, MainChatTurn
+from klaudia_api.adapters.capabilities.operations import OperationService
+from klaudia_api.adapters.documents.database import AppDBClient
+from klaudia_api.adapters.ledger.task_operations import TaskOperations
 from app.services.workflow.store import TaskStore
-from config.settings import Settings
+from klaudia_api.composition.settings import Settings
 from ledger.catalogue import CatalogueStore
 from ledger.store import LedgerStore
 from tests.integration.api.test_main_chat_routes import AppendChatModel

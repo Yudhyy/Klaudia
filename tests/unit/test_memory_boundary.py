@@ -6,11 +6,14 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.adapters.agent.checkpoints import SavedSources, check_saved_access
-from app.adapters.persistence.memory import PostgresMemoryReader
+from klaudia_api.adapters.capabilities.agent.checkpoints import (
+    SavedSources,
+    check_saved_access,
+)
+from klaudia_api.adapters.persistence.memory import PostgresMemoryReader
 from app.services.memory.contracts import DocumentPath, MemoryDocument
 from app.services.memory.ports import DocumentReader
-from app.services.catalogue.ports import WorkbookAccess
+from klaudia_api.adapters.ledger.catalogue.ports import WorkbookAccess
 from ledger_core.errors import RevisionConflictError
 
 
@@ -133,8 +136,8 @@ async def test_memory_reader_preserves_missing_document_status():
 
 def test_old_memory_imports_alias_the_canonical_adapters_and_error():
     """Retain existing caller imports without a second implementation."""
-    from app.adapters.ledger.reconciliation import PolicyReconciler
-    from app.adapters.persistence.memory import PostgresMemoryDocumentStore
+    from klaudia_api.adapters.ledger.reconciliation import PolicyReconciler
+    from klaudia_api.adapters.persistence.memory import PostgresMemoryDocumentStore
     from app.services.memory import reconciliation, store
     from app.services.memory.ports import DocumentConflict
 

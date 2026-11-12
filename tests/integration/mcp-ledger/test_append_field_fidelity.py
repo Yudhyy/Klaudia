@@ -1,8 +1,8 @@
 """Scripted boundary checks for exact field values, not live-model interpretation."""
 
-from app.adapters.agent.operations import OperationAdapter
+from klaudia_api.adapters.capabilities.agent.operations import OperationAdapter
 
-from app.adapters.agent.catalogue import CatalogueAdapter
+from klaudia_api.adapters.capabilities.agent.catalogue import CatalogueAdapter
 
 from copy import deepcopy
 import json
@@ -10,8 +10,8 @@ import json
 import pytest
 from langchain_core.messages import AIMessage
 
-from app.services.catalogue.service import CatalogueService
-from app.services.core.operations import OperationService
+from klaudia_api.adapters.ledger.catalogue.service import CatalogueService
+from klaudia_api.adapters.capabilities.operations import OperationService
 from klaudia.core.agent.agent import MainAgent
 from ledger.catalogue import CatalogueStore
 from ledger.operations import CellValue

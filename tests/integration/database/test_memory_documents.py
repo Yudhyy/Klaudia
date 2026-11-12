@@ -7,7 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.services.memory.contracts import DocumentEdit, DocumentPath
-from app.adapters.persistence.memory import PostgresMemoryDocumentStore
+from klaudia_api.adapters.persistence.memory import PostgresMemoryDocumentStore
 from app.services.memory.ports import DocumentConflict
 
 

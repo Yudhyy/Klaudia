@@ -1,15 +1,15 @@
 """Load fixed task and ledger records and recover through the real task store."""
 
-from app.adapters.agent.operations import OperationAdapter
+from klaudia_api.adapters.capabilities.agent.operations import OperationAdapter
 
-from app.adapters.agent.catalogue import CatalogueAdapter
+from klaudia_api.adapters.capabilities.agent.catalogue import CatalogueAdapter
 
 import json
 
 import pytest
 from langchain_core.messages import AIMessage
 
-from app.services.catalogue.service import CatalogueService
+from klaudia_api.adapters.ledger.catalogue.service import CatalogueService
 from app.services.workflow.approvals import CheckedApprovals
 from app.services.workflow.store import TaskStore
 from klaudia.core.agent.agent import MainAgent

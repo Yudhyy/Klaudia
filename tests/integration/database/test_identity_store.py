@@ -8,7 +8,7 @@ import pytest
 def identity_store(postgres_db, request):
     """Apply the same behavior checks to canonical and retained callers."""
     if request.param == "adapter":
-        from app.adapters.identity import PostgresIdentityStore
+        from klaudia_api.adapters.identity import PostgresIdentityStore
 
         return PostgresIdentityStore(postgres_db.pool)
     return postgres_db

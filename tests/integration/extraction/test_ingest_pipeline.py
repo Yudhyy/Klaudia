@@ -14,8 +14,10 @@ Requires the isolated PostgreSQL test database. Skipped if a service is down.
 
 from __future__ import annotations
 
-from app.adapters.persistence.documents import PostgresDocumentStore
-from app.adapters.persistence.extraction_outcomes import PostgresExtractionOutcomes
+from klaudia_api.adapters.persistence.documents import PostgresDocumentStore
+from klaudia_api.adapters.persistence.extraction_outcomes import (
+    PostgresExtractionOutcomes,
+)
 
 import os
 import uuid
@@ -24,13 +26,13 @@ from typing import AsyncIterator
 
 import pytest
 
-from app.models.attachment import FileAttachment
-from app.services.extraction.infra.db_client import AppDBClient
-from app.services.extraction.infra.dedup_cache import DedupCache
-from app.services.extraction.infra.object_store import MinIOClient
-from app.services.extraction.infra.kie_client import KIEClient
-from app.services.extraction.ingest import IngestService
-from config.settings import Settings
+from klaudia_api.interfaces.http.models.attachment import FileAttachment
+from klaudia_api.adapters.documents.database import AppDBClient
+from klaudia_api.adapters.documents.cache.redis import DedupCache
+from klaudia_api.adapters.documents.object_store.s3 import MinIOClient
+from klaudia_api.adapters.documents.kie.client import KIEClient
+from klaudia_api.adapters.documents.ingest import IngestService
+from klaudia_api.composition.settings import Settings
 from tests.integration.postgres import POSTGRES_TEST_URL
 
 
@@ -215,7 +217,7 @@ async def test_corrupt_image_rejected_by_magic_check(ingest_stack):
     """Bad magic bytes get rejected pre-flight (before any DB / MinIO writes).
     The orchestrator catches IngestRejectedError and surfaces a friendly
     message to the user."""
-    from app.exceptions import IngestRejectedError
+    from klaudia_api.exceptions import IngestRejectedError
 
     ingest, db, cache, store, sid = ingest_stack
 

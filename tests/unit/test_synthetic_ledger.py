@@ -5,7 +5,7 @@ of the hard bench - if the generator drifts, the baked YAML expectations drift
 with it and this test fails first.
 """
 
-from app.services.core.verifier import _cell_value
+from klaudia_api.adapters.guardrails.verifier import _cell_value
 from tests.e2e.synthetic import (
     HEADER,
     MISSING_STORE,

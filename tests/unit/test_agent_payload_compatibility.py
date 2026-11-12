@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock
 import pytest
 from langchain_core.messages import AIMessage
 
-from app.adapters.agent.catalogue import CatalogueAdapter
+from klaudia_api.adapters.capabilities.agent.catalogue import CatalogueAdapter
 from app.services.memory.contracts import MemoryDocument
 from app.services.memory.tools import MemoryReader
-from app.services.core.archive_tools import ArchiveReader
+from klaudia_api.adapters.capabilities.archive_tools import ArchiveReader
 from klaudia.core.agent.memory import MemoryTools
 from klaudia.core.agent.agent import MainAgent
 from klaudia.core.agent.context import TaskContext

@@ -5,7 +5,7 @@ import datetime
 import jwt
 import pytest
 
-from ledger.server import _build_auth, mcp
+from klaudia_api.interfaces.mcp.ledger.server import _build_auth, mcp
 
 
 EXPECTED_TOOLS = {

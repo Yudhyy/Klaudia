@@ -72,7 +72,7 @@ async def test_memory_reader_rejects_unknown_paths_and_propagates_failure():
 
 async def test_main_chat_binds_context_reader_to_turn_owner():
     """Use the authenticated turn identity for each on-demand context read."""
-    from app.services.core.main_chat import MainChatService
+    from klaudia_api.adapters.capabilities.main_chat import MainChatService
     from tests.unit.test_main_chat import chat_turn
 
     store = AsyncMock()

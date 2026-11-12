@@ -1,0 +1,717 @@
+import logging
+import re
+import time
+from contextlib import contextmanager
+from dataclasses import replace
+from typing import Any, AsyncIterator
+
+from klaudia_api.interfaces.http.models.attachment import FileAttachment
+from klaudia_api.interfaces.http.models.chat import (
+    ChatMetadata,
+    KlaudiaMessage,
+    KlaudiaResponse,
+)
+from klaudia_api.composition.api import KlaudiaContainer
+from klaudia_api.adapters.capabilities.main_chat import MainChatTurn
+from agent_core.agent.agent import RunOutcome
+from klaudia_api.adapters.guardrails.verifier import verify_reply
+from document_intelligence.media import is_pdf, is_supported_image
+from klaudia_api.interfaces.http.context import (
+    ExtractionContextFormat,
+    build_extraction_context,
+    get_active_spreadsheet,
+    reset_active_spreadsheet,
+    set_active_spreadsheet,
+)
+
+logger = logging.getLogger(__name__)
+
+
+@contextmanager
+def _nullctx():
+    yield None
+
+
+def _classify_attachments(
+    attachments: list[FileAttachment],
+) -> tuple[int, int, list[FileAttachment]]:
+    """Return (image_count, pdf_count, unknown_attachments).
+
+    Unknown = neither image nor pdf; rejected pre-OCR. Used by the orchestrator
+    to enforce the 'max 5 images' rule before any GPU work.
+    """
+    images = 0
+    pdfs = 0
+    unknown: list[FileAttachment] = []
+    for att in attachments:
+        if is_pdf(att.filename, att.content_type):
+            pdfs += 1
+        elif is_supported_image(att.filename, att.content_type):
+            images += 1
+        else:
+            unknown.append(att)
+    return images, pdfs, unknown
+
+
+def _check_attachment_shape(
+    attachments: list[FileAttachment], max_images: int
+) -> str | None:
+    """Return rejection message if shape violates upload rules, else None.
+
+    Rules:
+        - <= 1 PDF
+        - PDF and images cannot mix in the same turn
+        - <= max_images standalone images
+        - All attachments must be a supported image or pdf
+    """
+    images, pdfs, unknown = _classify_attachments(attachments)
+    if pdfs > 1:
+        return "Hanya satu PDF per pesan ya. Coba kirim ulang dengan 1 PDF saja."
+    if pdfs == 1 and images > 0:
+        return "Mau PDF atau gambar — tidak campur ya. Pilih salah satu."
+    if images > max_images:
+        return f"Maksimal {max_images} gambar per pesan. Ada {images} gambar terlampir."
+    if unknown:
+        names = ", ".join(a.filename for a in unknown)
+        return f"Format tidak didukung: {names}. Upload JPG/PNG/HEIC/PDF saja."
+    return None
+
+
+def _build_extraction_contexts(
+    extraction_results: list[dict[str, Any]],
+    output_format: ExtractionContextFormat,
+) -> list[str]:
+    """Serialize each attachment once for prompt, history, and verification."""
+    return [
+        build_extraction_context(extraction_result, output_format)
+        for extraction_result in extraction_results
+    ]
+
+
+class KlaudiaOrchestrator:
+    """Main conversation orchestrator.
+
+    Pipeline: context -> guardrails -> route (extraction/main agent) -> response
+    """
+
+    def __init__(self, container: KlaudiaContainer) -> None:
+        self._c = container
+        self._extraction_agent = container.extraction_agent
+        self._langfuse = container.langfuse
+
+    async def process(
+        self,
+        messages: list[KlaudiaMessage],
+        session_id: int | None,
+        user_id: int,
+        user_name: str = "User",
+        spreadsheet_id: str | None = None,
+        request_key: str | None = None,
+    ) -> KlaudiaResponse:
+        start = time.time()
+
+        # 0. Bind the tenant scope for this request. Everything downstream
+        # (sheets cache, agent tool calls) reads it from the ContextVar.
+        # Raises SpreadsheetNotFoundError for absent/foreign ids (route -> 404).
+        scope = await self._resolve_scope(user_id, spreadsheet_id)
+        scope_token = set_active_spreadsheet(scope)
+        try:
+            return await self._process_scoped(
+                messages, session_id, user_id, user_name, start, request_key=request_key
+            )
+        finally:
+            reset_active_spreadsheet(scope_token)
+
+    async def _process_scoped(
+        self,
+        messages: list[KlaudiaMessage],
+        session_id: int | None,
+        user_id: int,
+        user_name: str,
+        start: float,
+        *,
+        request_key: str | None = None,
+    ) -> KlaudiaResponse:
+        # 1. Ensure session exists
+        if session_id is None:
+            session_id = await self._c.conversations.create_session(user_id)
+
+        langfuse = self._langfuse
+        trace_cm = (
+            langfuse.trace_attributes(
+                session_id=session_id, user_id=user_id, tags=["klaudia", "chat"]
+            )
+            if langfuse is not None
+            else _nullctx()
+        )
+        span_cm = (
+            langfuse.span(
+                "klaudia.process",
+                as_type="agent",
+                input={"user_text": messages[-1].content, "user_name": user_name},
+                metadata={"session_id": session_id, "user_id": user_id},
+            )
+            if langfuse is not None
+            else _nullctx()
+        )
+
+        with trace_cm, span_cm as turn_obs:
+            response = await self._process_inner(
+                messages, session_id, user_id, user_name, start, request_key=request_key
+            )
+            if turn_obs is not None:
+                try:
+                    turn_obs.update(
+                        output={
+                            "content": response.message.content,
+                            "tools_used": response.tools_used,
+                            "processing_time_ms": response.processing_time_ms,
+                        }
+                    )
+                except Exception:
+                    pass
+
+            return response
+
+    async def _process_inner(
+        self,
+        messages: list[KlaudiaMessage],
+        session_id: int,
+        user_id: int,
+        user_name: str,
+        start: float,
+        *,
+        request_key: str | None = None,
+    ) -> KlaudiaResponse:
+
+        # 2. Get last user message text
+        user_msg = messages[-1]
+        user_text = user_msg.content
+
+        # 3. Guardrails (input)
+        guard_result = await self._c.guardrails.validate_input(user_text)
+        if not guard_result.passed:
+            return self._rejection_response(
+                session_id, guard_result.rejection_message, start
+            )
+
+        # 4. Check for attachments. Accumulate per-attachment results so multi-
+        # image uploads (1..N images, where N <= MAX_IMAGES_PER_UPLOAD) are
+        # surfaced to the main agent in upload order.
+        extraction_results: list[dict[str, Any]] = []
+        has_attachment = user_msg.attachments and len(user_msg.attachments) > 0
+        if has_attachment:
+            attachments = list(user_msg.attachments)
+            max_images = self._c.settings.max_images_per_upload
+            rejection = _check_attachment_shape(attachments, max_images)
+            if rejection is not None:
+                return self._rejection_response(session_id, rejection, start)
+
+            # PRV: queue depth gate (only meaningful in async mode but cheap to check)
+            prv_msg = await self._check_queue_pressure()
+            if prv_msg is not None:
+                return self._rejection_response(session_id, prv_msg, start)
+
+            for att in attachments:
+                # Note: process() (sync mode) and the async path both end up
+                # writing to the same DB tables. We always go through
+                # ExtractionAgent here because process() is non-streaming and
+                # callers expect data ready on return.
+                result = await self._extraction_agent.process(att, session_id, user_id)
+                extraction_results.append(
+                    {
+                        "file_id": result.file_id,
+                        "file_name": result.file_name,
+                        "pages": result.pages,
+                        "status": result.status,
+                        "summary": result.summary,
+                    }
+                )
+
+        return await self._process_main_chat(
+            MainChatTurn(
+                user_id=user_id,
+                session_id=session_id,
+                active_workbook_id=get_active_spreadsheet(),
+                text=user_text,
+                request_key=request_key,
+                extraction_contexts=(),
+                metadata=ChatMetadata(user_name=user_name),
+            ),
+            start,
+            extractions=extraction_results,
+        )
+
+    async def stream(
+        self,
+        messages: list[KlaudiaMessage],
+        session_id: int | None,
+        user_id: int,
+        user_name: str = "User",
+        spreadsheet_id: str | None = None,
+        request_key: str | None = None,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Stream the pipeline as structured SSE-ready events.
+
+        Event shape: {"type": <name>, "data": <payload>}
+        Types: session, guardrail, extraction, step, tool, token, done, error.
+        """
+        start = time.time()
+        scope_token = None
+
+        try:
+            # Tenant scope, same as process(). A resolution failure surfaces
+            # as an error event here; the HTTP route pre-validates explicit
+            # ids so clients still get a clean 404 before streaming starts.
+            scope = await self._resolve_scope(user_id, spreadsheet_id)
+            scope_token = set_active_spreadsheet(scope)
+
+            if session_id is None:
+                session_id = await self._c.conversations.create_session(user_id)
+            yield {"type": "session", "data": {"session_id": session_id}}
+
+            langfuse = self._langfuse
+            trace_cm = (
+                langfuse.trace_attributes(
+                    session_id=session_id,
+                    user_id=user_id,
+                    tags=["klaudia", "chat", "stream"],
+                )
+                if langfuse is not None
+                else _nullctx()
+            )
+            span_cm = (
+                langfuse.span(
+                    "klaudia.stream",
+                    as_type="agent",
+                    input={"user_text": messages[-1].content, "user_name": user_name},
+                    metadata={"session_id": session_id, "user_id": user_id},
+                )
+                if langfuse is not None
+                else _nullctx()
+            )
+            # Intentionally NOT using `with` as an async generator wrapper so events
+            # keep streaming; manually enter and ensure exit in finally block.
+            _entered_trace = trace_cm.__enter__()
+            turn_obs = span_cm.__enter__()
+
+            user_msg = messages[-1]
+            user_text = user_msg.content
+
+            yield {
+                "type": "guardrail",
+                "data": {"stage": "input", "status": "checking"},
+            }
+            guard_result = await self._c.guardrails.validate_input(user_text)
+            if not guard_result.passed:
+                rejection = guard_result.rejection_message
+                yield {
+                    "type": "guardrail",
+                    "data": {
+                        "stage": "input",
+                        "status": "rejected",
+                        "message": rejection,
+                    },
+                }
+                yield {"type": "token", "data": {"text": rejection}}
+                elapsed = int((time.time() - start) * 1000)
+                yield {
+                    "type": "done",
+                    "data": {
+                        "session_id": session_id,
+                        "processing_time_ms": elapsed,
+                        "tools_used": [],
+                        "content": rejection,
+                    },
+                }
+                return
+            yield {"type": "guardrail", "data": {"stage": "input", "status": "passed"}}
+
+            # User msg is persisted AFTER llm_messages is built (see the
+            # equivalent step in process()) so history doesn't double-count it.
+
+            extraction_results: list[dict[str, Any]] = []
+            has_attachment = user_msg.attachments and len(user_msg.attachments) > 0
+            if has_attachment:
+                attachments = list(user_msg.attachments)
+                max_images = self._c.settings.max_images_per_upload
+                rejection_msg = _check_attachment_shape(attachments, max_images)
+                if rejection_msg is not None:
+                    yield {
+                        "type": "guardrail",
+                        "data": {
+                            "stage": "attachment",
+                            "status": "rejected",
+                            "message": rejection_msg,
+                        },
+                    }
+                    yield {"type": "token", "data": {"text": rejection_msg}}
+                    elapsed = int((time.time() - start) * 1000)
+                    yield {
+                        "type": "done",
+                        "data": {
+                            "session_id": session_id,
+                            "processing_time_ms": elapsed,
+                            "tools_used": [],
+                            "content": rejection_msg,
+                        },
+                    }
+                    return
+
+                prv_msg = await self._check_queue_pressure()
+                if prv_msg is not None:
+                    yield {
+                        "type": "guardrail",
+                        "data": {
+                            "stage": "queue",
+                            "status": "rejected",
+                            "message": prv_msg,
+                        },
+                    }
+                    yield {"type": "token", "data": {"text": prv_msg}}
+                    elapsed = int((time.time() - start) * 1000)
+                    yield {
+                        "type": "done",
+                        "data": {
+                            "session_id": session_id,
+                            "processing_time_ms": elapsed,
+                            "tools_used": [],
+                            "content": prv_msg,
+                        },
+                    }
+                    return
+
+                async for event in self._run_extraction_stream(
+                    attachments, session_id, user_id
+                ):
+                    if event.get("__final__"):
+                        extraction_results = event["payload"]
+                        continue
+                    yield event
+
+            response = await self._process_main_chat(
+                MainChatTurn(
+                    user_id=user_id,
+                    session_id=session_id,
+                    active_workbook_id=get_active_spreadsheet(),
+                    text=user_text,
+                    request_key=request_key,
+                    extraction_contexts=(),
+                    metadata=ChatMetadata(user_name=user_name),
+                ),
+                start,
+                extractions=extraction_results,
+            )
+            if turn_obs is not None:
+                try:
+                    turn_obs.update(output=response.model_dump())
+                except Exception:
+                    logger.warning(
+                        "Could not record main chat output trace", exc_info=True
+                    )
+            span_cm.__exit__(None, None, None)
+            trace_cm.__exit__(None, None, None)
+            yield {"type": "token", "data": {"text": response.message.content}}
+            for approval in response.pending_approvals:
+                yield {"type": "approval_required", "data": approval}
+            yield {
+                "type": "done",
+                "data": {
+                    **response.model_dump(exclude={"message"}),
+                    "content": response.message.content,
+                },
+            }
+            return
+
+        except Exception as exc:
+            logger.exception("Stream pipeline error")
+            try:
+                span_cm.__exit__(type(exc), exc, exc.__traceback__)
+                trace_cm.__exit__(type(exc), exc, exc.__traceback__)
+            except Exception:
+                pass
+            yield {"type": "error", "data": {"message": str(exc)}}
+        finally:
+            if scope_token is not None:
+                reset_active_spreadsheet(scope_token)
+
+    async def _process_main_chat(
+        self, turn: MainChatTurn, start: float, *, extractions: list[dict[str, Any]]
+    ) -> KlaudiaResponse:
+        """Run chat and retain evidence even when prose checks reject it.
+
+        Args:
+            turn: Server-authenticated intent and extracted facts.
+            start: Request start time used for response latency.
+            extractions: Completed document facts from the shared extraction path.
+
+        Returns:
+            Buffered, checked reply with explicit runtime and operation evidence.
+
+        Raises:
+            RuntimeError: The main chat service is unavailable.
+            Exception: Execution or persistence failed before a recoverable outcome.
+        """
+        if self._c.main_chat is None:
+            raise RuntimeError("Main chat service is not configured")
+        turn = replace(
+            turn,
+            extraction_contexts=tuple(
+                _build_extraction_contexts(
+                    extractions, self._c.settings.extraction_context_format
+                )
+            ),
+            document_ids=tuple(item["file_id"] for item in extractions),
+        )
+        outcome = await self._c.main_chat.run(turn)
+        return await self._finish_main_chat(turn, outcome, start)
+
+    async def resume_task(self, user_id: int, task_id: str) -> KlaudiaResponse:
+        """Resume persisted intent without allowing a replacement task payload.
+
+        Args:
+            user_id: Authenticated task owner.
+            task_id: Original task identity.
+
+        Returns:
+            Checked response with original task and operation identities.
+        """
+        start = time.time()
+        turn, outcome = await self._c.main_chat.resume(user_id, task_id)
+        return await self._finish_main_chat(turn, outcome, start)
+
+    async def _finish_main_chat(
+        self, turn: MainChatTurn, outcome: RunOutcome, start: float
+    ) -> KlaudiaResponse:
+        """Check prose and persist the response without changing operation evidence.
+
+        Args:
+            turn: Original authenticated chat facts.
+            outcome: Observed execution result, including partial commits.
+            start: Request start time.
+
+        Returns:
+            Client response with durable task and operation references.
+        """
+        content = re.sub(
+            r"<think>.*?</think>", "", outcome.content, flags=re.DOTALL
+        ).strip()
+        if outcome.status == "awaiting_approval":
+            content = "The proposed operation is waiting for your approval. Earlier committed steps remain recorded; the pending operation has not run."
+        elif outcome.status != "answered":
+            content = (
+                f"The task stopped ({outcome.status}). Completion is not confirmed."
+            )
+            if outcome.operation_references:
+                content += " Operation references were saved in this session. Recover using the original reference before attempting another append."
+        if content and self._c.settings.numeric_verify_mode != "off":
+            verification = verify_reply(
+                content,
+                list(outcome.tool_evidence),
+                [turn.text, *turn.extraction_contexts],
+            )
+            if not verification.passed:
+                logger.warning(
+                    "Main chat numeric verification failed: %s", verification.ungrounded
+                )
+                if self._c.settings.numeric_verify_mode == "enforce":
+                    content = "I could not verify the figures in the proposed answer. Check the recorded operation evidence before retrying any write."
+        output_guard = await self._c.guardrails.validate_output(content)
+        if not output_guard.passed:
+            content = output_guard.rejection_message
+        await self._c.conversations.save_message(
+            turn.session_id, turn.user_id, "assistant", content
+        )
+        await self._c.conversations.update_session_timestamp(turn.session_id)
+        return KlaudiaResponse(
+            message=KlaudiaMessage(role="assistant", content=content),
+            session_id=turn.session_id,
+            processing_time_ms=int((time.time() - start) * 1000),
+            tools_used=list(outcome.tools_called),
+            metadata=turn.metadata,
+            pending_approvals=list(outcome.pending_approvals),
+            task_id=outcome.task_id,
+            runtime="main",
+            run_status=outcome.status,
+            operation_references=list(outcome.operation_references),
+            operation_receipts=list(outcome.operation_receipts),
+        )
+
+    async def _resolve_scope(
+        self, user_id: int, spreadsheet_id: str | None
+    ) -> str | None:
+        """Resolve the spreadsheet this request operates on.
+
+        The selected workbook must belong to the authenticated user.
+        """
+        if self._c.spreadsheets is None:
+            return None
+        return await self._c.spreadsheets.resolve_scope(user_id, spreadsheet_id)
+
+    def _rejection_response(
+        self, session_id: int, message: str, start: float
+    ) -> KlaudiaResponse:
+        elapsed = int((time.time() - start) * 1000)
+        return KlaudiaResponse(
+            message=KlaudiaMessage(role="assistant", content=message),
+            session_id=session_id,
+            processing_time_ms=elapsed,
+            tools_used=[],
+            runtime="main",
+            run_status="rejected",
+        )
+
+    async def _check_queue_pressure(self) -> str | None:
+        """PRV: read queue depth from Redis. Reject if at hard cap, warn at soft.
+
+        Returns rejection message if hard cap exceeded; otherwise None.
+        Soft-cap warnings are emitted as SSE events by the streaming caller
+        (we don't have a yield context here). In sync mode the soft cap is
+        ignored — the queue is empty since extraction runs inline.
+        """
+        settings = self._c.settings
+        if settings.extraction_mode != "async":
+            return None
+        cache = self._c.dedup_cache
+        if cache is None or not hasattr(cache, "queue_depth"):
+            return None
+        try:
+            depth = await cache.queue_depth(settings.taskiq_queue_name)
+        except Exception:
+            return None
+        if depth >= settings.extraction_queue_depth_reject:
+            logger.warning("Queue depth %d exceeds reject cap; rejecting upload", depth)
+            return f"Sistem lagi sibuk (antrian {depth} task). Coba lagi sebentar ya."
+        return None
+
+    async def _run_extraction_stream(
+        self,
+        attachments: list[FileAttachment],
+        session_id: int,
+        user_id: int,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Run extraction for each attachment, yielding SSE events as pages
+        complete. Final yield carries `__final__: True` and `payload`: the
+        list of extraction_data dicts the caller injects into llm_messages.
+        """
+        settings = self._c.settings
+        mode = settings.extraction_mode
+
+        if mode == "async":
+            async for event in self._run_extraction_async(
+                attachments, session_id, user_id
+            ):
+                yield event
+            return
+
+        # Sync mode: each attachment finishes inline, emit one extraction event each.
+        results: list[dict[str, Any]] = []
+        for att in attachments:
+            yield {
+                "type": "extraction",
+                "data": {"status": "processing", "file_name": att.filename},
+            }
+            result = await self._extraction_agent.process(att, session_id, user_id)
+            payload = {
+                "file_id": result.file_id,
+                "file_name": result.file_name,
+                "pages": result.pages,
+                "status": result.status,
+                "summary": result.summary,
+            }
+            results.append(payload)
+            yield {"type": "extraction", "data": payload}
+        yield {"__final__": True, "payload": results}
+
+    async def _run_extraction_async(
+        self,
+        attachments: list[FileAttachment],
+        session_id: int,
+        user_id: int,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Enqueue pages and consume owner-checked saved extraction outcomes."""
+        from klaudia_api.exceptions import IngestRejectedError
+        from klaudia_api.adapters.documents.queue.progress import (
+            ProgressWait,
+            stream_progress,
+        )
+        from document_intelligence.contracts import ExtractionScope
+
+        settings = self._c.settings
+        cache = self._c.dedup_cache
+        ingest = self._c.ingest_service
+
+        enqueued: list[Any] = []  # EnqueuedFile
+        for att in attachments:
+            yield {
+                "type": "extraction",
+                "data": {"status": "queueing", "file_name": att.filename},
+            }
+            try:
+                ef = await ingest.enqueue(att, session_id=session_id, user_id=user_id)
+            except IngestRejectedError as e:
+                yield {
+                    "type": "extraction",
+                    "data": {
+                        "status": "rejected",
+                        "file_name": att.filename,
+                        "reason": e.reason,
+                        "message": str(e),
+                    },
+                }
+                continue
+            enqueued.append(ef)
+            yield {
+                "type": "extraction",
+                "data": {
+                    "status": "queued",
+                    "file_id": ef.file_id,
+                    "file_name": ef.file_name,
+                    "pages_total": len(ef.pages),
+                    "queued": ef.queued,
+                    "cached_hits": ef.cached_hits,
+                },
+            }
+
+        if not enqueued:
+            yield {"__final__": True, "payload": []}
+            return
+
+        outcomes = self._c.document_outcomes
+        file_pages = {
+            ExtractionScope(user_id, session_id, ef.file_id): tuple(
+                p.page for p in ef.pages
+            )
+            for ef in enqueued
+        }
+        timeout = settings.extraction_page_timeout_seconds * max(
+            max(ef.queued for ef in enqueued), 1
+        )
+        redis_client = getattr(cache, "client", None)
+        async for event in stream_progress(
+            redis_client, outcomes, ProgressWait(file_pages, float(timeout))
+        ):
+            yield {
+                "type": "extraction",
+                "data": {
+                    "status": "page_done",
+                    "file_id": event.file_id,
+                    "page": event.page,
+                    "page_status": event.status,
+                    "cache_layer": event.cache_layer,
+                    "error": event.error,
+                },
+            }
+
+        results: list[dict[str, Any]] = []
+        for scope in file_pages:
+            outcome = await outcomes.read(scope)
+            payload = outcome.as_payload()
+            results.append(payload)
+            event_payload = dict(payload)
+            if not outcome.complete:
+                event_payload["status"] = "deferred"
+                event_payload["pages_total"] = len(event_payload.pop("pages"))
+            yield {"type": "extraction", "data": event_payload}
+
+        yield {"__final__": True, "payload": results}

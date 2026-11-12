@@ -51,7 +51,7 @@ def test_configured_issuer_retains_claims_algorithm_and_lifetime():
     """Use the supplied secret and lifetime with the existing JWT format."""
     import jwt
 
-    from app.adapters.auth.tokens import JwtTokenIssuer
+    from klaudia_api.adapters.auth.tokens import JwtTokenIssuer
 
     lifetime = datetime.timedelta(days=3)
     token = JwtTokenIssuer(_SECRET, lifetime).issue(42)

@@ -6,9 +6,9 @@ from uuid import uuid4
 import asyncpg
 import pytest
 
-from app.services.extraction.infra.dedup_cache import DedupCache
-from app.services.extraction.infra.object_store import MinIOClient
-from config.settings import Settings, get_settings
+from klaudia_api.adapters.documents.cache.redis import DedupCache
+from klaudia_api.adapters.documents.object_store.s3 import MinIOClient
+from klaudia_api.composition.settings import Settings, get_settings
 from tests.e2e.sandbox import sandbox_enabled
 
 pytestmark = pytest.mark.skipif(

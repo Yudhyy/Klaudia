@@ -9,8 +9,8 @@ from pathlib import Path
 import pytest
 from langchain_core.messages import AIMessage
 
-from app.models.chat import ChatMetadata
-from app.services.core.main_chat import MainChatService, MainChatTurn
+from klaudia_api.interfaces.http.models.chat import ChatMetadata
+from klaudia_api.adapters.capabilities.main_chat import MainChatService, MainChatTurn
 from tests.unit.test_agent_discovery_tools import descriptor
 from tests.unit.test_main_agent import ScriptedModel, call
 
@@ -173,7 +173,7 @@ async def test_post_commit_failure_keeps_receipt_and_never_reexecutes():
 
 def test_single_agent_has_no_runtime_or_legacy_memory_settings():
     """The application cannot select a retired runtime or memory service."""
-    from config.settings import Settings
+    from klaudia_api.composition.settings import Settings
 
     assert "chat_runtime" not in Settings.model_fields
     assert "memory_mode" not in Settings.model_fields
@@ -182,7 +182,7 @@ def test_single_agent_has_no_runtime_or_legacy_memory_settings():
 
 def orchestrator_container():
     """Build a container exposing only the main chat service."""
-    from config.settings import Settings
+    from klaudia_api.composition.settings import Settings
     from klaudia.core.agent.agent import RunOutcome
 
     database = AsyncMock()
@@ -219,8 +219,8 @@ def orchestrator_container():
 @pytest.mark.parametrize("streaming", [False, True])
 async def test_both_chat_paths_preserve_identity_and_check_output_first(streaming):
     """Both transports retain checked main-agent output."""
-    from app.models.chat import KlaudiaMessage
-    from app.services.core.orchestrator import KlaudiaOrchestrator
+    from klaudia_api.interfaces.http.models.chat import KlaudiaMessage
+    from klaudia_api.interfaces.http.orchestrator import KlaudiaOrchestrator
 
     container = orchestrator_container()
     container.guardrails.validate_output.return_value = SimpleNamespace(
@@ -295,9 +295,9 @@ async def test_large_history_does_not_block_small_followup():
 @pytest.mark.parametrize("streaming", [False, True])
 async def test_extraction_facts_and_document_ids_reach_main_chat(streaming):
     """Both transports hand extracted facts to the main runtime in upload order."""
-    from app.models.attachment import FileAttachment
-    from app.models.chat import KlaudiaMessage
-    from app.services.core.orchestrator import KlaudiaOrchestrator
+    from klaudia_api.interfaces.http.models.attachment import FileAttachment
+    from klaudia_api.interfaces.http.models.chat import KlaudiaMessage
+    from klaudia_api.interfaces.http.orchestrator import KlaudiaOrchestrator
 
     container = orchestrator_container()
     container.settings.extraction_mode = "sync"
@@ -348,8 +348,8 @@ async def test_enforced_numeric_failure_preserves_receipts():
     """Reject ungrounded prose without rewriting or discarding a known commit."""
     from dataclasses import replace
 
-    from app.models.chat import KlaudiaMessage
-    from app.services.core.orchestrator import KlaudiaOrchestrator
+    from klaudia_api.interfaces.http.models.chat import KlaudiaMessage
+    from klaudia_api.interfaces.http.orchestrator import KlaudiaOrchestrator
 
     container = orchestrator_container()
     container.settings.numeric_verify_mode = "enforce"
@@ -366,8 +366,8 @@ async def test_enforced_numeric_failure_preserves_receipts():
 
 async def test_input_rejection_reports_selected_runtime_without_running_agent():
     """Input guardrails stop the main route before it can invoke any tools."""
-    from app.models.chat import KlaudiaMessage
-    from app.services.core.orchestrator import KlaudiaOrchestrator
+    from klaudia_api.interfaces.http.models.chat import KlaudiaMessage
+    from klaudia_api.interfaces.http.orchestrator import KlaudiaOrchestrator
 
     container = orchestrator_container()
     container.guardrails.validate_input.return_value = SimpleNamespace(

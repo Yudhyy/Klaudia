@@ -15,10 +15,10 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
-from app.services.extraction.agents.schema import validate_and_merge
-from app.services.extraction.infra.kie_client import KIEClient
-from app.services.extraction.infra.normalizer import to_canonical_jpg
-from config.settings import Settings
+from klaudia_api.adapters.documents.extraction.schema import validate_and_merge
+from klaudia_api.adapters.documents.kie.client import KIEClient
+from klaudia_api.adapters.documents.media.normalizer import to_canonical_jpg
+from klaudia_api.composition.settings import Settings
 
 load_dotenv()
 

@@ -502,7 +502,7 @@ docker compose --profile sandbox up -d   # isolated store for the evaluation sui
 ```
 
 Compose runs the versioned database upgrade before the API and worker start.
-For host processes, run `uv run python -m app.adapters.persistence upgrade`
+For host processes, run `uv run python -m klaudia_api.adapters.persistence upgrade`
 with the intended `DATABASE_URL` first. Stop old API and worker processes
 before the first schema cutover. See the
 [database architecture](docs/docs/05-development/architecture/database.mdx) and
@@ -518,13 +518,12 @@ MOCK_KIE=true uv run pytest tests/e2e -q   # full evaluation
 ## 🗂️ Repository
 
 ```text
-app/            FastAPI routes, orchestrator, guardrails, extraction,
-                memory, verifier, approvals
+services/api/   installed API, extraction worker, MCP host, and concrete adapters
 klaudia/        compatibility imports for agent runtime and skills
 packages/agent-core/    single main agent, checked tools and capability ports
 packages/agent-skills/  versioned skill registry and procedure files
 packages/ledger-core/  pure ledger contracts, aggregation and exact native formulas
-mcp-ledger/     Postgres ledger MCP server (the default sheets backend)
+mcp-ledger/     compatibility imports and launcher for the installed ledger MCP host
 tests/e2e/      the sandbox: dataset, generators, runners, reports
 scripts/        migration, mirroring, tenancy and sandbox utilities
 ```

@@ -12,13 +12,13 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
-import config.settings as settings_mod
-from app.adapters.identity import PostgresIdentityStore
-from app.adapters.auth.passwords import BcryptPasswords
-from app.adapters.auth.tokens import JwtTokenIssuer
+import klaudia_api.composition.settings as settings_mod
+from klaudia_api.adapters.identity import PostgresIdentityStore
+from klaudia_api.adapters.auth.passwords import BcryptPasswords
+from klaudia_api.adapters.auth.tokens import JwtTokenIssuer
 from identity_core.service import IdentityService
-from app.models.chat import KlaudiaMessage, KlaudiaResponse
-from app.routes import v1_router
+from klaudia_api.interfaces.http.models.chat import KlaudiaMessage, KlaudiaResponse
+from klaudia_api.interfaces.http import v1_router
 
 
 class FakeOrchestrator:
@@ -42,7 +42,7 @@ async def client(monkeypatch, postgres_db) -> AsyncIterator[httpx.AsyncClient]:
     settings_mod.get_settings.cache_clear()
     settings = settings_mod.get_settings()
 
-    from app.helpers.ratelimit import attach_rate_limiter, limiter
+    from klaudia_api.interfaces.http.ratelimit import attach_rate_limiter, limiter
 
     # Moving-window state is process-global; wipe it between tests.
     limiter.reset()

@@ -7,11 +7,11 @@ see a stable schema.
 
 import pytest
 
-from app.services.extraction.agents.parser import (
+from klaudia_api.adapters.documents.extraction.parser import (
     OCRJsonParseError,
     parse_extraction_json,
 )
-from app.services.extraction.agents.schema import validate_and_merge
+from klaudia_api.adapters.documents.extraction.schema import validate_and_merge
 
 
 # ── Schema merge ───────────────────────────────────────────────────────────

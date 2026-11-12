@@ -21,16 +21,13 @@ a PostgreSQL ledger, document extraction, and an Expo mobile client.
 
 | Path | Responsibility |
 | --- | --- |
-| `app/main.py` | FastAPI startup and route registration |
-| `app/routes/` | HTTP adapters |
-| `app/adapters/` | Concrete infrastructure adapters, including the outbound MCP client |
-| `app/services/core/` | Service composition, chat orchestration, checked operations |
-| `app/services/workflow/` | Compatibility imports for workflow contracts, coordination and concrete adapters |
-| `app/services/extraction/` | OCR, media, object storage, cache, and queue adapters |
-| `app/services/documents/` | Compatibility imports for document contracts and storage interfaces |
-| `app/services/conversation/` | Session and message storage interface |
-| `app/services/catalogue/` | Resource discovery and table authoring |
-| `app/services/memory/` | Compatibility imports for memory contracts, interfaces and adapters |
+| `services/api/src/klaudia_api/main.py` | Installed ASGI application |
+| `services/api/src/klaudia_api/interfaces/` | HTTP, Taskiq and MCP transport adapters |
+| `services/api/src/klaudia_api/composition/` | API, worker and MCP resource ownership, configuration and launch paths |
+| `services/api/src/klaudia_api/adapters/` | Persistence, model, document, guardrail, tracing and capability adapters |
+| `services/api/src/klaudia_api/adapters/capabilities/` | Chat/workflow binding and consumer interfaces, including conversation storage |
+| `services/api/migrations/` | Application Alembic history and schema assets, included in the service wheel |
+| `services/api/src/app/` and `services/api/src/config/` | Installed compatibility imports |
 | `klaudia/` | Main agent, bounded tools, and versioned runtime skills |
 | `packages/ledger-core/` | Pure ledger contracts, exact financial queries, grid aggregation, and native formulas |
 | `packages/ledger-postgres/` | Shared PostgreSQL ledger storage, checked execution, approvals, and owned migrations |
@@ -38,8 +35,7 @@ a PostgreSQL ledger, document extraction, and an Expo mobile client.
 | `packages/workflow-core/` | Task, progress and decision interfaces with supplied storage and run coordination |
 | `packages/memory-core/` | Context document and policy contracts with owner-scoped read/edit interfaces |
 | `packages/document-intelligence/` | Document contracts, inline ingestion and queued page processing through supplied capabilities |
-| `mcp-ledger/ledger/` | MCP transport, owned-read policy, and compatibility imports |
-| `config/settings.py` | Runtime configuration |
+| `mcp-ledger/ledger/` | Compatibility imports for the canonical MCP host, ledger contracts and storage |
 | `apps/mobile/` | Expo and React Native client |
 | `tests/` | Unit, integration, and evaluation checks |
 | `.circleci/` | Backend and mobile CI commands and path selection |
@@ -57,8 +53,8 @@ From the repo root:
 
 ```bash
 uv sync --all-packages --group dev
-uv run ruff check app/ klaudia/ config/ mcp-ledger/ packages/ tests/
-uv run ruff format --check app/ klaudia/ config/ mcp-ledger/ packages/ tests/
+uv run ruff check services/api/ klaudia/ mcp-ledger/ packages/ tests/
+uv run ruff format --check services/api/ klaudia/ mcp-ledger/ packages/ tests/
 uv run pytest tests/unit -q
 uv run pytest tests/packaging -q
 ```

@@ -1,0 +1,2303 @@
+{
+  "components": {
+    "schemas": {
+      "ApprovalDecision": {
+        "properties": {
+          "decision": {
+            "pattern": "^(approve|reject)$",
+            "title": "Decision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "ApprovalDecision",
+        "type": "object"
+      },
+      "AuthoringProposal": {
+        "additionalProperties": false,
+        "description": "One explicit table lifecycle change with observed revision preconditions.",
+        "properties": {
+          "action": {
+            "enum": [
+              "create_table",
+              "register_table",
+              "update_table",
+              "refresh_table",
+              "unregister_table"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "column_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "maxLength": 256,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "maxItems": 256,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Column Ids"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TableRegistration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expected_catalogue_revision": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Catalogue Revision"
+          },
+          "expected_sheet_revision": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Sheet Revision"
+          },
+          "headers": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 256,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 256,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headers"
+          },
+          "table_id": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Table Id"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "AuthoringProposal",
+        "type": "object"
+      },
+      "ChatMetadata": {
+        "description": "Per-turn metadata for personalization.",
+        "properties": {
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "time": {
+            "title": "Time",
+            "type": "string"
+          },
+          "timezone": {
+            "default": "GMT+8",
+            "title": "Timezone",
+            "type": "string"
+          },
+          "user_name": {
+            "default": "User",
+            "title": "User Name",
+            "type": "string"
+          }
+        },
+        "title": "ChatMetadata",
+        "type": "object"
+      },
+      "DocumentEdit": {
+        "additionalProperties": false,
+        "description": "Accept content and an untrusted source note, never author identity.",
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "expected_revision": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 0.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "policy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReconciliationPolicy-Input"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_note": {
+            "default": "",
+            "maxLength": 512,
+            "title": "Source Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "content"
+        ],
+        "title": "DocumentEdit",
+        "type": "object"
+      },
+      "DocumentPath": {
+        "description": "Allow only the supported context documents.",
+        "enum": [
+          "/preferences.md",
+          "/conventions.md",
+          "/accounting-policy.md"
+        ],
+        "title": "DocumentPath",
+        "type": "string"
+      },
+      "FileAttachment": {
+        "description": "Attachment sent by the user in a chat message.",
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "data": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Data",
+            "type": "string"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          }
+        },
+        "required": [
+          "filename",
+          "content_type",
+          "data"
+        ],
+        "title": "FileAttachment",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "KlaudiaMessage": {
+        "properties": {
+          "attachments": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FileAttachment"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attachments"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "KlaudiaMessage",
+        "type": "object"
+      },
+      "KlaudiaRequest": {
+        "properties": {
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/KlaudiaMessage"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "request_key": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Key"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "spreadsheet_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spreadsheet Id"
+          },
+          "user_name": {
+            "default": "User",
+            "title": "User Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "messages"
+        ],
+        "title": "KlaudiaRequest",
+        "type": "object"
+      },
+      "KlaudiaResponse": {
+        "properties": {
+          "message": {
+            "$ref": "#/components/schemas/KlaudiaMessage"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/ChatMetadata"
+          },
+          "operation_receipts": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Operation Receipts",
+            "type": "array"
+          },
+          "operation_references": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Operation References",
+            "type": "array"
+          },
+          "pending_approvals": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Pending Approvals",
+            "type": "array"
+          },
+          "processing_time_ms": {
+            "title": "Processing Time Ms",
+            "type": "integer"
+          },
+          "run_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Status"
+          },
+          "runtime": {
+            "default": "main",
+            "title": "Runtime",
+            "type": "string"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "integer"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "tools_used": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tools Used",
+            "type": "array"
+          }
+        },
+        "required": [
+          "message",
+          "session_id",
+          "processing_time_ms"
+        ],
+        "title": "KlaudiaResponse",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "properties": {
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "MemoryDocument": {
+        "additionalProperties": false,
+        "description": "Represent a current revision, tombstone, or absent document.",
+        "properties": {
+          "actor_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Id"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "path": {
+            "$ref": "#/components/schemas/DocumentPath"
+          },
+          "policy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReconciliationPolicy-Output"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "revision": {
+            "default": 0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "source_note": {
+            "default": "",
+            "title": "Source Note",
+            "type": "string"
+          },
+          "status": {
+            "default": "missing",
+            "enum": [
+              "missing",
+              "active",
+              "deleted"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "MemoryDocument",
+        "type": "object"
+      },
+      "ReconciliationPolicy-Input": {
+        "additionalProperties": false,
+        "description": "Bind reconciliation rules to one declared entity, jurisdiction and period.",
+        "properties": {
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "effective_until": {
+            "format": "date",
+            "title": "Effective Until",
+            "type": "string"
+          },
+          "entity": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Entity",
+            "type": "string"
+          },
+          "jurisdiction": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Jurisdiction",
+            "type": "string"
+          },
+          "null_amounts": {
+            "enum": [
+              "reject",
+              "exclude"
+            ],
+            "title": "Null Amounts",
+            "type": "string"
+          },
+          "null_keys": {
+            "enum": [
+              "reject",
+              "never_match"
+            ],
+            "title": "Null Keys",
+            "type": "string"
+          },
+          "numeric_text": {
+            "enum": [
+              "reject",
+              "decimal"
+            ],
+            "title": "Numeric Text",
+            "type": "string"
+          },
+          "tolerance": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,32}|(?=[\\d.]{1,65}0*$)\\d{0,32}\\.\\d{0,32}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Tolerance"
+          },
+          "unit": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity",
+          "jurisdiction",
+          "effective_from",
+          "effective_until",
+          "unit",
+          "numeric_text",
+          "null_amounts",
+          "null_keys",
+          "tolerance"
+        ],
+        "title": "ReconciliationPolicy",
+        "type": "object"
+      },
+      "ReconciliationPolicy-Output": {
+        "additionalProperties": false,
+        "description": "Bind reconciliation rules to one declared entity, jurisdiction and period.",
+        "properties": {
+          "effective_from": {
+            "format": "date",
+            "title": "Effective From",
+            "type": "string"
+          },
+          "effective_until": {
+            "format": "date",
+            "title": "Effective Until",
+            "type": "string"
+          },
+          "entity": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Entity",
+            "type": "string"
+          },
+          "jurisdiction": {
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Jurisdiction",
+            "type": "string"
+          },
+          "null_amounts": {
+            "enum": [
+              "reject",
+              "exclude"
+            ],
+            "title": "Null Amounts",
+            "type": "string"
+          },
+          "null_keys": {
+            "enum": [
+              "reject",
+              "never_match"
+            ],
+            "title": "Null Keys",
+            "type": "string"
+          },
+          "numeric_text": {
+            "enum": [
+              "reject",
+              "decimal"
+            ],
+            "title": "Numeric Text",
+            "type": "string"
+          },
+          "tolerance": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,32}|(?=[\\d.]{1,65}0*$)\\d{0,32}\\.\\d{0,32}0*$)",
+            "title": "Tolerance",
+            "type": "string"
+          },
+          "unit": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity",
+          "jurisdiction",
+          "effective_from",
+          "effective_until",
+          "unit",
+          "numeric_text",
+          "null_amounts",
+          "null_keys",
+          "tolerance"
+        ],
+        "title": "ReconciliationPolicy",
+        "type": "object"
+      },
+      "RegisterRequest": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "maxLength": 64,
+            "minLength": 3,
+            "pattern": "^[a-zA-Z0-9_.-]+$",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "email",
+          "password"
+        ],
+        "title": "RegisterRequest",
+        "type": "object"
+      },
+      "ResourceSearch": {
+        "additionalProperties": false,
+        "description": "Bounded lexical discovery with optional hard business/schema filters.",
+        "properties": {
+          "concepts": {
+            "items": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 16,
+            "title": "Concepts",
+            "type": "array"
+          },
+          "entity": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity"
+          },
+          "intent": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Intent",
+            "type": "string"
+          },
+          "limit": {
+            "default": 5,
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "on_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "On Date"
+          },
+          "required_columns": {
+            "items": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 16,
+            "title": "Required Columns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "intent"
+        ],
+        "title": "ResourceSearch",
+        "type": "object"
+      },
+      "SpreadsheetCreate": {
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "SpreadsheetCreate",
+        "type": "object"
+      },
+      "SpreadsheetRename": {
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "SpreadsheetRename",
+        "type": "object"
+      },
+      "TableRegistration": {
+        "additionalProperties": false,
+        "description": "Caller-provided meaning attached to headers from an observed sheet revision.",
+        "properties": {
+          "aliases": {
+            "items": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Aliases",
+            "type": "array"
+          },
+          "description": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Description",
+            "type": "string"
+          },
+          "entity": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity"
+          },
+          "expected_sheet_revision": {
+            "minimum": 0.0,
+            "title": "Expected Sheet Revision",
+            "type": "integer"
+          },
+          "grain": {
+            "default": "",
+            "maxLength": 512,
+            "title": "Grain",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End"
+          },
+          "period_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Start"
+          },
+          "sheet_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Sheet Id",
+            "type": "integer"
+          },
+          "table_range": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Table Range",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sheet_id",
+          "expected_sheet_revision",
+          "table_range",
+          "name"
+        ],
+        "title": "TableRegistration",
+        "type": "object"
+      },
+      "TokenResponse": {
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "integer"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "user_id",
+          "username"
+        ],
+        "title": "TokenResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "title": "Klaudia Chatbot",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/approvals": {
+      "get": {
+        "description": "Pending ledger operations awaiting this user's decision.",
+        "operationId": "list_approvals_v1_approvals_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Approvals V1 Approvals Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Approvals",
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
+    "/v1/approvals/{approval_id}": {
+      "post": {
+        "description": "Execute or discard a parked operation.",
+        "operationId": "resolve_approval_v1_approvals__approval_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "approval_id",
+            "required": true,
+            "schema": {
+              "title": "Approval Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalDecision"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Resolve Approval V1 Approvals  Approval Id  Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resolve Approval",
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
+    "/v1/auth/login": {
+      "post": {
+        "description": "Verify credentials and return an access token.",
+        "operationId": "login_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/register": {
+      "post": {
+        "description": "Create a user account and return an access token.",
+        "operationId": "register_v1_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/catalogue/operations/{operation_ref}/execute": {
+      "post": {
+        "description": "Execute or replay an original reference under fresh ledger checks.\n\nArgs:\n    operation_ref: Original prepared operation identity.\n    request: HTTP service context.\n    response: Response carrying rate-limit headers.\n    user_id: JWT-derived owner identity.\n\nReturns:\n    Committed operation receipt.",
+        "operationId": "execute_table_v1_catalogue_operations__operation_ref__execute_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "operation_ref",
+            "required": true,
+            "schema": {
+              "title": "Operation Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Execute Table V1 Catalogue Operations  Operation Ref  Execute Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Execute Table",
+        "tags": [
+          "catalogue"
+        ]
+      }
+    },
+    "/v1/catalogue/proposals": {
+      "post": {
+        "description": "Persist an exact authoring proposal without changing the grid or catalogue.\n\nArgs:\n    body: Validated action and observed source revisions.\n    request: HTTP service context.\n    response: Response carrying rate-limit headers.\n    user_id: JWT-derived owner identity.\n\nReturns:\n    Fresh operation reference and optional human approval identity.",
+        "operationId": "prepare_table_v1_catalogue_proposals_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthoringProposal"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Prepare Table V1 Catalogue Proposals Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Prepare Table",
+        "tags": [
+          "catalogue"
+        ]
+      }
+    },
+    "/v1/catalogue/sheets": {
+      "get": {
+        "description": "List owned sheet identities on demand for table placement.\n\nArgs:\n    request: HTTP service context.\n    response: Response carrying rate-limit headers.\n    workbook_id: Optional owned workbook filter.\n    offset: Number of sheet records already read.\n    user_id: JWT-derived owner identity.\n\nReturns:\n    Bounded sheet page and continuation offset.",
+        "operationId": "list_sheets_v1_catalogue_sheets_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "workbook_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workbook Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 100000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response List Sheets V1 Catalogue Sheets Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Sheets",
+        "tags": [
+          "catalogue"
+        ]
+      }
+    },
+    "/v1/catalogue/sheets/{sheet_id}/region": {
+      "get": {
+        "description": "Inspect bounded placement evidence under current ownership.\n\nArgs:\n    sheet_id: Stable source sheet identity.\n    request: HTTP service context.\n    response: Response carrying rate-limit headers.\n    table_range: Finite A1 region to inspect.\n    user_id: JWT-derived owner identity.\n\nReturns:\n    Source revision, selected values and overlapping table identities.",
+        "operationId": "inspect_region_v1_catalogue_sheets__sheet_id__region_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sheet_id",
+            "required": true,
+            "schema": {
+              "title": "Sheet Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "table_range",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Table Range",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Inspect Region V1 Catalogue Sheets  Sheet Id  Region Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Inspect Region",
+        "tags": [
+          "catalogue"
+        ]
+      }
+    },
+    "/v1/chat": {
+      "post": {
+        "description": "Process a chat message through the Klaudia pipeline (non-streaming).",
+        "operationId": "chat_v1_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KlaudiaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KlaudiaResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Chat"
+      }
+    },
+    "/v1/chat/stream": {
+      "post": {
+        "description": "Stream the Klaudia pipeline as Server-Sent Events.",
+        "operationId": "chat_stream_v1_chat_stream_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KlaudiaRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Chat Stream"
+      }
+    },
+    "/v1/health": {
+      "get": {
+        "operationId": "health_check_v1_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Health Check V1 Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health Check"
+      }
+    },
+    "/v1/memory/{path}": {
+      "delete": {
+        "description": "Hide the current content while keeping its revision history.\n\nArgs:\n    request: Request used for rate limits.\n    response: Response used for rate-limit headers.\n    expected_revision: Revision read by the editor.\n    user_id: Verified token identity.\n    path: Allowlisted context path.\n    store: Application-owned context store.\n\nReturns:\n    The committed tombstone.\n\nRaises:\n    HTTPException: The document is absent or its revision is stale.",
+        "operationId": "delete_document_v1_memory__path__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expected_revision",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775806,
+              "minimum": 1,
+              "title": "Expected Revision",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryDocument"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Document",
+        "tags": [
+          "memory"
+        ]
+      },
+      "get": {
+        "description": "Read a current document or its explicit missing/deleted status.\n\nArgs:\n    request: Request used for rate limits.\n    response: Response used for rate-limit headers.\n    user_id: Verified token identity.\n    path: Allowlisted context path.\n    store: Application-owned context store.\n\nReturns:\n    The owner's document and revision.",
+        "operationId": "read_document_v1_memory__path__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryDocument"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Read Document",
+        "tags": [
+          "memory"
+        ]
+      },
+      "put": {
+        "description": "Apply an explicit human edit at its observed revision.\n\nArgs:\n    body: Bounded text and expected revision, without authority fields.\n    request: Request used for rate limits.\n    response: Response used for rate-limit headers.\n    user_id: Verified token identity.\n    path: Allowlisted context path.\n    store: Application-owned context store.\n\nReturns:\n    The committed document and new revision.\n\nRaises:\n    HTTPException: The expected revision is stale.",
+        "operationId": "write_document_v1_memory__path__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemoryDocument"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Write Document",
+        "tags": [
+          "memory"
+        ]
+      }
+    },
+    "/v1/resources/search": {
+      "post": {
+        "description": "Discover registered tables across the authenticated user's workbooks.\n\nArgs:\n    body: Search intent and metadata filters; no ownership fields.\n    request: HTTP request used for service resolution and rate limits.\n    response: Response used to attach rate-limit headers.\n    user_id: Identity from the verified bearer token.\n\nReturns:\n    Bounded candidates with freshness and ranking evidence.\n\nRaises:\n    HTTPException: The service is unavailable or the response exceeds its budget.",
+        "operationId": "search_resources_v1_resources_search_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceSearch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Search Resources V1 Resources Search Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Search Resources",
+        "tags": [
+          "resources"
+        ]
+      }
+    },
+    "/v1/resources/{table_id}": {
+      "get": {
+        "description": "Inspect a table with an ownership check in the same database read.\n\nArgs:\n    table_id: Stable resource identity selected by the caller.\n    request: HTTP request used for service resolution and rate limits.\n    response: Response used to attach rate-limit headers.\n    column_offset: Zero-based start of the schema page.\n    column_limit: Maximum columns in this page.\n    user_id: Identity from the verified bearer token.\n\nReturns:\n    Bounded registered metadata and a page of column definitions.\n\nRaises:\n    HTTPException: The table is absent/foreign, backend unavailable, or output too large.",
+        "operationId": "inspect_resource_v1_resources__table_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "table_id",
+            "required": true,
+            "schema": {
+              "title": "Table Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "column_offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Column Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "column_limit",
+            "required": false,
+            "schema": {
+              "default": 32,
+              "maximum": 64,
+              "minimum": 1,
+              "title": "Column Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Inspect Resource V1 Resources  Table Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Inspect Resource",
+        "tags": [
+          "resources"
+        ]
+      }
+    },
+    "/v1/sessions": {
+      "get": {
+        "operationId": "list_sessions_v1_sessions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Sessions"
+      }
+    },
+    "/v1/sessions/{session_id}": {
+      "get": {
+        "operationId": "get_session_v1_sessions__session_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Session"
+      }
+    },
+    "/v1/sheets/data": {
+      "get": {
+        "description": "Return cell values from a sheet tab in the user's spreadsheet\n(default one when spreadsheet_id is omitted).",
+        "operationId": "get_sheet_data_v1_sheets_data_get",
+        "parameters": [
+          {
+            "description": "Sheet tab name, e.g. 'Sheet1'",
+            "in": "query",
+            "name": "sheet",
+            "required": true,
+            "schema": {
+              "description": "Sheet tab name, e.g. 'Sheet1'",
+              "title": "Sheet",
+              "type": "string"
+            }
+          },
+          {
+            "description": "A1 notation range, e.g. 'A1:F50'",
+            "in": "query",
+            "name": "range",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "A1 notation range, e.g. 'A1:F50'",
+              "title": "Range"
+            }
+          },
+          {
+            "description": "Spreadsheet to read",
+            "in": "query",
+            "name": "spreadsheet_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Spreadsheet to read",
+              "title": "Spreadsheet Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Sheet Data",
+        "tags": [
+          "sheets"
+        ]
+      }
+    },
+    "/v1/sheets/info": {
+      "get": {
+        "description": "Return spreadsheet title and all sheet tab names for the user's\nspreadsheet (default one when spreadsheet_id is omitted).",
+        "operationId": "get_spreadsheet_info_v1_sheets_info_get",
+        "parameters": [
+          {
+            "description": "Spreadsheet to read",
+            "in": "query",
+            "name": "spreadsheet_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Spreadsheet to read",
+              "title": "Spreadsheet Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Spreadsheet Info",
+        "tags": [
+          "sheets"
+        ]
+      }
+    },
+    "/v1/spreadsheets": {
+      "get": {
+        "operationId": "list_spreadsheets_v1_spreadsheets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Spreadsheets V1 Spreadsheets Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Spreadsheets",
+        "tags": [
+          "spreadsheets"
+        ]
+      },
+      "post": {
+        "operationId": "create_spreadsheet_v1_spreadsheets_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpreadsheetCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Spreadsheet V1 Spreadsheets Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Spreadsheet",
+        "tags": [
+          "spreadsheets"
+        ]
+      }
+    },
+    "/v1/spreadsheets/{spreadsheet_id}": {
+      "delete": {
+        "operationId": "delete_spreadsheet_v1_spreadsheets__spreadsheet_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "spreadsheet_id",
+            "required": true,
+            "schema": {
+              "title": "Spreadsheet Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Spreadsheet",
+        "tags": [
+          "spreadsheets"
+        ]
+      },
+      "patch": {
+        "operationId": "rename_spreadsheet_v1_spreadsheets__spreadsheet_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "spreadsheet_id",
+            "required": true,
+            "schema": {
+              "title": "Spreadsheet Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpreadsheetRename"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Rename Spreadsheet V1 Spreadsheets  Spreadsheet Id  Patch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rename Spreadsheet",
+        "tags": [
+          "spreadsheets"
+        ]
+      }
+    },
+    "/v1/tasks": {
+      "get": {
+        "description": "Find owned tasks when a previous response did not reach the client.\n\nArgs:\n    request: HTTP service context.\n    response: Response carrying rate-limit headers.\n    session_id: Owned conversation identity.\n    offset: Number of tasks already inspected.\n    user_id: JWT-derived identity.\n\nReturns:\n    Bounded task summaries with original task IDs.",
+        "operationId": "list_tasks_v1_tasks_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "exclusiveMinimum": 0,
+              "title": "Session Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 100000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response List Tasks V1 Tasks Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Tasks",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/v1/tasks/{task_id}": {
+      "get": {
+        "description": "Return owned task progress without exposing internal model messages.\n\nArgs:\n    task_id: Original task identity.\n    request: HTTP service context.\n    response: Response carrying rate-limit headers.\n    user_id: JWT-derived identity.\n\nReturns:\n    Recorded status and currently owned operation receipts.",
+        "operationId": "get_task_v1_tasks__task_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Task V1 Tasks  Task Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Task",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/v1/tasks/{task_id}/resume": {
+      "post": {
+        "description": "Resume the exact stored task without accepting new instructions.\n\nArgs:\n    task_id: Original task identity.\n    request: HTTP service context.\n    response: Response carrying rate-limit headers.\n    user_id: JWT-derived identity.\n\nReturns:\n    Checked response with task status and committed operation evidence.",
+        "operationId": "resume_task_v1_tasks__task_id__resume_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KlaudiaResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Resume Task",
+        "tags": [
+          "tasks"
+        ]
+      }
+    }
+  }
+}

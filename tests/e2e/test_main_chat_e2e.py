@@ -9,8 +9,8 @@ from uuid import uuid4
 
 import pytest
 
-from app.models.chat import KlaudiaMessage
-from app.services.core.verifier import extract_claims
+from klaudia_api.interfaces.http.models.chat import KlaudiaMessage
+from klaudia_api.adapters.guardrails.verifier import extract_claims
 from tests.e2e.capability_cases import CAPABILITY_SEED, seeded_capability_case
 from tests.e2e.comparison_owner import comparison_owner
 from tests.e2e.conftest import requires_live
@@ -32,7 +32,7 @@ def chat_report():
     Yields:
         Mutable report with only non-secret configuration and synthetic evidence.
     """
-    from config.settings import get_settings
+    from klaudia_api.composition.settings import get_settings
 
     settings = get_settings()
     if os.environ.get("E2E_SANDBOX_ACTIVE") != "1" or not sandbox_enabled():

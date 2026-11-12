@@ -1,15 +1,15 @@
 """Main chat retains typed operation receipts through approvals and durable replay."""
 
-from app.adapters.persistence.conversations import PostgresConversationStore
-from app.adapters.persistence.documents import PostgresDocumentStore
+from klaudia_api.adapters.persistence.conversations import PostgresConversationStore
+from klaudia_api.adapters.persistence.documents import PostgresDocumentStore
 
 import json
 
 import pytest
 from langchain_core.messages import AIMessage
 
-from app.services.core.main_chat import MainChatService
-from app.services.core.operations import OperationService
+from klaudia_api.adapters.capabilities.main_chat import MainChatService
+from klaudia_api.adapters.capabilities.operations import OperationService
 from app.services.workflow.store import TaskSession
 from ledger.typed_cells import inspect_workbook
 from tests.e2e.capability_cases import CapabilityFixture

@@ -9,8 +9,12 @@ from unittest.mock import AsyncMock
 import pytest
 from redis.exceptions import ConnectionError
 
-from app.services.extraction.outcomes import ExtractionScope, FileOutcome, PageOutcome
-from app.services.extraction.queue.progress import ProgressWait, stream_progress
+from klaudia_api.adapters.documents.outcomes import (
+    ExtractionScope,
+    FileOutcome,
+    PageOutcome,
+)
+from klaudia_api.adapters.documents.queue.progress import ProgressWait, stream_progress
 
 SCOPE = ExtractionScope(1, 3, 7)
 

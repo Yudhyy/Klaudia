@@ -1,7 +1,9 @@
 """Durable extraction checks with PostgreSQL and controlled worker timing."""
 
-from app.adapters.persistence.documents import PostgresDocumentStore
-from app.adapters.persistence.extraction_outcomes import PostgresExtractionOutcomes
+from klaudia_api.adapters.persistence.documents import PostgresDocumentStore
+from klaudia_api.adapters.persistence.extraction_outcomes import (
+    PostgresExtractionOutcomes,
+)
 
 import asyncio
 from dataclasses import replace
@@ -10,18 +12,22 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from app.models.attachment import FileAttachment
-from app.services.core.orchestrator import KlaudiaOrchestrator
-from app.services.extraction.ingest import EnqueuedFile, EnqueuedPage, IngestService
-from app.services.extraction.outcomes import (
+from klaudia_api.interfaces.http.models.attachment import FileAttachment
+from klaudia_api.interfaces.http.orchestrator import KlaudiaOrchestrator
+from klaudia_api.adapters.documents.ingest import (
+    EnqueuedFile,
+    EnqueuedPage,
+    IngestService,
+)
+from klaudia_api.adapters.documents.outcomes import (
     MAX_EXTRACTION_CHARACTERS,
     ExtractionOutcomes,
     ExtractionScope,
     PageOutcome,
 )
-from app.services.extraction.queue import tasks
-from app.services.extraction.queue.progress import ProgressWait, stream_progress
-from config.settings import Settings
+from klaudia_api.interfaces.workers import extraction_worker as tasks
+from klaudia_api.adapters.documents.queue.progress import ProgressWait, stream_progress
+from klaudia_api.composition.settings import Settings
 from document_intelligence import queued
 from ledger.resources import ResourceNotFoundError
 
@@ -475,7 +481,7 @@ async def test_page_write_rolls_back_if_aggregate_update_fails(prepared_file):
 
 
 async def test_completed_extraction_with_actual_null_cache(prepared_file):
-    from app.services.core.container import _NullDedupCache
+    from klaudia_api.composition.api import _NullDedupCache
 
     db, scope, blob = prepared_file
     service = ExtractionOutcomes(db)

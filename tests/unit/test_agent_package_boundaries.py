@@ -79,5 +79,5 @@ def test_legacy_skill_registry_uses_canonical_definitions():
 
 def test_provider_factory_belongs_to_application():
     """Load provider construction through its application adapter."""
-    factory = import_module("app.adapters.llm.model_factory")
-    assert factory.build_chat_llm.__module__ == "app.adapters.llm.model_factory"
+    factory = import_module("klaudia_api.adapters.llm.model_factory")
+    assert factory.build_chat_llm.__module__ == "klaudia_api.adapters.llm.model_factory"

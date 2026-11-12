@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 from fastmcp import Client
 import pytest
 
-from ledger.server import mcp
+from klaudia_api.interfaces.mcp.ledger.server import mcp
 
 
 READ_TOOLS = {

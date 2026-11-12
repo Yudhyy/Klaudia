@@ -8,12 +8,12 @@ from fastapi import FastAPI
 import httpx
 import pytest
 
-from app.helpers import auth
-from app.routes.v1.sheets import router
+from klaudia_api.interfaces.http import dependencies as auth
+from klaudia_api.interfaces.http.v1.sheets import router
 from app.services.auth.tokens import create_access_token
-from app.services.core.container import _build_ledger_registry
-from app.services.core.spreadsheets import SpreadsheetService
-from config.settings import Settings
+from klaudia_api.composition.api import _build_ledger_registry
+from klaudia_api.adapters.ledger.spreadsheets import SpreadsheetService
+from klaudia_api.composition.settings import Settings
 from ledger.store import LedgerStore
 from tests.integration.postgres import POSTGRES_TEST_URL
 

@@ -13,15 +13,15 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
-from app.adapters.identity import PostgresIdentityStore
-from app.adapters.auth.passwords import BcryptPasswords
-from app.adapters.auth.tokens import JwtTokenIssuer
+from klaudia_api.adapters.identity import PostgresIdentityStore
+from klaudia_api.adapters.auth.passwords import BcryptPasswords
+from klaudia_api.adapters.auth.tokens import JwtTokenIssuer
 from identity_core.service import IdentityService
-from app.routes import v1_router
-from app.helpers.ratelimit import limiter
+from klaudia_api.interfaces.http import v1_router
+from klaudia_api.interfaces.http.ratelimit import limiter
 from app.services.auth.passwords import verify_password
 from app.services.auth.tokens import decode_access_token
-from config.settings import get_settings
+from klaudia_api.composition.settings import get_settings
 
 
 @pytest.fixture

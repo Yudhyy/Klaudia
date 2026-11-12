@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.models.chat import KlaudiaMessage
+from klaudia_api.interfaces.http.models.chat import KlaudiaMessage
 from ledger.resources import TableRegistration
 from tests.e2e.comparison_owner import comparison_owner
 from tests.e2e.conftest import requires_live
@@ -193,7 +193,7 @@ def financial_report():
     Yields:
         Report containing only synthetic evidence and non-secret settings.
     """
-    from config.settings import get_settings
+    from klaudia_api.composition.settings import get_settings
 
     settings = get_settings()
     if not sandbox_enabled() or os.environ.get("E2E_SANDBOX_ACTIVE") != "1":

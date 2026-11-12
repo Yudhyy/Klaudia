@@ -1,6 +1,6 @@
 """Build current runtimes for checks against fixed release fixtures."""
 
-from app.adapters.agent.reconciliation import ReconciliationAdapter
+from klaudia_api.adapters.capabilities.agent.reconciliation import ReconciliationAdapter
 
 import json
 from itertools import product
@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock
 from langchain_core.tools import StructuredTool
 from langchain_core.utils.function_calling import convert_to_openai_tool
 
-from app.services.core.archive_tools import ArchiveReader
+from klaudia_api.adapters.capabilities.archive_tools import ArchiveReader
 from app.services.memory.reconciliation import PolicyReconciler
 from app.services.memory.tools import MemoryReader
 from klaudia.core.agent.context import TaskContext

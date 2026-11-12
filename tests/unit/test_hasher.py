@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.services.extraction.infra.hasher import (
+from klaudia_api.adapters.documents.media.hasher import (
     HEX_DIGEST_LEN,
     hash_bytes,
     shard_path,

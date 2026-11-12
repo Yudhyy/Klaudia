@@ -4,8 +4,8 @@ import io
 
 from PIL import Image
 
-from app.services.extraction.infra.filename import sanitize_filename
-from app.services.extraction.infra.magic import detect_mime, is_allowed
+from klaudia_api.adapters.documents.media.filename import sanitize_filename
+from klaudia_api.adapters.documents.media.magic import detect_mime, is_allowed
 
 
 def test_sanitize_strips_path_components():

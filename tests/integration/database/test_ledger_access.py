@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.adapters.persistence.tasks import PostgresTaskStore
+from klaudia_api.adapters.persistence.tasks import PostgresTaskStore
 from ledger_core.resources import ResourceNotFoundError
 from ledger_postgres.catalogue import CatalogueStore
 from ledger_postgres.store import LedgerStore

@@ -15,8 +15,8 @@ import os
 from pathlib import Path
 from collections.abc import Awaitable, Callable
 
-from app.models.attachment import FileAttachment
-from app.models.chat import KlaudiaMessage
+from klaudia_api.interfaces.http.models.attachment import FileAttachment
+from klaudia_api.interfaces.http.models.chat import KlaudiaMessage
 from klaudia.core.agent.agent import AgentRunCancelled
 from tests.e2e.checks import ResponseView, evaluate
 from tests.e2e.loader import attachment_bytes

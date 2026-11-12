@@ -33,8 +33,8 @@ remain recorded. Rollout stops until the application history succeeds.
 From the repository root, with the intended `DATABASE_URL` set:
 
 ```bash
-uv run python -m app.adapters.persistence upgrade
-uv run python -m app.adapters.persistence check
+uv run python -m klaudia_api.adapters.persistence upgrade
+uv run python -m klaudia_api.adapters.persistence check
 ```
 
 `check` opens a read-only connection and applies no migrations. Both commands

@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from toon_format import decode
 
-from app.services.core.verifier import grounded_values
-from app.services.core import context
+from klaudia_api.adapters.guardrails.verifier import grounded_values
+from klaudia_api.interfaces.http import context
 
 
 LABEL_DIRECTORY = (

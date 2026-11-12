@@ -10,7 +10,7 @@ async def test_task_effect_and_receipt_use_the_lock_connection(migration_databas
     """Trace checkpoint, effect and receipt writes to the backend holding the task lock."""
     import json
 
-    from app.adapters.persistence.migrations import upgrade_database
+    from klaudia_api.adapters.persistence.migrations import upgrade_database
     from app.services.workflow.store import TaskStore
     from ledger.store import LedgerStore
     from ledger_core.append_contracts import TableAppendProposal
@@ -103,7 +103,7 @@ async def test_migration_lock_spans_history_commits(migration_database, monkeypa
     """Keep exclusion active after ledger commits and before application setup."""
     from sqlalchemy.util import await_only
     from ledger_postgres.migrations import runtime
-    from app.adapters.persistence.migrations import upgrade_database
+    from klaudia_api.adapters.persistence.migrations import upgrade_database
 
     database_url, connection = migration_database
     configuration = runtime.migration_config
@@ -128,7 +128,7 @@ async def test_migration_lock_spans_history_commits(migration_database, monkeypa
 
 async def test_domain_backed_column_cannot_be_adopted(migration_database):
     """Reject a domain that adds an unrecorded approval-deadline constraint."""
-    from app.adapters.persistence.migrations import HISTORIES, upgrade_database
+    from klaudia_api.adapters.persistence.migrations import HISTORIES, upgrade_database
 
     database_url, connection = migration_database
     for history in HISTORIES.values():
@@ -154,8 +154,8 @@ async def test_processes_reject_missing_release_revisions(
     database_url, connection = migration_database
     with pytest.raises(RuntimeError, match="migration"):
         if process_name == "worker":
-            from app.services.extraction.queue import state
-            from config.settings import Settings
+            from klaudia_api.composition import extraction_worker as state
+            from klaudia_api.composition.settings import Settings
 
             monkeypatch.setattr(
                 state,
@@ -164,7 +164,7 @@ async def test_processes_reject_missing_release_revisions(
             )
             await state._startup(None)
         else:
-            from ledger.server import ledger_lifespan
+            from klaudia_api.interfaces.mcp.ledger.server import ledger_lifespan
 
             monkeypatch.setenv("DATABASE_URL", database_url)
             monkeypatch.setenv("LEDGER_SCHEMA_MODE", "check")
@@ -180,7 +180,7 @@ async def test_processes_reject_missing_release_revisions(
 
 async def test_blank_integrated_setup_and_repeat(migration_database):
     """Install both histories and retain both fixed revisions on repeat runs."""
-    migrations = importlib.import_module("app.adapters.persistence.migrations")
+    migrations = importlib.import_module("klaudia_api.adapters.persistence.migrations")
     database_url, connection = migration_database
     await migrations.upgrade_database(database_url)
     first_tables = await connection.fetch(
@@ -210,7 +210,7 @@ async def test_blank_integrated_setup_and_repeat(migration_database):
 
 async def test_ledger_only_then_application_preserves_rows(migration_database):
     """Add application objects without replacing ledger rows or their revision."""
-    migrations = importlib.import_module("app.adapters.persistence.migrations")
+    migrations = importlib.import_module("klaudia_api.adapters.persistence.migrations")
     ledger_migrations = importlib.import_module("ledger.migrations")
     database_url, connection = migration_database
     await ledger_migrations.upgrade_ledger(database_url)
@@ -235,7 +235,7 @@ async def test_ledger_only_then_application_preserves_rows(migration_database):
 
 async def test_partial_application_fails_before_either_stamp(migration_database):
     """Reject incomplete application storage before creating either history."""
-    migrations = importlib.import_module("app.adapters.persistence.migrations")
+    migrations = importlib.import_module("klaudia_api.adapters.persistence.migrations")
     database_url, connection = migration_database
     await connection.execute('CREATE TABLE "user" (user_id INTEGER PRIMARY KEY)')
     with pytest.raises(RuntimeError, match="layout"):
@@ -252,8 +252,8 @@ async def test_partial_application_fails_before_either_stamp(migration_database)
 
 async def test_startup_rejects_unmigrated_database(migration_database):
     """Require the release step before application pools can start."""
-    from app.services.extraction.infra.db_client import AppDBClient
-    from config.settings import Settings
+    from klaudia_api.adapters.documents.database import AppDBClient
+    from klaudia_api.composition.settings import Settings
 
     database_url, connection = migration_database
     database = AppDBClient(Settings(_env_file=None, DATABASE_URL=database_url))
@@ -281,7 +281,7 @@ async def test_existing_records_and_legacy_objects_survive_adoption(
 
     from tests.agent_compatibility import read_fixture
 
-    migrations = importlib.import_module("app.adapters.persistence.migrations")
+    migrations = importlib.import_module("klaudia_api.adapters.persistence.migrations")
     database_url, connection = migration_database
     for history in migrations.HISTORIES.values():
         await connection.execute(
@@ -419,7 +419,7 @@ async def test_adopts_supplied_pre_revision_ledger_fixture(migration_database):
 async def test_runner_rejects_contending_session(migration_database):
     """Keep a second runner from creating or stamping any objects."""
     from ledger.migrations.runtime import MIGRATION_LOCK
-    from app.adapters.persistence.migrations import upgrade_database
+    from klaudia_api.adapters.persistence.migrations import upgrade_database
 
     database_url, connection = migration_database
     await connection.fetchval("SELECT pg_advisory_lock($1)", MIGRATION_LOCK)
@@ -442,7 +442,7 @@ async def test_interrupted_application_revision_can_resume(
 ):
     """Roll back an interrupted app baseline and retain the committed ledger head."""
     from ledger_postgres.migrations import runtime
-    from app.adapters.persistence.migrations import upgrade_database
+    from klaudia_api.adapters.persistence.migrations import upgrade_database
 
     database_url, connection = migration_database
     execute_baseline = runtime.execute_baseline
@@ -567,7 +567,7 @@ async def test_autogenerate_preserves_other_history_and_legacy_objects(
     from alembic.migration import MigrationContext
     from sqlalchemy.ext.asyncio import create_async_engine
     from sqlalchemy import make_url
-    from app.adapters.persistence.migrations import HISTORIES, upgrade_database
+    from klaudia_api.adapters.persistence.migrations import HISTORIES, upgrade_database
 
     database_url, connection = migration_database
     await upgrade_database(database_url)
@@ -611,7 +611,7 @@ async def test_unknown_type_or_sequence_layout_cannot_be_adopted(
     migration_database, alter_statement
 ):
     """Reject precision, collation, and identity-sequence association drift."""
-    from app.adapters.persistence.migrations import HISTORIES, upgrade_database
+    from klaudia_api.adapters.persistence.migrations import HISTORIES, upgrade_database
 
     database_url, connection = migration_database
     for history in HISTORIES.values():
@@ -645,7 +645,10 @@ async def test_revision_registry_requires_its_owned_table(
     migration_database, alter_statement, entrypoint
 ):
     """Reject a forged registry view or a changed version-table contract."""
-    from app.adapters.persistence.migrations import upgrade_database, check_database
+    from klaudia_api.adapters.persistence.migrations import (
+        upgrade_database,
+        check_database,
+    )
 
     database_url, connection = migration_database
     await upgrade_database(database_url)

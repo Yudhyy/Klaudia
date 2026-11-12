@@ -5,8 +5,8 @@ import json
 import pytest
 from langchain_core.messages import AIMessage
 
-from app.routes.v1.table_authoring import router
-from app.services.catalogue.authoring import AuthoringService
+from klaudia_api.interfaces.http.v1.table_authoring import router
+from klaudia_api.adapters.ledger.catalogue.authoring import AuthoringService
 from ledger.catalogue import CatalogueStore
 from tests.integration.api.test_main_chat_routes import main_chat_client  # noqa: F401
 from tests.integration.api.test_durable_tasks import durable_client  # noqa: F401
@@ -163,7 +163,7 @@ async def test_main_agent_authors_table_and_keyed_replay_retains_receipt(
 async def test_main_unregister_approval_executes_then_resumes(authoring_client):
     """Human approval removes only catalogue identity and resume returns its receipt."""
 
-    from app.routes.v1.approvals import router as approvals_router
+    from klaudia_api.interfaces.http.v1.approvals import router as approvals_router
     from app.services.workflow.approvals import CheckedApprovals
 
     fixture = authoring_client

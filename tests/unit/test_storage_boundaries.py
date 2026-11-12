@@ -8,17 +8,20 @@ from pathlib import Path
 
 import pytest
 
-from app.adapters.agent.checkpoints import SavedSources, check_saved_access
-from app.adapters.persistence.conversations import PostgresConversationStore
-from app.services.conversation.store import ConversationStore
-from app.services.core.archive_tools import ArchiveReader
+from klaudia_api.adapters.capabilities.agent.checkpoints import (
+    SavedSources,
+    check_saved_access,
+)
+from klaudia_api.adapters.persistence.conversations import PostgresConversationStore
+from klaudia_api.adapters.capabilities.conversation import ConversationStore
+from klaudia_api.adapters.capabilities.archive_tools import ArchiveReader
 from agent_core.agent.ports.errors import (
     ResourceNotFoundError as CapabilityResourceNotFound,
 )
 from app.services.documents.ports import DocumentArchive
 from app.services.documents.ports import DocumentIngestionStore, ExtractionOutcomeStore
 from app.services.memory.ports import DocumentReader
-from app.services.catalogue.ports import WorkbookAccess
+from klaudia_api.adapters.ledger.catalogue.ports import WorkbookAccess
 from ledger_core.resources import ResourceNotFoundError
 
 
@@ -105,9 +108,9 @@ async def test_replay_checks_document_access_through_the_document_interface(owne
 
 async def test_inline_ingestion_uses_only_the_document_storage_interface():
     """Persist an image and its exact page outcome without a raw query method."""
-    from app.models.attachment import FileAttachment
-    from app.services.extraction.ingest import IngestService
-    from config.settings import Settings
+    from klaudia_api.interfaces.http.models.attachment import FileAttachment
+    from klaudia_api.adapters.documents.ingest import IngestService
+    from klaudia_api.composition.settings import Settings
 
     documents = AsyncMock(spec=DocumentIngestionStore)
     documents.find_blob.return_value = None
@@ -160,10 +163,12 @@ async def test_inline_ingestion_uses_only_the_document_storage_interface():
 
 def test_legacy_database_and_outcome_imports_reuse_canonical_types():
     """Keep supported import and constructor behavior without duplicate SQL."""
-    from app.adapters.persistence.application import ApplicationDatabase
-    from app.adapters.persistence.extraction_outcomes import PostgresExtractionOutcomes
-    from app.services.extraction.infra.db_client import AppDBClient
-    from app.services.extraction.outcomes import ExtractionOutcomes, FileOutcome
+    from klaudia_api.adapters.persistence.application import ApplicationDatabase
+    from klaudia_api.adapters.persistence.extraction_outcomes import (
+        PostgresExtractionOutcomes,
+    )
+    from klaudia_api.adapters.documents.database import AppDBClient
+    from klaudia_api.adapters.documents.outcomes import ExtractionOutcomes, FileOutcome
     from app.services.documents.contracts import FileOutcome as DocumentOutcome
 
     database = SimpleNamespace(pool=Mock())

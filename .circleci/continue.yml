@@ -71,10 +71,10 @@ jobs:
       - install-deps
       - run:
           name: Ruff check
-          command: uv run ruff check app/ klaudia/ config/ mcp-ledger/ packages/ tests/
+          command: uv run ruff check services/api/ klaudia/ mcp-ledger/ packages/ tests/
       - run:
           name: Ruff format check
-          command: uv run ruff format --check app/ klaudia/ config/ mcp-ledger/ packages/ tests/
+          command: uv run ruff format --check services/api/ klaudia/ mcp-ledger/ packages/ tests/
 
   unit-test:
     executor: python

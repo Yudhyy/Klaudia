@@ -14,14 +14,34 @@ import pytest
         ("app.services.documents.ports", "ports", "DocumentArchive"),
         ("app.services.documents.ports", "ports", "DocumentIngestionStore"),
         ("app.services.documents.ports", "ports", "ExtractionOutcomeStore"),
-        ("app.services.extraction.ingest", "ingest", "IngestOutcome"),
-        ("app.services.extraction.ingest", "ingest", "EnqueuedFile"),
-        ("app.services.extraction.infra.filename", "filename", "sanitize_filename"),
-        ("app.services.extraction.infra.magic", "magic", "detect_mime"),
-        ("app.services.extraction.infra.normalizer", "errors", "UnsupportedImageError"),
-        ("app.services.extraction.infra.pdf_splitter", "errors", "PDFSplitError"),
-        ("app.services.extraction.agents.config", "schema", "EXTRACTION_SCHEMA"),
-        ("app.services.extraction.agents.schema", "schema", "validate_and_merge"),
+        ("klaudia_api.adapters.documents.ingest", "ingest", "IngestOutcome"),
+        ("klaudia_api.adapters.documents.ingest", "ingest", "EnqueuedFile"),
+        (
+            "klaudia_api.adapters.documents.media.filename",
+            "filename",
+            "sanitize_filename",
+        ),
+        ("klaudia_api.adapters.documents.media.magic", "magic", "detect_mime"),
+        (
+            "klaudia_api.adapters.documents.media.normalizer",
+            "errors",
+            "UnsupportedImageError",
+        ),
+        (
+            "klaudia_api.adapters.documents.media.pdf_splitter",
+            "errors",
+            "PDFSplitError",
+        ),
+        (
+            "klaudia_api.adapters.documents.extraction.config",
+            "schema",
+            "EXTRACTION_SCHEMA",
+        ),
+        (
+            "klaudia_api.adapters.documents.extraction.schema",
+            "schema",
+            "validate_and_merge",
+        ),
     ],
 )
 def test_document_imports_share_one_definition(legacy, canonical, name):

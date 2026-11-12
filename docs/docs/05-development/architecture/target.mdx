@@ -33,7 +33,9 @@ saved-policy ledger reconciliation.
 The installed `document-intelligence` package owns document contracts, inline
 ingestion and queued page processing. Application adapters supply storage,
 cache, OCR, media processing and queue operations. Session and message callers
-use a separate conversation interface. Process moves remain proposed.
+use a separate conversation interface. The installed `klaudia-api` service now
+owns API, extraction-worker and MCP composition and concrete adapters.
+The remaining future entries in the tree stay proposed.
 Registration and login now use an installed `identity-core` package with supplied
 account, password and token capabilities. PostgreSQL, bcrypt and JWT adapters
 remain in the application. The full identity domain tree remains proposed.
@@ -62,8 +64,8 @@ simpler modules.
 | Agent runtime | Model-driven steps, tool selection, run context and continuation payloads | `packages/agent-core/src/agent_core/agent/` and `packages/agent-skills/src/agent_skills/`; `klaudia/core/` keeps compatibility imports | `agent-core` and `agent-skills` (implemented) |
 | Documents | Ingestion, extraction, expected pages, saved outcomes and document lifecycle | Contracts and inline/queued use cases in `packages/document-intelligence/`. Application adapters supply stores, media, OCR, cache and queue operations | `document-intelligence` (current extraction use cases implemented) |
 | Identity | Accounts, credentials, authentication use cases and account access state | Registration/login use cases and interfaces in `packages/identity-core/`; PostgreSQL, bcrypt and JWT adapters in the application | `identity-core` (current use cases implemented) |
-| Workflow | Durable task identity/status, checkpoint persistence, exclusive task execution, resume coordination and human-decision routing | Interfaces and lifecycle coordination in `packages/workflow-core/`; persistence, agent-state and ledger adapters under `app/adapters/`; chat binding in `main_chat.py` | `workflow-core` (current lifecycle implemented) |
-| Memory | Owner-scoped context documents, preferences, policy documents and their revisions | Contracts, interfaces and reader in `packages/memory-core/`. Persistence and policy reconciliation under `app/adapters/` | `memory-core` (current contracts and reader implemented) |
+| Workflow | Durable task identity/status, checkpoint persistence, exclusive task execution, resume coordination and human-decision routing | Interfaces and lifecycle coordination in `packages/workflow-core/`; persistence, agent-state and ledger adapters under `services/api/src/klaudia_api/adapters/`; chat binding in `main_chat.py` | `workflow-core` (current lifecycle implemented) |
+| Memory | Owner-scoped context documents, preferences, policy documents and their revisions | Contracts, interfaces and reader in `packages/memory-core/`. Persistence and policy reconciliation under `services/api/src/klaudia_api/adapters/` | `memory-core` (current contracts and reader implemented) |
 
 Ownership describes rules and interfaces, not a requirement to create every
 package at once. The agent defines how to serialize and interpret its
@@ -72,8 +74,8 @@ through a run capability supplied by composition. Memory policy documents
 supply context; ledger code validates their financial use and commits effects.
 
 HTTP, MCP, model clients, queues, storage clients and concrete persistence are
-adapters. `services/api` is the proposed home for their composition and process
-entrypoints. A future shared kernel contains only types with demonstrated
+adapters. `services/api` now owns their composition and process entrypoints.
+A future shared kernel contains only types with demonstrated
 cross-module ownership. Internal ledger request models belong to ledger-core;
 the separate `packages/contracts` sketch concerns generated client/transport
 contracts.
@@ -102,11 +104,11 @@ A composition root is the startup code that chooses implementations and owns
 their lifecycle. Each process needs its own root, even when several processes
 run the same image or import common construction functions.
 
-| Process | Current startup | Proposed composition responsibility |
+| Process | Current installed startup | Composition responsibility |
 | --- | --- | --- |
-| API | `app/main.py` and `KlaudiaContainer.create` | Build request services, agent/capability adapters, task/memory stores, model clients and the configured MCP client |
-| Extraction worker | Taskiq hooks in `app/services/extraction/queue/state.py` | Build worker-local database, queue/cache, object-store and extraction clients |
-| MCP host | `mcp-ledger/main.py` and `ledger.server.ledger_lifespan` | Configure transport/authentication, build the host-local ledger store and install the owned-read policy |
+| API | `klaudia_api.main` and `composition/api.py` | Build request services, agent/capability adapters, task/memory stores, model clients and the configured MCP client |
+| Extraction worker | Taskiq adapters in `interfaces/workers/`, with `composition/extraction_worker.py` | Build worker-local database, queue/cache, object-store and extraction clients |
+| MCP host | `interfaces/mcp/host.py` and `composition/mcp.py` | Configure transport/authentication, build the host-local ledger store and install the owned-read policy |
 
 Share configuration types and provider construction where useful. Each process
 creates and closes its own pools and clients. Core packages receive dependencies
@@ -768,13 +770,15 @@ migration setup. Its implementation paths are:
 | Responsibility | Current path |
 | --- | --- |
 | Authoring configuration for both histories | Root `alembic.ini` |
-| Application metadata, environment, revisions, SQL, and schema contracts | `app/adapters/persistence/` |
+| Application metadata | `services/api/src/klaudia_api/adapters/persistence/metadata.py` |
+| Application environment, revisions, SQL and schema contracts | `services/api/migrations/`, mapped into the installed service wheel |
 | Ledger metadata, environment, revisions, SQL, and schema contracts | `packages/ledger-postgres/src/ledger_postgres/migrations/` |
 | Shared migration coordination, authoring and CLI helpers | `ledger_postgres.migrations`; supplied history objects select each owner |
-| Integrated ledger-before-application release order | `app/adapters/persistence/migrations.py` |
+| Integrated ledger-before-application release order | `services/api/src/klaudia_api/adapters/persistence/migrations.py` |
 
-The proposed `services/api/migrations/` directory shows the application history
-in the future service layout. The ledger history must remain usable without
+The `services/api/migrations/` directory now contains the application history.
+The service wheel maps it into `klaudia_api/migrations/` for installed execution.
+The ledger history must remain usable without
 application tables or imports. Ledger adapters and the existing shared helpers
 now ship in `ledger-postgres`. Both the API and standalone MCP use that package,
 so neither needs a second SQL implementation or an application import from the
@@ -826,7 +830,7 @@ agent's remaining infrastructure is independent work.
 
 ### MCP client separation
 
-The current outbound client lives in `app/adapters/mcp_client/tool_registry.py`.
+The current outbound client lives in `services/api/src/klaudia_api/adapters/mcp_client/tool_registry.py`.
 The application declares FastMCP directly; the agent no longer declares FastMCP
 or MCP and its wheel excludes the client. The old `klaudia.interfaces` client
 imports are removed. Client authorization, supported transports and errors
@@ -838,7 +842,7 @@ with MCP absent.
 ### Capability contract separation
 
 Agent-owned requests and expected failures now live under
-`packages/agent-core/src/agent_core/agent/ports/`. Application adapters under `app/adapters/agent/`
+`packages/agent-core/src/agent_core/agent/ports/`. Application adapters under `services/api/src/klaudia_api/adapters/capabilities/agent/`
 translate catalogue reads, append/authoring/typed proposals and expected failures
 to and from canonical ledger contracts. Backend code keeps financial validation,
 exact calculations, ownership, approval and receipt rules. The operation adapter
@@ -861,9 +865,9 @@ and injected LangChain model/tool contract. Application callers import these
 canonical packages. Legacy runtime and registry imports under `klaudia.core`
 re-export the same definitions.
 
-The provider factory moved to `app/adapters/llm/model_factory.py`; its aliases,
+The provider factory moved to `services/api/src/klaudia_api/adapters/llm/model_factory.py`; its aliases,
 endpoint/key checks, thinking settings and construction failures stay unchanged.
-The old `klaudia.core.agent.llm` path is removed. The root application declares
+The old `klaudia.core.agent.llm` path is removed. The service API extra declares
 provider libraries and its existing TOON context encoder dependency. Neither
 canonical agent package imports application code, ledger, MCP, database clients
 or concrete model providers. The skills package also has no runtime dependency.
@@ -928,7 +932,7 @@ not become client wire contracts by default.
 | Implemented workflow package | Installable task, progress and decision interfaces with lifecycle coordination through supplied storage/run capabilities | Independent installed start/resume, recovery and cancellation; package-wide import and compatibility checks; existing task, approval, startup and recovery regressions |
 | Implemented memory package | Installable context and policy contracts, read/edit interfaces and owner-scoped reader | Independent installed policy read, exact decimal serialization, compatibility aliases, import checks and memory/reconciliation regressions |
 | Implemented document package | Installable document contracts, inline ingestion and queued page processing through supplied extraction capabilities | Isolated wheel execution, inline and queued extraction, owner isolation and worker startup |
-| As consumers are ready | API/worker/MCP entrypoints and infrastructure relocated into the proposed service layout | Installed imports and startup for all three processes; Docker, CI, commands and contributor docs match the new paths |
+| Implemented service layout | Installed API/worker/MCP entrypoints, separate resource composition and relocated concrete adapters | Isolated full-service and minimal-MCP wheels, HTTP and migration contract fixtures, retained imports, process startup, Docker, CI and command checks |
 
 Use the [first-extraction scope and acceptance criteria](assessment.mdx#first-extraction-installable-ledger-core)
 as the contract retained by the first code slice. Its implementation keeps the
@@ -939,8 +943,9 @@ The identity interface and database foundation establish upgrade ownership befor
 stores move. Further schema changes follow the owning history and stay coordinated
 with [issue #9](https://github.com/Yudhyy/Klaudia/issues/9). The ledger's standalone
 initialization remains supported. Workflow, memory and documents have installed
-cores. Process composition can now use these package boundaries during
-relocation. Shared ledger adapter installation and standalone migration checks
+cores. The installed service now composes these package boundaries. The
+remaining tree entries are separate implementation choices. Shared ledger
+adapter installation and standalone migration checks
 cover that package move.
 
 Each slice moves a working responsibility with its callers, metadata, tests and

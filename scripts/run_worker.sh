@@ -15,12 +15,12 @@ cd "$(dirname "$0")/.."
 WORKER_COUNT="${WORKER_COUNT:-1}"
 CONCURRENCY="${WORKER_CONCURRENCY:-8}"
 
-# Importing app.services.extraction.queue.state registers the
+# Importing klaudia_api.composition.extraction_worker registers the
 # WORKER_STARTUP/SHUTDOWN hooks that build per-worker DB/Redis/MinIO/OCR.
 exec uv run taskiq worker \
-    app.services.extraction.queue.broker:broker \
-    app.services.extraction.queue.tasks \
-    app.services.extraction.queue.state \
+    klaudia_api.interfaces.workers.broker:broker \
+    klaudia_api.interfaces.workers.extraction_worker \
+    klaudia_api.composition.extraction_worker \
     --workers "$WORKER_COUNT" \
     --max-async-tasks "$CONCURRENCY" \
     --log-level INFO

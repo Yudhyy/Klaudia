@@ -1,15 +1,15 @@
 """Exercise the rollout grader through real HTTP, database and task boundaries."""
 
-from app.adapters.persistence.conversations import PostgresConversationStore
-from app.adapters.persistence.documents import PostgresDocumentStore
+from klaudia_api.adapters.persistence.conversations import PostgresConversationStore
+from klaudia_api.adapters.persistence.documents import PostgresDocumentStore
 
 import json
 
 from langchain_core.messages import AIMessage
 import pytest
 
-from app.services.core.main_chat import MainChatService
-from app.services.core.operations import OperationService
+from klaudia_api.adapters.capabilities.main_chat import MainChatService
+from klaudia_api.adapters.capabilities.operations import OperationService
 from app.services.memory.store import MemoryDocumentStore
 from tests.e2e.comparison_owner import comparison_owner
 from tests.e2e.rollout_cases import SCENARIOS, rollout_fixture, run_rollout_trial

@@ -1,5 +1,11 @@
 # mcp-ledger
 
+The canonical host, authentication and owned-read policy now live in the installed
+`klaudia-api` service. This distribution selects its `mcp` extra and retains the
+`ledger.*` imports and `main.py` launcher. Ledger storage and migrations remain
+independent in `ledger-postgres`. New process launches can use
+`python -m klaudia_api.interfaces.mcp.host --transport stdio`.
+
 The host uses shared storage and checked execution from `ledger-postgres`, and
 pure contracts/calculations from `ledger-core`. Existing `ledger.*` storage and
 migration imports remain compatibility paths. The adapter package can also run
