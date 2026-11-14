@@ -4,14 +4,14 @@ import asyncio
 
 import pytest
 
-from ledger.errors import ApprovalRequiredError, RevisionConflictError
-from ledger.store import LedgerStore
-from ledger.table_operations import (
+from ledger_core.errors import ApprovalRequiredError, RevisionConflictError
+from ledger_postgres.store import LedgerStore
+from ledger_postgres.table_operations import (
     TableAppendProposal,
     prepare_table_append,
     execute_prepared_append,
 )
-from ledger.approvals import decide_approval
+from ledger_postgres.approvals import decide_approval
 from tests.e2e.capability_cases import seeded_capability_case
 from tests.integration.postgres import POSTGRES_TEST_URL
 

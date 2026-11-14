@@ -9,11 +9,11 @@ import pytest
 from klaudia_api.adapters.ledger.catalogue.service import CatalogueService
 from klaudia.core.agent.context import TaskContext
 from klaudia.core.agent.tools import DiscoveryTools
-from ledger.catalogue import CatalogueStore
-from ledger.errors import RevisionConflictError
-from ledger.financial_contracts import CheckedFinancialRequest
-from ledger.resources import ResourceNotFoundError, TableRegistration
-from ledger.store import LedgerStore
+from ledger_postgres.catalogue import CatalogueStore
+from ledger_core.errors import RevisionConflictError
+from ledger_core.financial_contracts import CheckedFinancialRequest
+from ledger_core.resources import ResourceNotFoundError, TableRegistration
+from ledger_postgres.store import LedgerStore
 from tests.integration.postgres import POSTGRES_TEST_URL
 
 

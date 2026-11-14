@@ -8,10 +8,10 @@ from uuid import uuid4
 
 import httpx
 
-from ledger.catalogue import CatalogueStore
-from ledger.resources import TableRegistration
-from ledger.store import LedgerStore
-from ledger.typed_storage import read_snapshot
+from ledger_postgres.catalogue import CatalogueStore
+from ledger_core.resources import TableRegistration
+from ledger_postgres.store import LedgerStore
+from ledger_postgres.typed_storage import read_snapshot
 from tests.e2e.checks import ResponseView, evaluate
 from tests.e2e.formula_cases import (
     check_formula_cells,

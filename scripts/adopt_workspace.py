@@ -24,7 +24,7 @@ load_dotenv()
 
 
 async def adopt(workspace: str, user_id: int, name: str) -> None:
-    from ledger.store import (
+    from ledger_postgres.store import (
         LedgerStore,
         SpreadsheetNotFoundError,
     )

@@ -8,7 +8,6 @@ requires-python = ">=3.11"
 dependencies = [
     "klaudia-api[api,worker,mcp]",
     "klaudia",
-    "mcp-ledger",
 ]
 
 [tool.uv.sources]
@@ -22,13 +21,11 @@ memory-core = { workspace = true }
 document-intelligence = { workspace = true }
 ledger-core = { workspace = true }
 ledger-postgres = { workspace = true }
-mcp-ledger = { workspace = true }
 
 [tool.uv.workspace]
 members = [
     "services/api",
     "klaudia",
-    "mcp-ledger",
     "packages/ledger-core",
     "packages/ledger-postgres",
     "packages/agent-core",
@@ -40,7 +37,7 @@ members = [
 ]
 
 [tool.uv]
-constraint-dependencies = ["fastmcp-slim==4.0.0b3"]
+constraint-dependencies = ["fastmcp-slim==4.2.0"]
 
 [dependency-groups]
 dev = [

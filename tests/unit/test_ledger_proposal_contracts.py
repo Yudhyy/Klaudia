@@ -1,6 +1,5 @@
 """Preserve proposal validation, schemas and stored JSON across contract moves."""
 
-from importlib import import_module
 import json
 from pathlib import Path
 
@@ -8,9 +7,13 @@ import pytest
 from pydantic import ValidationError
 
 from klaudia.core.agent.writes import ExecuteOperation, PrepareTableAppend
-from ledger.authoring import AuthoringProposal
-from ledger.operations import AppendRows
-from ledger.table_operations import TableAppend, TableAppendProposal, _request_payload
+from ledger_postgres.authoring import AuthoringProposal
+from ledger_postgres.operations import AppendRows
+from ledger_postgres.table_operations import (
+    TableAppend,
+    TableAppendProposal,
+    _request_payload,
+)
 
 CONTRACTS = (
     AppendRows,
@@ -98,22 +101,3 @@ def test_authoring_rejects_ambiguous_action_fields(changes, original_contracts):
     original = original_contracts["payloads"]["AuthoringProposal"]["input"]
     with pytest.raises(ValidationError):
         AuthoringProposal.model_validate(original | changes)
-
-
-@pytest.mark.parametrize(
-    ("legacy_module", "contract_module", "name"),
-    [
-        ("operations", "append_contracts", "CellValue"),
-        ("operations", "append_contracts", "AppendRow"),
-        ("operations", "append_contracts", "AppendRows"),
-        ("table_operations", "append_contracts", "RecordField"),
-        ("table_operations", "append_contracts", "TableRecord"),
-        ("table_operations", "append_contracts", "TableAppendProposal"),
-        ("table_operations", "append_contracts", "TableAppend"),
-        ("authoring", "authoring_contracts", "AuthoringProposal"),
-    ],
-)
-def test_legacy_imports_retain_contract_identity(legacy_module, contract_module, name):
-    original = getattr(import_module(f"ledger.{legacy_module}"), name)
-    canonical = getattr(import_module(f"ledger.{contract_module}"), name)
-    assert original is canonical

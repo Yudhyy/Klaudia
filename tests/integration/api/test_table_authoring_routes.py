@@ -7,7 +7,7 @@ from langchain_core.messages import AIMessage
 
 from klaudia_api.interfaces.http.v1.table_authoring import router
 from klaudia_api.adapters.ledger.catalogue.authoring import AuthoringService
-from ledger.catalogue import CatalogueStore
+from ledger_postgres.catalogue import CatalogueStore
 from tests.integration.api.test_main_chat_routes import main_chat_client  # noqa: F401
 from tests.integration.api.test_durable_tasks import durable_client  # noqa: F401
 from tests.unit.test_main_agent import ScriptedModel, call

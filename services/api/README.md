@@ -16,9 +16,10 @@ Start extraction with `scripts/run_worker.sh`. Start a separate MCP host with
 `http` with the required token-verification settings.
 
 The `api`, `worker` and `mcp` install extras declare process dependencies. The
-root workspace and shared image select all three. The `mcp-ledger` distribution
-selects only the MCP extra and retains its old imports and script launcher.
-Service implementations never import those compatibility modules.
+root workspace and shared image select all three. Standalone MCP installations
+select `klaudia-api[mcp]`. The former root `mcp-ledger` distribution, `ledger.*`
+imports and script launcher have been removed. See [MCP.md](MCP.md) for the
+configuration, read surface and canonical launch commands.
 
 Application migration assets live in `migrations/` and install inside the wheel.
 The release command runs ledger before application. Runtime startup checks

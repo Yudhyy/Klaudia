@@ -88,8 +88,8 @@ async def test_replay_does_not_hide_an_unavailable_workbook_reader(sources):
 
 async def test_workbook_reader_reuses_the_supplied_connection():
     """Do not allocate another pool slot for task-bound ownership reads."""
-    from ledger.catalogue import CatalogueStore
-    from ledger.connections import BorrowedConnection
+    from ledger_postgres.catalogue import CatalogueStore
+    from ledger_postgres.connections import BorrowedConnection
 
     connection = AsyncMock()
     connection.fetchval.return_value = 1

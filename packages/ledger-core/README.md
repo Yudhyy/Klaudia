@@ -13,18 +13,17 @@ from ledger_core.append_contracts import TableAppendProposal
 from ledger_core.formula_engine import Formula, evaluate_graph
 ```
 
-The existing `ledger.*` modules in `mcp-ledger` re-export the same definitions,
-including the original execution-module proposal imports. New consumers should
-import the core directly. `ledger-postgres` owns persistence, checked operation
-execution, approval storage and migration helpers. The MCP host and owned-read
-transport policy remain in `mcp-ledger`.
+Import the core directly; the former `ledger.*` aliases have been removed.
+`ledger-postgres` owns persistence, checked operation execution, approval storage
+and migration helpers. The installed `klaudia-api[mcp]` service owns the MCP
+host and read policy. See the [MCP guide](../../services/api/MCP.md).
 
-From the repository root, install the workspace and run the compatibility and
+From the repository root, install the workspace and run the contract and
 standalone wheel checks:
 
 ```bash
 uv sync --all-packages --group dev
-uv run pytest tests/unit/test_ledger_core_compatibility.py tests/unit/test_ledger_proposal_contracts.py tests/unit/test_architecture_imports.py -q
+uv run pytest tests/unit/test_ledger_proposal_contracts.py tests/unit/test_architecture_imports.py -q
 uv run pytest tests/packaging -q
 ```
 

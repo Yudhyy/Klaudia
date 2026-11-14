@@ -14,7 +14,7 @@ from app.services.auth.tokens import create_access_token
 from klaudia_api.composition.api import _build_ledger_registry
 from klaudia_api.adapters.ledger.spreadsheets import SpreadsheetService
 from klaudia_api.composition.settings import Settings
-from ledger.store import LedgerStore
+from ledger_postgres.store import LedgerStore
 from tests.integration.postgres import POSTGRES_TEST_URL
 
 HTTP_SECRET = "sheet-http-fixture-key-with-at-least-32-bytes"

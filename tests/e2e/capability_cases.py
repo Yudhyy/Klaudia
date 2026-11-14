@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from typing import AsyncIterator, Literal
 from uuid import uuid4
 
-from ledger.catalogue import CatalogueStore
-from ledger.resources import TableRegistration
-from ledger.store import LedgerStore
+from ledger_postgres.catalogue import CatalogueStore
+from ledger_core.resources import TableRegistration
+from ledger_postgres.store import LedgerStore
 from tests.e2e.schema import Case, Expect, MetricExpectation, Turn
 from tests.e2e.synthetic import build_bulk_ledger
 

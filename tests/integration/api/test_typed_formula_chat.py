@@ -11,7 +11,7 @@ from langchain_core.messages import AIMessage
 from klaudia_api.adapters.capabilities.main_chat import MainChatService
 from klaudia_api.adapters.capabilities.operations import OperationService
 from app.services.workflow.store import TaskSession
-from ledger.typed_cells import inspect_workbook
+from ledger_postgres.typed_cells import inspect_workbook
 from tests.e2e.capability_cases import CapabilityFixture
 from tests.e2e.checks import ResponseView, evaluate
 from tests.e2e.schema import Expect

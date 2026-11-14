@@ -56,8 +56,8 @@ python -m ledger_postgres.migrations upgrade
 python -m ledger_postgres.migrations check
 ```
 
-The former `python -m ledger.migrations` entrypoint remains supported when the
-MCP distribution is installed. Root `alembic.ini` selects the canonical ledger
+The former `python -m ledger.migrations` entrypoint has been removed. Use
+`python -m ledger_postgres.migrations`. Root `alembic.ini` selects the canonical ledger
 history under `packages/ledger-postgres/src/ledger_postgres/migrations/`.
 
 `LedgerStore.connect()` retains automatic standalone setup through the canonical

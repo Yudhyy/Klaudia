@@ -7,6 +7,7 @@ import subprocess
 import shutil
 import sys
 import tomllib
+from typing import Any
 from zipfile import ZipFile
 
 import pytest
@@ -82,6 +83,22 @@ def installed_core(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return python
 
 
+def locked_constraint(package: dict[str, Any]) -> str:
+    """Retain environment markers for one locked dependency version.
+
+    Args:
+        package: Registry package entry from the workspace lockfile.
+
+    Returns:
+        Exact version constraint with its applicable resolution markers.
+    """
+    requirement = f"{package['name']}=={package['version']}"
+    markers = package.get("resolution-markers", ())
+    if markers:
+        requirement += "; " + " or ".join(f"({marker})" for marker in markers)
+    return requirement
+
+
 def install_agent_packages(
     directory: Path,
     distributions: tuple[str, ...],
@@ -126,7 +143,7 @@ def install_agent_packages(
     packages = tomllib.loads((REPO_ROOT / "uv.lock").read_text())["package"]
     constraints.write_text(
         "\n".join(
-            f"{package['name']}=={package['version']}"
+            locked_constraint(package)
             for package in packages
             if "registry" in package["source"]
         )

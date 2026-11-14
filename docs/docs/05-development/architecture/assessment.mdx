@@ -203,7 +203,7 @@ deployment-file moves still need their own selected scope.
 | Change | Implemented in the reviewed source | Remaining limit |
 | --- | --- | --- |
 | [Scoped MCP authorization, #20](https://github.com/Yudhyy/Klaudia/pull/20) | Nine owner-checked read tools; mutation handlers denied; ownership held through reads | The MCP interface does not expose application checked writes |
-| [Standard MCP transports, #22](https://github.com/Yudhyy/Klaudia/pull/22) | stdio and Streamable HTTP; legacy SSE removed | Transport and ownership remain separate checks |
+| [Standard MCP transports, #22](https://github.com/Yudhyy/Klaudia/pull/22) | stdio and Streamable HTTP | Transport and ownership remain separate checks |
 | [Durable queued outcomes, #23](https://github.com/Yudhyy/Klaudia/pull/23) | Saved expected pages determine completion; page outcome and file roll-up commit together; notifications wake polling | Document storage interfaces now replace direct database-client access; OCR, object-store and queue implementations remain in extraction |
 | [Proposal contract isolation, #25](https://github.com/Yudhyy/Klaudia/pull/25) | Pure append/authoring contracts, identical legacy re-exports, explicit agent-to-ledger distribution dependency | Contracts still ship with PostgreSQL and MCP dependencies |
 | Import enforcement in #25 | AST checks include relative and function-local imports; fresh interpreters reject selected infrastructure imports | An import check in the workspace does not prove a standalone package install |

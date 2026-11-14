@@ -12,7 +12,7 @@ async def test_task_effect_and_receipt_use_the_lock_connection(migration_databas
 
     from klaudia_api.adapters.persistence.migrations import upgrade_database
     from app.services.workflow.store import TaskStore
-    from ledger.store import LedgerStore
+    from ledger_postgres.store import LedgerStore
     from ledger_core.append_contracts import TableAppendProposal
     from tests.e2e.capability_cases import seeded_capability_case
 
@@ -211,7 +211,7 @@ async def test_blank_integrated_setup_and_repeat(migration_database):
 async def test_ledger_only_then_application_preserves_rows(migration_database):
     """Add application objects without replacing ledger rows or their revision."""
     migrations = importlib.import_module("klaudia_api.adapters.persistence.migrations")
-    ledger_migrations = importlib.import_module("ledger.migrations")
+    ledger_migrations = importlib.import_module("ledger_postgres.migrations")
     database_url, connection = migration_database
     await ledger_migrations.upgrade_ledger(database_url)
     assert await connection.fetchval("SELECT to_regclass('public.session')") is None
@@ -388,7 +388,7 @@ async def test_existing_records_and_legacy_objects_survive_adoption(
 
 async def test_adopts_supplied_pre_revision_ledger_fixture(migration_database):
     """Keep the old grid and identity while adopting its system-owned workbook."""
-    from ledger.migrations import upgrade_ledger
+    from ledger_postgres.migrations import upgrade_ledger
 
     database_url, connection = migration_database
     await connection.execute("""
@@ -418,7 +418,7 @@ async def test_adopts_supplied_pre_revision_ledger_fixture(migration_database):
 
 async def test_runner_rejects_contending_session(migration_database):
     """Keep a second runner from creating or stamping any objects."""
-    from ledger.migrations.runtime import MIGRATION_LOCK
+    from ledger_postgres.migrations.runtime import MIGRATION_LOCK
     from klaudia_api.adapters.persistence.migrations import upgrade_database
 
     database_url, connection = migration_database
@@ -477,7 +477,7 @@ async def test_interrupted_application_revision_can_resume(
 
 async def test_invalid_nontransactional_index_blocks_adoption(migration_database):
     """Detect a failed concurrent index before a retry can stamp the baseline."""
-    from ledger.migrations import LEDGER_HISTORY, upgrade_ledger
+    from ledger_postgres.migrations import LEDGER_HISTORY, upgrade_ledger
 
     database_url, connection = migration_database
     await connection.execute((LEDGER_HISTORY.directory / "ledger_0001.sql").read_text())
@@ -510,8 +510,8 @@ async def test_later_revision_runs_once(migration_database, tmp_path):
     import shutil
     from dataclasses import replace
 
-    from ledger.migrations import LEDGER_HISTORY, upgrade_ledger
-    from ledger.migrations.runtime import upgrade_histories
+    from ledger_postgres.migrations import LEDGER_HISTORY, upgrade_ledger
+    from ledger_postgres.migrations.runtime import upgrade_histories
 
     database_url, connection = migration_database
     await upgrade_ledger(database_url)

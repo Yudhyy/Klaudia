@@ -7,10 +7,14 @@ import uuid
 import asyncpg
 import pytest
 
-from ledger.errors import RevisionConflictError
-from ledger.store import LedgerStore
-from ledger.typed_cells import inspect_workbook, prepare_typed_edit, execute_typed_edit
-from ledger.typed_contracts import TypedEditProposal
+from ledger_core.errors import RevisionConflictError
+from ledger_postgres.store import LedgerStore
+from ledger_postgres.typed_cells import (
+    inspect_workbook,
+    prepare_typed_edit,
+    execute_typed_edit,
+)
+from ledger_core.typed_contracts import TypedEditProposal
 from tests.integration.postgres import POSTGRES_TEST_URL
 
 
@@ -131,7 +135,7 @@ async def test_typed_inspection_preserves_raw_values_in_json(
 
 async def test_computed_cells_and_managed_inputs_reject_ordinary_writes(typed_workbook):
     """Legacy and direct grid edits cannot bypass the managed-cell guard."""
-    from ledger import grid
+    from ledger_core import grid
 
     store, workspace, first, second = typed_workbook
     await edit(typed_workbook, [input_edit(first, "1")])
@@ -229,10 +233,14 @@ async def test_catalogue_refresh_exposes_exact_recalculated_amount(typed_workboo
     Args:
         typed_workbook: Isolated owned workbook and ledger store.
     """
-    from ledger.authoring import AuthoringProposal, prepare_authoring, execute_authoring
-    from ledger.calculations import CheckedCalculation
-    from ledger.catalogue import CatalogueStore
-    from ledger.resources import TableRegistration
+    from ledger_postgres.authoring import (
+        AuthoringProposal,
+        prepare_authoring,
+        execute_authoring,
+    )
+    from ledger_core.calculations import CheckedCalculation
+    from ledger_postgres.catalogue import CatalogueStore
+    from ledger_core.resources import TableRegistration
 
     store, workspace, first, second = typed_workbook
     await edit(typed_workbook, [input_edit(first, "9007199254740993")])
@@ -332,8 +340,8 @@ async def test_concurrent_retry_commits_once_and_new_stale_proposal_fails(
 
 async def test_approval_binds_typed_snapshot_and_rechecks_revision(typed_workbook):
     """Approvals cannot authorise changed typed sources or bypass an explicit wait."""
-    from ledger.approvals import decide_approval
-    from ledger.errors import ApprovalRequiredError
+    from ledger_postgres.approvals import decide_approval
+    from ledger_core.errors import ApprovalRequiredError
 
     store, workspace, first, second = typed_workbook
     snapshot = await inspect_workbook(store.pool, 90231, workspace)
@@ -364,7 +372,7 @@ async def test_concurrent_typed_approvals_serialize_without_lock_upgrade_deadloc
         typed_workbook: Isolated owned workbook and ledger store.
         monkeypatch: Pause one approval while the other requests its workbook lock.
     """
-    from ledger.approvals import decide_approval
+    from ledger_postgres.approvals import decide_approval
     import ledger_postgres.typed_cells as typed_cells
 
     store, workspace, first, _ = typed_workbook
@@ -443,7 +451,7 @@ async def test_ownership_is_rechecked_for_execution_and_replay(
         typed_workbook: Isolated owned workbook and ledger store.
         commit_first: Whether execution already committed before revocation.
     """
-    from ledger.resources import ResourceNotFoundError
+    from ledger_core.resources import ResourceNotFoundError
 
     store, workspace, first, _ = typed_workbook
     snapshot = await inspect_workbook(store.pool, 90231, workspace)
@@ -479,7 +487,7 @@ async def test_rejected_or_expired_typed_approval_cannot_commit(
         typed_workbook: Isolated owned workbook and ledger store.
         decision: Approval state that must prohibit execution.
     """
-    from ledger.approvals import decide_approval
+    from ledger_postgres.approvals import decide_approval
 
     store, workspace, first, _ = typed_workbook
     before = await inspect_workbook(store.pool, 90231, workspace)
@@ -576,10 +584,10 @@ async def test_typed_metadata_and_formulas_survive_a_new_store(typed_workbook):
 
 async def test_failed_formulas_block_registered_calculations(typed_workbook):
     """A failed null cache cannot silently become a zero sum in either query path."""
-    from ledger.catalogue import CatalogueStore
-    from ledger.calculations import CheckedCalculation
-    from ledger.financial_contracts import CheckedFinancialRequest
-    from ledger.resources import TableRegistration
+    from ledger_postgres.catalogue import CatalogueStore
+    from ledger_core.calculations import CheckedCalculation
+    from ledger_core.financial_contracts import CheckedFinancialRequest
+    from ledger_core.resources import TableRegistration
 
     store, workspace, first, second = typed_workbook
     await edit(typed_workbook, [input_edit(first, "1")])
@@ -631,7 +639,7 @@ async def test_managed_sheet_layout_is_protected_and_rename_preserves_dependenci
     typed_workbook,
 ):
     """Stable sheet/cell identities survive a rename but forbid ordinary movement."""
-    from ledger import grid
+    from ledger_core import grid
 
     store, workspace, first, second = typed_workbook
     await edit(typed_workbook, [input_edit(first, "1")])

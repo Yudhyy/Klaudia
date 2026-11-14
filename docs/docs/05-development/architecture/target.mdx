@@ -35,7 +35,10 @@ ingestion and queued page processing. Application adapters supply storage,
 cache, OCR, media processing and queue operations. Session and message callers
 use a separate conversation interface. The installed `klaudia-api` service now
 owns API, extraction-worker and MCP composition and concrete adapters.
-The remaining future entries in the tree stay proposed.
+The root `mcp-ledger` distribution and its `ledger.*` aliases have been removed.
+Standalone MCP now installs through `klaudia-api[mcp]` and launches through
+`klaudia_api.interfaces.mcp.host`. Ledger callers use `ledger_core` and
+`ledger_postgres`. The remaining future entries in the tree stay proposed.
 Registration and login now use an installed `identity-core` package with supplied
 account, password and token capabilities. PostgreSQL, bcrypt and JWT adapters
 remain in the application. The full identity domain tree remains proposed.
@@ -933,6 +936,7 @@ not become client wire contracts by default.
 | Implemented memory package | Installable context and policy contracts, read/edit interfaces and owner-scoped reader | Independent installed policy read, exact decimal serialization, compatibility aliases, import checks and memory/reconciliation regressions |
 | Implemented document package | Installable document contracts, inline ingestion and queued page processing through supplied extraction capabilities | Isolated wheel execution, inline and queued extraction, owner isolation and worker startup |
 | Implemented service layout | Installed API/worker/MCP entrypoints, separate resource composition and relocated concrete adapters | Isolated full-service and minimal-MCP wheels, HTTP and migration contract fixtures, retained imports, process startup, Docker, CI and command checks |
+| Retired ledger compatibility package | Remove root `mcp-ledger/`, old `ledger.*` imports and script launch paths; retain the MCP server identity and canonical behavior | Canonical caller imports, isolated MCP-extra and migration wheels, installed transport commands and existing authorization/financial/recovery checks |
 
 Use the [first-extraction scope and acceptance criteria](assessment.mdx#first-extraction-installable-ledger-core)
 as the contract retained by the first code slice. Its implementation keeps the

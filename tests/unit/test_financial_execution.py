@@ -5,7 +5,7 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from ledger.financial import FinancialRequest, execute_financial
+from ledger_core.financial import FinancialRequest, execute_financial
 
 
 def request(operation, **fields):

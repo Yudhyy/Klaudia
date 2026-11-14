@@ -74,8 +74,12 @@ async def test_registry_connection_failure_is_not_silenced(tmp_path):
 @pytest.mark.parametrize(
     "path", ["/sse", "/ledger/sse/", "/sse?tenant=one", "/SSE#old", "/%73se"]
 )
-def test_registry_rejects_legacy_endpoints_before_connecting(path):
-    with pytest.raises(ValueError, match="removed.*Streamable HTTP"):
+def test_registry_rejects_reserved_endpoints_before_connecting(path):
+    """Report the required endpoint configuration before connecting."""
+    with pytest.raises(
+        ValueError,
+        match=r"^Use a Streamable HTTP endpoint such as /mcp with MCP_TRANSPORT=http\.$",
+    ):
         MCPToolRegistry("ledger", url=f"https://mcp.example{path}")
 
 

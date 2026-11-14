@@ -81,8 +81,7 @@ class MCPToolRegistry:
             )
         if url and unquote(urlsplit(url).path).rstrip("/").lower().endswith("/sse"):
             raise ValueError(
-                "Legacy HTTP+SSE endpoints were removed; use a Streamable HTTP "
-                "endpoint such as /mcp with MCP_TRANSPORT=http."
+                "Use a Streamable HTTP endpoint such as /mcp with MCP_TRANSPORT=http."
             )
         self._name = name
         self._url = url
@@ -139,7 +138,7 @@ class MCPToolRegistry:
                     self._url,
                     auth=self._auth_token,
                 )
-                transport_label = f"http {self._url}"
+                transport_label = f"Streamable HTTP {self._url}"
             else:
                 transport = StdioTransport(
                     command=self._stdio_command,

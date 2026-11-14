@@ -5,11 +5,15 @@ import uuid
 
 import pytest
 
-from ledger.authoring import AuthoringProposal, prepare_authoring, execute_authoring
-from ledger.catalogue import CatalogueStore
-from ledger.errors import RevisionConflictError
-from ledger.resources import ResourceNotFoundError, ResourceSearch
-from ledger.store import LedgerStore
+from ledger_postgres.authoring import (
+    AuthoringProposal,
+    prepare_authoring,
+    execute_authoring,
+)
+from ledger_postgres.catalogue import CatalogueStore
+from ledger_core.errors import RevisionConflictError
+from ledger_core.resources import ResourceNotFoundError, ResourceSearch
+from ledger_postgres.store import LedgerStore
 from tests.integration.postgres import POSTGRES_TEST_URL
 
 
@@ -61,7 +65,7 @@ async def execute(store, request):
     """Prepare and commit one operation under the fixture owner."""
     prepared = await prepare_authoring(store.pool, 90411, request)
     if "approval_id" in prepared:
-        from ledger.approvals import decide_approval
+        from ledger_postgres.approvals import decide_approval
 
         await decide_approval(store.pool, 90411, prepared["approval_id"], approve=True)
     return await execute_authoring(store.pool, 90411, prepared["operation_ref"])
@@ -240,8 +244,8 @@ async def test_header_write_preserves_unrelated_exact_numeric_values(authoring_s
 
 async def test_unregister_waits_for_approval_and_stale_decision_fails(authoring_store):
     """Unregister cannot bypass human consent or use consent for a changed source."""
-    from ledger.approvals import decide_approval
-    from ledger.errors import ApprovalRequiredError
+    from ledger_postgres.approvals import decide_approval
+    from ledger_core.errors import ApprovalRequiredError
 
     store, _, sheet_id = authoring_store
     registered = await execute(store, proposal(sheet_id))

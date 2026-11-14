@@ -12,7 +12,7 @@ import uuid
 import asyncpg
 import pytest
 
-from ledger.store import (
+from ledger_postgres.store import (
     LedgerStore,
     SheetNotFoundError,
     SpreadsheetExistsError,
@@ -146,7 +146,7 @@ async def test_ensure_spreadsheet_is_idempotent(store):
 
 async def test_connect_adopts_orphan_workspaces(migration_database):
     """Adopt verified unversioned legacy rows through the shared ledger history."""
-    from ledger.migrations import LEDGER_HISTORY
+    from ledger_postgres.migrations import LEDGER_HISTORY
 
     database_url, connection = migration_database
     await connection.execute((LEDGER_HISTORY.directory / "ledger_0001.sql").read_text())

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from klaudia_api.adapters.ledger.catalogue.service import CatalogueService
-from ledger.resources import ResourceInspection, ResourceSearch
+from ledger_core.resources import ResourceInspection, ResourceSearch
 
 
 async def test_oversized_search_evidence_is_rejected():

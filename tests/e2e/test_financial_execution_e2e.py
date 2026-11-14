@@ -11,7 +11,7 @@ from uuid import uuid4
 import pytest
 
 from klaudia_api.interfaces.http.models.chat import KlaudiaMessage
-from ledger.resources import TableRegistration
+from ledger_core.resources import TableRegistration
 from tests.e2e.comparison_owner import comparison_owner
 from tests.e2e.conftest import requires_live
 from tests.e2e.sandbox import sandbox_enabled

@@ -13,17 +13,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 CORE_IMPORT_ROOT = REPO_ROOT / "packages/ledger-core/src"
 CORE_ROOT = CORE_IMPORT_ROOT / "ledger_core"
 LEDGER_IMPLEMENTATIONS = (
-    "ledger.operations",
-    "ledger.table_operations",
-    "ledger.authoring",
-    "ledger.store",
-    "ledger.catalogue",
-    "ledger.typed_cells",
-    "ledger.typed_storage",
-    "ledger.financial_store",
-    "ledger.authorization",
-    "ledger.server",
     "ledger_postgres",
+    "klaudia_api.interfaces.mcp",
 )
 PURE_MODULES = (
     "append_contracts",
@@ -58,7 +49,8 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
     ("directory", "forbidden"),
     [
         ("services/api/src/klaudia_api", ("app", "config", "ledger")),
-        ("mcp-ledger/ledger", ("app", "klaudia", "config")),
+        ("scripts", ("ledger",)),
+        ("tests", ("ledger",)),
         (
             "packages/ledger-postgres/src/ledger_postgres",
             (
@@ -289,7 +281,7 @@ def imported_modules(source: str, package: str) -> Iterator[tuple[int, str]]:
         ),
         *[
             (
-                f"mcp-ledger/ledger/{module}.py",
+                f"packages/ledger-core/src/ledger_core/{module}.py",
                 ("asyncpg", "fastmcp", "mcp", "fastapi", *LEDGER_IMPLEMENTATIONS),
             )
             for module in PURE_MODULES
@@ -300,9 +292,9 @@ def test_module_dependency_direction(directory, forbidden):
     violations = []
     root = REPO_ROOT / directory
     sources = sorted(root.rglob("*.py")) if root.is_dir() else [root]
-    import_root = (
-        REPO_ROOT / "mcp-ledger" if directory.startswith("mcp-ledger/") else REPO_ROOT
-    )
+    import_root = REPO_ROOT
+    if directory.startswith("packages/ledger-core/src/"):
+        import_root = CORE_IMPORT_ROOT
     if directory.startswith("services/api/src/"):
         import_root = REPO_ROOT / "services/api/src"
     for source in sources:
@@ -458,8 +450,6 @@ def test_relative_imports_resolve_to_their_owning_package(source, package, expec
     "module",
     [
         *[f"ledger_core.{module}" for module in PURE_MODULES],
-        "ledger.append_contracts",
-        "ledger.authoring_contracts",
         "klaudia.core.agent.agent",
         "klaudia.core.agent.documents",
         "klaudia.core.agent.memory",
@@ -502,7 +492,6 @@ importlib.import_module(sys.argv[1])
             script,
             module,
             str(REPO_ROOT),
-            str(REPO_ROOT / "mcp-ledger"),
             str(CORE_IMPORT_ROOT),
         ],
         capture_output=True,

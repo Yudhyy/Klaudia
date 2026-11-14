@@ -151,9 +151,8 @@ ownership through each allowed read, including batch reads. Checked financial
 writes use the application path described above. Scoped authorization was added
 in [PR #20](https://github.com/Yudhyy/Klaudia/pull/20).
 
-The supported MCP transports are stdio and Streamable HTTP. Legacy HTTP+SSE was
-removed in [PR #22](https://github.com/Yudhyy/Klaudia/pull/22). See the
-[MCP contract and migration guide](https://github.com/Yudhyy/Klaudia/blob/5a33e394748c9a1c7863488402acfa8b96780bd7/mcp-ledger/README.md)
+The supported MCP transports are stdio and Streamable HTTP. See the
+[MCP guide](https://github.com/Yudhyy/Klaudia/blob/development/services/api/MCP.md)
 for signed identity, authentication, Host/Origin configuration, and protocol
 compatibility. Native decimal formulas do not establish IronCalc or Excel support.
 
@@ -533,8 +532,10 @@ execution slots per API process and acquisition timeouts retain their behavior.
 `packages/ledger-postgres/` owns PostgreSQL storage, checked append/authoring/typed
 execution, concrete approval routing, authoring reads and receipt queries. API
 and standalone MCP composition import the same implementation. The former
-`ledger.*` paths and application authoring/approval paths retain explicit aliases.
-The MCP host retains transport and verified owner-scoped read policy.
+application authoring/approval paths retain explicit aliases. The root
+`mcp-ledger` distribution and its `ledger.*` aliases have been removed; callers
+use `ledger_postgres` and `ledger_core`. The MCP host retains transport and
+verified owner-scoped read policy.
 
 Pure financial record queries, matching, comparisons and aging calculations now
 live in `ledger_core.financial` and `ledger_core.financial_records`. The existing
@@ -591,10 +592,16 @@ release command runs ledger before application, and runtime stores check both
 required revisions.
 
 Install extras `api`, `worker` and `mcp` select process dependencies. The root
-workspace and shared image select all three. `mcp-ledger` forwards its supported
-host imports and launcher to `klaudia-api[mcp]`, which has no API or model-provider
-dependency. The service never imports that compatibility distribution.
+workspace and shared image select all three. Standalone MCP installs select
+`klaudia-api[mcp]`, which has no API or model-provider dependency. The former
+root package and script launcher have been removed. Run
+`python -m klaudia_api.interfaces.mcp.host --transport stdio` or select `http`.
 Supported `app.*` and `config.*` forwards also ship in the service wheel.
+
+The [MCP guide](https://github.com/Yudhyy/Klaudia/blob/development/services/api/MCP.md)
+now belongs to the installed service. Earlier extraction records and links to
+fixed source revisions below or above can still describe the retired `ledger.*`
+aliases. They do not grant support for those imports in the current release.
 
 The runtime image contains installed wheels and mock sample files, with no
 checkout Python source or repository `PYTHONPATH`. Host launches supply their

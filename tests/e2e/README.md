@@ -30,7 +30,8 @@ uv run pytest tests/unit/test_formula_acceptance.py tests/integration/api/test_t
 
 Use an isolated database through `PG_TEST_URL`; the local default is
 `localhost:5433/klaudia_sandbox`. These tests need no model credentials.
-CircleCI includes them in its unit and integration jobs and lints `mcp-ledger`.
+CircleCI includes them in its unit and integration jobs and lints the canonical
+ledger packages and MCP service.
 
 `formula_receipts` requires an ordered list of distinct committed typed operations.
 Each expectation declares `workbook_id`, `sheet_id`, `calculation_status`, and
