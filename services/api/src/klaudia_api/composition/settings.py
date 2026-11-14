@@ -137,13 +137,9 @@ class Settings(BaseSettings):
     @field_validator("mcp_transport", mode="before")
     @classmethod
     def validate_mcp_transport(cls, value: object) -> object:
+        """Normalize transport names before validating the supported values."""
         if isinstance(value, str):
             value = value.strip().lower()
-            if value == "sse":
-                raise ValueError(
-                    "MCP_TRANSPORT=sse was removed; supported transports are stdio and http. "
-                    "Use http with a Streamable HTTP endpoint such as /mcp."
-                )
         return value
 
     mcp_ledger_url: str = Field(

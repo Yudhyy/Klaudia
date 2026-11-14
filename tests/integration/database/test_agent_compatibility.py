@@ -14,8 +14,8 @@ from app.services.workflow.approvals import CheckedApprovals
 from app.services.workflow.store import TaskStore
 from klaudia.core.agent.agent import MainAgent
 from klaudia.core.agent.context import TaskContext
-from ledger.catalogue import CatalogueStore
-from ledger.store import LedgerStore
+from ledger_postgres.catalogue import CatalogueStore
+from ledger_postgres.store import LedgerStore
 from tests.agent_compatibility import read_fixture
 from tests.integration.postgres import POSTGRES_TEST_URL
 from tests.unit.test_main_agent import ScriptedModel

@@ -17,13 +17,12 @@ import httpx
 import jwt
 import pytest
 
-from ledger.catalogue import CatalogueStore
-from ledger.resources import TableRegistration
-from ledger.store import LedgerStore
+from ledger_postgres.catalogue import CatalogueStore
+from ledger_core.resources import TableRegistration
+from ledger_postgres.store import LedgerStore
 from tests.integration.postgres import POSTGRES_TEST_URL
 from klaudia_api.adapters.mcp_client.tool_registry import MCPToolRegistry
 
-SERVER_DIR = Path(__file__).resolve().parents[3] / "mcp-ledger"
 TRANSPORT_SECRET = "transport-fixture-secret-with-at-least-32-bytes"
 APPLICATION_SECRET = "application-fixture-secret-with-at-least-32-bytes"
 READ_TOOLS = {
@@ -49,6 +48,7 @@ class OwnedLedger:
     workbook: str
     foreign: str
     foreign_table: str
+    launch_directory: Path
 
 
 def signed_token(subject: str, secret: str = TRANSPORT_SECRET, **claims) -> str:
@@ -60,7 +60,7 @@ def signed_token(subject: str, secret: str = TRANSPORT_SECRET, **claims) -> str:
 
 
 @pytest.fixture
-async def owned_ledger():
+async def owned_ledger(tmp_path):
     """Seed unique test workbooks without exposing mutation tools to MCP."""
     store = LedgerStore(POSTGRES_TEST_URL)
     await store.connect()
@@ -84,7 +84,9 @@ async def owned_ledger():
                 name="Foreign claims",
             ),
         )
-        yield OwnedLedger(store, 910001, 910002, workbook, foreign, table["table_id"])
+        yield OwnedLedger(
+            store, 910001, 910002, workbook, foreign, table["table_id"], tmp_path
+        )
     finally:
         await store.delete_spreadsheet(workbook)
         await store.delete_spreadsheet(foreign)
@@ -110,8 +112,8 @@ async def stdio_client(fixture: OwnedLedger, overrides: dict[str, str] | None = 
     """Run the actual stdio server for the configured local owner."""
     transport = StdioTransport(
         command=sys.executable,
-        args=["main.py", "--transport", "stdio"],
-        cwd=str(SERVER_DIR),
+        args=["-m", "klaudia_api.interfaces.mcp.host", "--transport", "stdio"],
+        cwd=str(fixture.launch_directory),
         env={**server_environment(fixture), **(overrides or {})},
     )
     async with Client(transport) as client:
@@ -400,10 +402,11 @@ async def network_server(
     with log_path.open("wb") as log:
         process = await asyncio.create_subprocess_exec(
             sys.executable,
-            "main.py",
+            "-m",
+            "klaudia_api.interfaces.mcp.host",
             "--transport",
             "http",
-            cwd=SERVER_DIR,
+            cwd=log_path.parent,
             env=environment,
             stdout=log,
             stderr=log,

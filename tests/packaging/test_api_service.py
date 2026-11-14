@@ -26,7 +26,6 @@ def test_installed_service_loads_all_processes_and_assets(tmp_path: Path):
             "packages/memory-core",
             "packages/document-intelligence",
             "services/api",
-            "mcp-ledger",
         ),
         {"klaudia-api": ("api", "worker", "mcp")},
     )
@@ -41,6 +40,7 @@ def test_installed_service_loads_all_processes_and_assets(tmp_path: Path):
         f"hashes = {hashes!r}\nlegacy_modules = {legacy_modules!r}\n"
         + """
 from importlib import import_module
+from importlib.util import find_spec
 import hashlib
 from pathlib import Path
 import sys
@@ -58,14 +58,14 @@ from config.settings import Settings as LegacySettings
 from klaudia_api.interfaces.workers.extraction_worker import extract_page_task
 from app.services.extraction.queue.tasks import extract_page_task as legacy_task
 from klaudia_api.interfaces.mcp.ledger.server import mcp
-from ledger.server import mcp as legacy_mcp
 from klaudia_api.adapters.persistence.migrations import APPLICATION_HISTORY, HISTORIES
 
 assert legacy_app is app
 assert LegacyContainer is KlaudiaContainer
 assert LegacySettings is Settings
 assert legacy_task is extract_page_task
-assert legacy_mcp is mcp
+assert find_spec('ledger') is None
+assert mcp.name == 'mcp-ledger'
 assert extract_page_task.task_name == 'ocr.extract_page'
 assert list(HISTORIES) == ['ledger', 'application']
 assert APPLICATION_HISTORY.directory.is_relative_to(Path(sys.prefix))
@@ -154,15 +154,15 @@ print('installed-worker')
 
 
 def test_installed_mcp_does_not_require_api_or_model_dependencies(tmp_path: Path):
-    """Install the retained MCP distribution with only its process requirements."""
+    """Run the MCP extra without the retired ledger distribution."""
     python = install_agent_packages(
         tmp_path,
         (
             "packages/ledger-core",
             "packages/ledger-postgres",
             "services/api",
-            "mcp-ledger",
         ),
+        {"klaudia-api": ("mcp",)},
     )
     assert (
         probe(
@@ -173,12 +173,12 @@ from importlib.util import find_spec
 from pathlib import Path
 import sys
 import klaudia_api
+assert find_spec('ledger') is None, 'Legacy ledger distribution remains installed'
 from fastmcp import Client
 from klaudia_api.interfaces.mcp.ledger.server import mcp
-from ledger.server import mcp as legacy
 
 assert Path(klaudia_api.__file__).resolve().is_relative_to(Path(sys.prefix))
-assert legacy is mcp
+assert mcp.name == 'mcp-ledger'
 for name in ('fastapi', 'langchain_openai', 'google.genai', 'PIL', 'taskiq'):
     parent = name.split('.')[0]
     assert find_spec(parent) is None, name
@@ -226,4 +226,8 @@ print('installed-dotenv-auth')
     assert (
         run_command([str(python), "-I", str(launcher)], launch_directory)
         == "installed-dotenv-auth"
+    )
+    assert "--transport" in run_command(
+        [str(python), "-I", "-m", "klaudia_api.interfaces.mcp.host", "--help"],
+        launch_directory,
     )

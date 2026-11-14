@@ -11,7 +11,7 @@ import asyncpg
 import pytest
 
 from klaudia_api.adapters.ledger.spreadsheets import SpreadsheetService
-from ledger.store import (
+from ledger_postgres.store import (
     LedgerStore,
     SpreadsheetExistsError,
     SpreadsheetNotFoundError,

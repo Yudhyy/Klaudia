@@ -8,16 +8,16 @@ from datetime import date
 
 import pytest
 
-from ledger.catalogue import CatalogueStore
-from ledger.resources import (
+from ledger_postgres.catalogue import CatalogueStore
+from ledger_core.resources import (
     ResourceExistsError,
     ResourceNotFoundError,
     ResourceSearch,
     TableRegistration,
     TableUpdate,
 )
-from ledger.errors import RevisionConflictError, SheetNotFoundError
-from ledger.store import LedgerStore
+from ledger_core.errors import RevisionConflictError, SheetNotFoundError
+from ledger_postgres.store import LedgerStore
 from tests.integration.postgres import POSTGRES_TEST_URL
 
 
@@ -439,7 +439,7 @@ async def test_registered_calculation_uses_owned_bounds_and_labelled_evidence(
     catalogue_setup,
 ):
     """The selected table excludes neighbouring records and identifies its metrics."""
-    from ledger.calculations import CheckedCalculation
+    from ledger_core.calculations import CheckedCalculation
 
     _, catalogue, workspace, sheet_id = catalogue_setup
     table = await catalogue.register(workspace, registration(sheet_id))
@@ -467,7 +467,7 @@ async def test_registered_calculation_uses_owned_bounds_and_labelled_evidence(
 
 async def test_calculation_rejects_stale_sheet_and_catalogue(catalogue_setup):
     """An observation cannot silently calculate against changed data or bounds."""
-    from ledger.calculations import CheckedCalculation
+    from ledger_core.calculations import CheckedCalculation
 
     store, catalogue, workspace, sheet_id = catalogue_setup
     table = await catalogue.register(workspace, registration(sheet_id))
@@ -510,7 +510,7 @@ async def test_calculation_rejects_stale_sheet_and_catalogue(catalogue_setup):
 
 async def test_calculation_preserves_postgres_fractional_digits(catalogue_setup):
     """The database-to-calculation path never rounds a stored decimal through float."""
-    from ledger.calculations import CheckedCalculation
+    from ledger_core.calculations import CheckedCalculation
 
     store, catalogue, workspace, sheet_id = catalogue_setup
     await store.pool.execute(

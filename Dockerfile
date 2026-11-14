@@ -20,7 +20,6 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 COPY services/api/pyproject.toml ./services/api/pyproject.toml
 COPY klaudia/pyproject.toml ./klaudia/pyproject.toml
-COPY mcp-ledger/pyproject.toml ./mcp-ledger/pyproject.toml
 COPY packages/ledger-core/pyproject.toml ./packages/ledger-core/pyproject.toml
 COPY packages/ledger-postgres/pyproject.toml ./packages/ledger-postgres/pyproject.toml
 COPY packages/agent-core/pyproject.toml ./packages/agent-core/pyproject.toml

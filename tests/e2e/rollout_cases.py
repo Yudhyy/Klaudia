@@ -9,8 +9,8 @@ import re
 import time
 
 from app.services.memory.contracts import DocumentEdit, DocumentPath
-from ledger.catalogue import CatalogueStore
-from ledger.resources import TableRegistration
+from ledger_postgres.catalogue import CatalogueStore
+from ledger_core.resources import TableRegistration
 from tests.e2e.rollout_measurement import UsageMeter
 
 SCENARIOS = (

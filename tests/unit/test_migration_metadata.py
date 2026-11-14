@@ -9,7 +9,7 @@ import pytest
     ("module_name", "owned_tables"),
     [
         (
-            "ledger.migrations.metadata",
+            "ledger_postgres.migrations.metadata",
             {
                 "ledger_spreadsheet",
                 "ledger_sheet",
@@ -58,7 +58,7 @@ def test_history_filters_exclude_other_tables(history_name):
 
 def test_standalone_ledger_has_no_application_foreign_keys():
     """Ledger metadata can create its tables without an application registry."""
-    registered = importlib.import_module("ledger.migrations.metadata").metadata
+    registered = importlib.import_module("ledger_postgres.migrations.metadata").metadata
     assert all(
         key.column.table.metadata is registered
         for table in registered.tables.values()

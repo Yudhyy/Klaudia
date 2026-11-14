@@ -523,7 +523,7 @@ klaudia/        compatibility imports for agent runtime and skills
 packages/agent-core/    single main agent, checked tools and capability ports
 packages/agent-skills/  versioned skill registry and procedure files
 packages/ledger-core/  pure ledger contracts, aggregation and exact native formulas
-mcp-ledger/     compatibility imports and launcher for the installed ledger MCP host
+packages/ledger-postgres/  shared ledger storage, checked execution and migrations
 tests/e2e/      the sandbox: dataset, generators, runners, reports
 scripts/        migration, mirroring, tenancy and sandbox utilities
 ```
@@ -532,6 +532,11 @@ Read the [current architecture](docs/docs/05-development/architecture/overview.m
 for source-linked request paths and module responsibilities. The
 [target design](docs/docs/05-development/architecture/target.mdx) describes proposed
 changes. See [CONTRIBUTING.md](CONTRIBUTING.md) for the issue and PR workflow.
+
+The root `mcp-ledger` package, `ledger.*` imports and `mcp-ledger/main.py` launch
+path have been removed. Use `ledger_core` for pure contracts/calculations,
+`ledger_postgres` for storage, and `python -m klaudia_api.interfaces.mcp.host`
+for the server. See the [MCP guide](services/api/MCP.md) for configuration.
 
 ---
 

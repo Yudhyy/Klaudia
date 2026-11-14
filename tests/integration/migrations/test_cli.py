@@ -11,7 +11,6 @@ import pytest
     "module_name",
     [
         "klaudia_api.adapters.persistence",
-        "ledger.migrations",
         "ledger_postgres.migrations",
     ],
 )

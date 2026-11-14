@@ -35,7 +35,6 @@ a PostgreSQL ledger, document extraction, and an Expo mobile client.
 | `packages/workflow-core/` | Task, progress and decision interfaces with supplied storage and run coordination |
 | `packages/memory-core/` | Context document and policy contracts with owner-scoped read/edit interfaces |
 | `packages/document-intelligence/` | Document contracts, inline ingestion and queued page processing through supplied capabilities |
-| `mcp-ledger/ledger/` | Compatibility imports for the canonical MCP host, ledger contracts and storage |
 | `apps/mobile/` | Expo and React Native client |
 | `tests/` | Unit, integration, and evaluation checks |
 | `.circleci/` | Backend and mobile CI commands and path selection |
@@ -53,8 +52,8 @@ From the repo root:
 
 ```bash
 uv sync --all-packages --group dev
-uv run ruff check services/api/ klaudia/ mcp-ledger/ packages/ tests/
-uv run ruff format --check services/api/ klaudia/ mcp-ledger/ packages/ tests/
+uv run ruff check services/api/ klaudia/ packages/ tests/
+uv run ruff format --check services/api/ klaudia/ packages/ tests/
 uv run pytest tests/unit -q
 uv run pytest tests/packaging -q
 ```

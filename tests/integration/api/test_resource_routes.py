@@ -11,9 +11,9 @@ from klaudia_api.interfaces.http.v1.resources import router
 from klaudia_api.adapters.ledger.catalogue.service import CatalogueService
 from app.services.auth.tokens import create_access_token
 from klaudia_api.composition.settings import get_settings
-from ledger.catalogue import CatalogueStore
-from ledger.resources import TableRegistration
-from ledger.store import LedgerStore
+from ledger_postgres.catalogue import CatalogueStore
+from ledger_core.resources import TableRegistration
+from ledger_postgres.store import LedgerStore
 from tests.integration.postgres import POSTGRES_TEST_URL
 
 

@@ -23,15 +23,15 @@ The backend uses Python 3.11 or later and a uv workspace:
 
 ```bash
 uv sync --all-packages --group dev
-uv run ruff check services/api/ klaudia/ mcp-ledger/ packages/ tests/
-uv run ruff format --check services/api/ klaudia/ mcp-ledger/ packages/ tests/
+uv run ruff check services/api/ klaudia/ packages/ tests/
+uv run ruff format --check services/api/ klaudia/ packages/ tests/
 uv run pytest tests/unit -q
 uv run pytest tests/packaging -q
 ```
 
 The installed service lives in `services/api/src/klaudia_api/`. The root
 workspace selects its `api`, `worker` and `mcp` extras. Canonical process commands
-use `klaudia_api`; supported `app.*`, `config.*` and MCP imports remain aliases.
+use `klaudia_api`; supported `app.*` and `config.*` imports remain aliases.
 The shared image runs installed wheels without a checkout Python path.
 
 The workspace installs `agent-core`, `agent-skills`, `ledger-core`,
@@ -55,8 +55,10 @@ Document packaging checks run inline ingestion and queued page processing with
 only the standard library and supplied capabilities. Application adapters bind
 PostgreSQL, Redis, object storage, OCR, media libraries, and Taskiq.
 Ledger PostgreSQL adapters and migration assets install without an MCP host or
-application imports. New storage callers use `ledger_postgres`; `ledger.*`
-compatibility paths remain supported.
+application imports. Storage callers use `ledger_postgres`; pure contracts and
+calculations use `ledger_core`. The root `mcp-ledger` distribution and its
+`ledger.*` aliases have been removed. Launch MCP through the installed
+`klaudia_api.interfaces.mcp.host` module; see the [MCP guide](services/api/MCP.md).
 
 The mobile CI uses Node 24.12.0. Run these commands from `apps/mobile/`:
 

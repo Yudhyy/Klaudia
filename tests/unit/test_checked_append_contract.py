@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from ledger.operations import AppendRows
+from ledger_postgres.operations import AppendRows
 
 
 @pytest.mark.parametrize(

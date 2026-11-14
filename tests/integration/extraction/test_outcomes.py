@@ -29,7 +29,7 @@ from klaudia_api.interfaces.workers import extraction_worker as tasks
 from klaudia_api.adapters.documents.queue.progress import ProgressWait, stream_progress
 from klaudia_api.composition.settings import Settings
 from document_intelligence import queued
-from ledger.resources import ResourceNotFoundError
+from ledger_core.resources import ResourceNotFoundError
 
 
 @pytest.fixture

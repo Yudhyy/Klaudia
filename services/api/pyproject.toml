@@ -10,10 +10,10 @@ dependencies = []
 [project.optional-dependencies]
 api = [
     "fastapi>=0.133.0",
-    "fastmcp==4.0.0b3",
+    "fastmcp==4.2.0",
     "uvicorn>=0.27.0",
     "pydantic[email]>=2.0.0",
-    "pydantic-settings>=2.0.0",
+    "pydantic-settings>=2.14.2",
     "pillow>=10.0.0",
     "pypdfium2>=4.0.0",
     "aiohttp>=3.9.0",
@@ -44,7 +44,7 @@ api = [
     "aioboto3>=13.0.0",
     "taskiq>=0.11.0",
     "taskiq-redis>=1.0.0",
-    "pyjwt>=2.13.0",
+    "pyjwt>=2.15.0",
     "bcrypt>=5.0.0",
     "slowapi>=0.1.10",
     "asyncpg>=0.31.0",
@@ -81,7 +81,7 @@ worker = [
 mcp = [
     "ledger-core",
     "ledger-postgres",
-    "fastmcp==4.0.0b3",
+    "fastmcp==4.2.0",
     "python-dotenv>=1.0.0",
     "pydantic>=2.0.0",
 ]
@@ -110,4 +110,4 @@ packages = ["src/klaudia_api", "src/app", "src/config"]
 "migrations" = "klaudia_api/migrations"
 
 [tool.hatch.build.targets.sdist]
-include = ["src", "migrations", "README.md", "pyproject.toml"]
+include = ["src", "migrations", "README.md", "MCP.md", "pyproject.toml"]

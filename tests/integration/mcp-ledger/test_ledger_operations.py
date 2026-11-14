@@ -6,9 +6,9 @@ import uuid
 import pytest
 import asyncpg
 
-from ledger.errors import IdempotencyConflictError, RevisionConflictError
-from ledger.operations import AppendRows
-from ledger.store import LedgerStore, SheetNotFoundError
+from ledger_core.errors import IdempotencyConflictError, RevisionConflictError
+from ledger_postgres.operations import AppendRows
+from ledger_postgres.store import LedgerStore, SheetNotFoundError
 from tests.integration.postgres import POSTGRES_TEST_URL
 
 
@@ -197,7 +197,7 @@ async def test_idempotency_keys_are_scoped_to_workbooks(operation_store):
 
 async def test_revision_migration_preserves_existing_grid(migration_database):
     """Upgrade the supplied old ledger layout twice without replacing its grid."""
-    from ledger.migrations import upgrade_ledger
+    from ledger_postgres.migrations import upgrade_ledger
 
     database_url, connection = migration_database
     await connection.execute("""

@@ -15,8 +15,8 @@ from klaudia_api.adapters.documents.database import AppDBClient
 from klaudia_api.adapters.ledger.task_operations import TaskOperations
 from app.services.workflow.store import TaskStore
 from klaudia_api.composition.settings import Settings
-from ledger.catalogue import CatalogueStore
-from ledger.store import LedgerStore
+from ledger_postgres.catalogue import CatalogueStore
+from ledger_postgres.store import LedgerStore
 from tests.integration.api.test_main_chat_routes import AppendChatModel
 from tests.integration.postgres import POSTGRES_TEST_URL
 

@@ -18,16 +18,16 @@ from klaudia_api.adapters.persistence.memory import (
     PostgresMemoryDocumentStore,
     PostgresMemoryReader,
 )
-from ledger.catalogue import CatalogueStore
-from ledger.errors import RevisionConflictError
+from ledger_postgres.catalogue import CatalogueStore
+from ledger_core.errors import RevisionConflictError
 from klaudia.core.agent.ports.errors import (
     RevisionConflictError as CapabilityRevisionConflict,
 )
 from klaudia.core.agent.ports.errors import (
     ResourceNotFoundError as CapabilityResourceNotFound,
 )
-from ledger.resources import ResourceNotFoundError, TableRegistration
-from ledger.store import LedgerStore
+from ledger_core.resources import ResourceNotFoundError, TableRegistration
+from ledger_postgres.store import LedgerStore
 from tests.integration.postgres import POSTGRES_TEST_URL
 from tests.unit.test_accounting_policy import policy_fields
 from tests.unit.test_policy_reconciliation import arguments

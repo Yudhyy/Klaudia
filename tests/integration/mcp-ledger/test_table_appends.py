@@ -9,11 +9,11 @@ import uuid
 
 import pytest
 
-from ledger.catalogue import CatalogueStore
-from ledger.resources import TableRegistration, ResourceNotFoundError
-from ledger.errors import IdempotencyConflictError, RevisionConflictError
-from ledger.store import LedgerStore
-from ledger.table_operations import TableAppend, execute_table_append
+from ledger_postgres.catalogue import CatalogueStore
+from ledger_core.resources import TableRegistration, ResourceNotFoundError
+from ledger_core.errors import IdempotencyConflictError, RevisionConflictError
+from ledger_postgres.store import LedgerStore
+from ledger_postgres.table_operations import TableAppend, execute_table_append
 from tests.integration.postgres import POSTGRES_TEST_URL
 
 
@@ -375,7 +375,10 @@ async def test_unregistered_occupied_cells_block_expansion(append_setup):
 
 async def test_prepared_append_survives_restart_and_lost_receipt(append_setup):
     """A durable proposal replays its original revisions after execution."""
-    from ledger.table_operations import prepare_table_append, execute_prepared_append
+    from ledger_postgres.table_operations import (
+        prepare_table_append,
+        execute_prepared_append,
+    )
 
     store, _, workspace, _, table_id = append_setup
     proposal = await prepare_table_append(store.pool, 90401, request(table_id))
@@ -401,7 +404,10 @@ async def test_prepared_append_survives_restart_and_lost_receipt(append_setup):
 
 async def test_prepared_append_checks_identity_and_current_revision(append_setup):
     """Possessing a proposal reference cannot grant access or bypass revisions."""
-    from ledger.table_operations import prepare_table_append, execute_prepared_append
+    from ledger_postgres.table_operations import (
+        prepare_table_append,
+        execute_prepared_append,
+    )
 
     store, _, workspace, _, table_id = append_setup
     proposal = await prepare_table_append(store.pool, 90401, request(table_id))
@@ -423,7 +429,10 @@ async def test_prepared_append_checks_identity_and_current_revision(append_setup
 @pytest.mark.parametrize("amount", [1e20, -0.0])
 async def test_prepared_append_preserves_exact_numeric_request(append_setup, amount):
     """Persistence must not normalise numeric tokens used by the fingerprint."""
-    from ledger.table_operations import prepare_table_append, execute_prepared_append
+    from ledger_postgres.table_operations import (
+        prepare_table_append,
+        execute_prepared_append,
+    )
 
     store, _, _, _, table_id = append_setup
     proposal = await prepare_table_append(

@@ -12,8 +12,8 @@ from langchain_core.messages import AIMessage
 from klaudia_api.adapters.ledger.catalogue.service import CatalogueService
 from klaudia_api.adapters.capabilities.operations import OperationService
 from klaudia.core.agent.agent import MainAgent
-from ledger.catalogue import CatalogueStore
-from ledger.store import LedgerStore
+from ledger_postgres.catalogue import CatalogueStore
+from ledger_postgres.store import LedgerStore
 from tests.e2e.capability_cases import seeded_capability_case
 from tests.e2e.engine_inprocess import run_case_inprocess
 from tests.e2e.sut import MainAgentSUT

@@ -23,8 +23,8 @@ from klaudia_api.interfaces.http.orchestrator import KlaudiaOrchestrator
 from klaudia_api.adapters.ledger.spreadsheets import SpreadsheetService
 from klaudia_api.adapters.documents.database import AppDBClient
 from klaudia_api.composition.settings import Settings, get_settings
-from ledger.catalogue import CatalogueStore
-from ledger.store import LedgerStore
+from ledger_postgres.catalogue import CatalogueStore
+from ledger_postgres.store import LedgerStore
 from tests.e2e.capability_cases import seeded_capability_case
 from tests.integration.postgres import POSTGRES_TEST_URL
 from tests.unit.test_main_agent import ScriptedModel, call

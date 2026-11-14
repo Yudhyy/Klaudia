@@ -20,5 +20,7 @@ python -m ledger_postgres.migrations upgrade --database-url "$DATABASE_URL"
 python -m ledger_postgres.migrations check --database-url "$DATABASE_URL"
 ```
 
-The `mcp-ledger` distribution retains existing `ledger.*` compatibility imports.
+Import storage and migration modules through `ledger_postgres`. The former
+`mcp-ledger` distribution and its `ledger.*` compatibility imports have been
+removed. The MCP host installs through `klaudia-api[mcp]`.
 The adapter package itself works without that distribution or application tables.

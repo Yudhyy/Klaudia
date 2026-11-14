@@ -14,7 +14,7 @@ import pytest
 from sqlalchemy import Column, MetaData, Text
 
 from klaudia_api.adapters.persistence.migrations import HISTORIES, upgrade_database
-from ledger.migrations.runtime import MIGRATION_LOCK, upgrade_histories
+from ledger_postgres.migrations.runtime import MIGRATION_LOCK, upgrade_histories
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -169,9 +169,9 @@ async def test_generated_revision_can_be_reviewed_and_upgraded(
 from pathlib import Path
 from alembic import context
 from sqlalchemy import Column, MetaData, Text
-from ledger.migrations import LEDGER_HISTORY
-from ledger.migrations.runtime import History
-from ledger.migrations.authoring import run_environment
+from ledger_postgres.migrations import LEDGER_HISTORY
+from ledger_postgres.migrations.runtime import History
+from ledger_postgres.migrations.authoring import run_environment
 
 class ReadOnlyHistory(History):
     """Observe PostgreSQL's actual transaction mode during comparison."""

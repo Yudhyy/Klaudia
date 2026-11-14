@@ -10,8 +10,6 @@ def test_installed_ledger_migration_assets(tmp_path):
         (
             "packages/ledger-core",
             "packages/ledger-postgres",
-            "services/api",
-            "mcp-ledger",
         ),
     )
     assert (
@@ -20,8 +18,8 @@ def test_installed_ledger_migration_assets(tmp_path):
             """
 from pathlib import Path
 import sys
-from ledger.migrations import LEDGER_HISTORY
-from ledger.migrations.runtime import baseline_layout
+from ledger_postgres.migrations import LEDGER_HISTORY
+from ledger_postgres.migrations.runtime import baseline_layout
 assert Path(LEDGER_HISTORY.directory).resolve().is_relative_to(Path(sys.prefix))
 assert LEDGER_HISTORY.scripts().get_heads() == ["ledger_0001"]
 assert (LEDGER_HISTORY.directory / "ledger_0001.sql").is_file()

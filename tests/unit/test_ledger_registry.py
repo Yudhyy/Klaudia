@@ -43,13 +43,14 @@ def test_remote_ledger_registry_preserves_authentication(path):
 @pytest.mark.parametrize(
     "transport", ["sse", "SSE", "websocket", "streamable-http", ""]
 )
-def test_settings_reject_removed_or_unknown_transports(transport):
+def test_settings_reject_unsupported_transports(transport):
     with pytest.raises(ValidationError, match="stdio.*http"):
         Settings(_env_file=None, MCP_TRANSPORT=transport)
 
 
-def test_removed_transport_has_migration_instructions():
-    with pytest.raises(ValidationError, match="removed.*Streamable HTTP"):
+def test_unsupported_transport_lists_supported_values():
+    """List the supported names when a transport value is invalid."""
+    with pytest.raises(ValidationError, match="Input should be 'stdio' or 'http'"):
         Settings(_env_file=None, MCP_TRANSPORT="sse")
 
 

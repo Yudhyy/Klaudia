@@ -1,8 +1,6 @@
 """Require explicit authentication for each network MCP transport."""
 
-import importlib.util
 import os
-from pathlib import Path
 import subprocess
 import sys
 from unittest.mock import Mock
@@ -18,15 +16,13 @@ TRANSPORT_SECRET = "http-test-verification-key-with-at-least-32-bytes"
 @pytest.fixture
 def entrypoint(monkeypatch):
     """Load the ledger entry point without starting a server."""
-    path = Path(__file__).resolve().parents[2] / "mcp-ledger/main.py"
-    specification = importlib.util.spec_from_file_location("ledger_entrypoint", path)
-    module = importlib.util.module_from_spec(specification)
-    specification.loader.exec_module(module)
-    monkeypatch.setattr(module.mcp, "run", Mock())
+    from klaudia_api.interfaces.mcp import host
+
+    monkeypatch.setattr(host.mcp, "run", Mock())
     monkeypatch.delenv("MCP_JWT_SECRET", raising=False)
     monkeypatch.delenv("MCP_ALLOW_INSECURE_HTTP", raising=False)
     monkeypatch.delenv("FASTMCP_HOST", raising=False)
-    return module
+    return host
 
 
 def test_network_transport_requires_bearer_configuration(entrypoint):
@@ -42,7 +38,7 @@ def test_stdio_does_not_require_http_credentials(entrypoint):
 
 
 @pytest.mark.parametrize("transport", ["sse", "websocket", "streamable-http", ""])
-def test_server_rejects_removed_or_unknown_transports(entrypoint, transport):
+def test_server_rejects_unsupported_transports(entrypoint, transport):
     with pytest.raises(ValueError, match="stdio.*http"):
         entrypoint.run_server(transport)
     entrypoint.mcp.run.assert_not_called()
@@ -52,30 +48,48 @@ def test_server_rejects_removed_or_unknown_transports(entrypoint, transport):
 def test_server_rejects_reserved_http_paths(entrypoint, monkeypatch, path):
     monkeypatch.setenv("MCP_JWT_SECRET", TRANSPORT_SECRET)
     monkeypatch.setattr(fastmcp.settings, "streamable_http_path", path)
-    with pytest.raises(ValueError, match="removed.*Streamable HTTP"):
+    with pytest.raises(
+        ValueError,
+        match=r"^Configure FASTMCP_STREAMABLE_HTTP_PATH with a Streamable HTTP endpoint such as /mcp\.$",
+    ):
         entrypoint.run_server("http")
     entrypoint.mcp.run.assert_not_called()
 
 
-def test_cli_explains_how_to_replace_sse():
-    server_dir = Path(__file__).resolve().parents[2] / "mcp-ledger"
-    result = subprocess.run(
-        [sys.executable, "main.py", "--transport", "sse"],
-        cwd=server_dir,
+def test_cli_lists_supported_transports_for_invalid_input(tmp_path):
+    """Explain the supported transport values through the installed command."""
+    completed = subprocess.run(
+        [sys.executable, "-m", "klaudia_api.interfaces.mcp.host", "--transport", "sse"],
+        cwd=tmp_path,
         env={**os.environ, "MCP_JWT_SECRET": "", "MCP_ALLOW_INSECURE_HTTP": "false"},
         capture_output=True,
         text=True,
         timeout=10,
     )
-    assert result.returncode != 0
-    assert "removed" in result.stderr and "--transport http" in result.stderr
+    assert completed.returncode != 0
+    assert "Transport must be stdio or http (Streamable HTTP)" in completed.stderr
+
+
+def test_cli_help_describes_supported_transports(tmp_path):
+    """Describe the two supported transports in command help."""
+    completed = subprocess.run(
+        [sys.executable, "-m", "klaudia_api.interfaces.mcp.host", "--help"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=True,
+    )
+    assert "stdio (default) or Streamable HTTP" in completed.stdout
+    assert all(
+        word not in completed.stdout.lower() for word in ("legacy", "removed", "sse")
+    )
 
 
 def test_sdk_settings_include_the_parent_dotenv_file(tmp_path):
-    server_dir = tmp_path / "mcp-ledger"
-    server_dir.mkdir()
-    source = Path(__file__).resolve().parents[2] / "mcp-ledger/main.py"
-    (server_dir / "main.py").write_text(source.read_text())
+    """Read parent dotenv settings when the installed host launches elsewhere."""
+    launch_directory = tmp_path / "launch"
+    launch_directory.mkdir()
     (tmp_path / ".env").write_text("FASTMCP_STREAMABLE_HTTP_PATH=/sse\n")
     environment = {
         key: value
@@ -84,17 +98,24 @@ def test_sdk_settings_include_the_parent_dotenv_file(tmp_path):
     }
     environment["MCP_JWT_SECRET"] = ""
     environment["MCP_ALLOW_INSECURE_HTTP"] = "false"
-    result = subprocess.run(
-        [sys.executable, "main.py", "--transport", "http"],
-        cwd=server_dir,
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "klaudia_api.interfaces.mcp.host",
+            "--transport",
+            "http",
+        ],
+        cwd=launch_directory,
         env=environment,
         capture_output=True,
         text=True,
         timeout=10,
     )
-    assert result.returncode != 0
+    assert completed.returncode != 0
     assert (
-        "removed" in result.stderr and "FASTMCP_STREAMABLE_HTTP_PATH" in result.stderr
+        "Configure FASTMCP_STREAMABLE_HTTP_PATH" in completed.stderr
+        and "Streamable HTTP endpoint" in completed.stderr
     )
 
 

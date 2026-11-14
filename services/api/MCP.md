@@ -1,15 +1,15 @@
-# mcp-ledger
+# Ledger MCP host
 
-The canonical host, authentication and owned-read policy now live in the installed
-`klaudia-api` service. This distribution selects its `mcp` extra and retains the
-`ledger.*` imports and `main.py` launcher. Ledger storage and migrations remain
-independent in `ledger-postgres`. New process launches can use
-`python -m klaudia_api.interfaces.mcp.host --transport stdio`.
+The installed `klaudia-api[mcp]` service supplies the host, authentication and
+owned-read policy. Run `python -m klaudia_api.interfaces.mcp.host` with the
+required environment settings. The root `mcp-ledger` distribution, its
+`ledger.*` imports and its `main.py` launcher have been removed. The MCP server
+name remains `mcp-ledger`; existing tool names and settings remain the same.
 
 The host uses shared storage and checked execution from `ledger-postgres`, and
-pure contracts/calculations from `ledger-core`. Existing `ledger.*` storage and
-migration imports remain compatibility paths. The adapter package can also run
-without the MCP distribution or application tables.
+pure contracts/calculations from `ledger-core`. Import their canonical modules
+as `ledger_postgres` and `ledger_core`. The storage package can also run without
+the MCP host or application tables.
 
 Database setup uses the owned ledger Alembic history. Standalone startup retains
 automatic setup through `LedgerStore.connect()`. To run an explicit release step,
@@ -17,9 +17,10 @@ use `python -m ledger_postgres.migrations upgrade`, then
 `python -m ledger_postgres.migrations check`
 with `DATABASE_URL` set. Integrated deployments set `LEDGER_SCHEMA_MODE=check`
 after their release command upgrades both histories. See the
-[migration guide](../docs/docs/05-development/contributing/database-migrations.mdx) for
+[migration guide](../../docs/docs/05-development/contributing/database-migrations.mdx) for
 adoption, revision checks, and recovery.
-The former `python -m ledger.migrations` command remains supported.
+Use `python -m ledger_postgres.migrations` in place of the removed
+`python -m ledger.migrations` command.
 
 Postgres-backed MCP reads with current workbook ownership checks. The default
 surface exposes nine read tools. All fourteen mutation handlers are denied,
@@ -35,7 +36,7 @@ Existing read names and response shapes remain supported within an owned workboo
 | `LEDGER_WORKSPACE` | Default workspace when `spreadsheet_id` is omitted (default `default`) |
 | `LEDGER_TITLE` | Workspace display title (default `Klaudia Ledger`) |
 | `FASTMCP_HOST` / `FASTMCP_PORT` | Streamable HTTP bind (default `0.0.0.0:8003`) |
-| `FASTMCP_STREAMABLE_HTTP_PATH` | HTTP endpoint path (default `/mcp`); paths ending in `/sse` are reserved for migration errors |
+| `FASTMCP_STREAMABLE_HTTP_PATH` | Streamable HTTP endpoint path (default `/mcp`) |
 | `FASTMCP_HTTP_ALLOWED_HOSTS` | JSON array of trusted public MCP hostnames, for example `["ledger.example"]`; the SDK also trusts loopback and the bound address |
 | `FASTMCP_HTTP_ALLOWED_ORIGINS` | JSON array of trusted cross-origin browser origins, for example `["https://app.example"]` |
 | `MCP_JWT_SECRET` | HS256 verification key for HTTP bearer auth (32+ characters) |
@@ -47,8 +48,8 @@ Existing read names and response shapes remain supported within an owned workboo
 ## Run
 
 ```bash
-python main.py --transport stdio   # local subprocess (default)
-python main.py --transport http    # stateless service at /mcp; auth required
+python -m klaudia_api.interfaces.mcp.host --transport stdio
+python -m klaudia_api.interfaces.mcp.host --transport http
 ```
 
 HTTP uses the SDK's strict Host/Origin guard on every bind address. For a public
@@ -62,40 +63,31 @@ only with `FASTMCP_HOST=127.0.0.1`, `::1`, or `localhost`. Do not publish that
 unauthenticated listener through a proxy. It never enables the local owner
 fallback for HTTP requests.
 
-FastMCP remains pinned to `4.0.0b3`, with MCP SDK `2.0.0`. HTTP runs in stateless
-mode so requests can reach any replica. The SDK supports the current `2026-07-28`
-protocol and handshake-era revisions `2024-11-05`, `2025-03-26`, `2025-06-18`, and
-`2025-11-25`. Klaudia's automatic protocol selection probes the current revision
-and can negotiate an older revision over the same transport; it never switches
-to legacy HTTP+SSE. Integration checks exercise `2026-07-28` and `2025-11-25`.
+FastMCP is pinned to the stable `4.2.0` release. The supported transports are
+`stdio` and Streamable HTTP (`http`). The SDK handles protocol negotiation.
+HTTP runs in stateless mode so requests can reach any replica.
 
-Current-protocol requests carry version/capability metadata and matching HTTP
-routing headers. They do not use initialization sessions, standalone GET streams,
-or session IDs. Older revisions retain their SDK-defined handshake behavior.
-Streamable HTTP clients support both JSON and request-scoped SSE responses;
-SSE response encoding remains valid. See the [current binding](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http)
-and [protocol versioning](https://modelcontextprotocol.io/docs/2026-07-28/learn/versioning).
+Streamable HTTP uses a single MCP endpoint. Each request receives a JSON
+response or a request-scoped event stream; clients must accept both response
+formats. See the [MCP transport overview](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports)
+and [Streamable HTTP specification](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http).
 
-## Transport migration
+## HTTP configuration
 
-Both the server entry point and `MCP_TRANSPORT` now accept only `stdio` and `http`. Unsupported values fail before serving or connecting. The application also rejects URLs whose decoded path ends in `/sse`,
-including trailing slashes and query strings, with migration instructions. This reserved path is Klaudia policy; MCP itself does not prescribe endpoint names.
+Set `MCP_TRANSPORT=http` and configure the endpoint and credentials before
+starting a remote MCP host.
 
-1. Start the remote server with `python main.py --transport http`. Keep the
-   existing verification keys, owner-token settings, and database target.
+1. Start the remote server with
+   `python -m klaudia_api.interfaces.mcp.host --transport http`. Keep the
+   configured verification keys, owner-token settings, and database target.
 2. Configure trusted hosts/origins for the HTTP bind and TLS gateway. The default
    all-interface bind requires bearer configuration; the development override
    must explicitly choose a loopback bind.
 3. Set application `MCP_TRANSPORT=http` and `MCP_LEDGER_URL` to the server's exact
    Streamable HTTP URL, normally `https://ledger.example/mcp`. If the server uses
    `FASTMCP_STREAMABLE_HTTP_PATH`, match that custom path on the client.
-4. Retain `MCP_AUTH_TOKEN` and signed per-request application identity. Verify
-   authorized reads and rejected foreign-workbook reads before switching clients.
-
-There is no `/mcp` to `/sse` rewrite or legacy transport fallback after an HTTP,
-authentication, or protocol error. Local stdio clients keep their configuration.
-The mobile/chat SSE API is independent and unchanged. This migration preserves
-the existing bearer verifier; adding OAuth/JWKS is a separate change.
+4. Configure `MCP_AUTH_TOKEN` and signed per-request application identity. Check
+   authorized reads and rejected foreign-workbook reads before deployment.
 
 ## Storage
 
@@ -264,7 +256,7 @@ references and receipts for recovery. MCP does not expose this write path.
 
 ## Checked table authoring
 
-`ledger.authoring` prepares and executes owner-checked table lifecycle operations
+`ledger_postgres.authoring` prepares and executes owner-checked table lifecycle operations
 using the existing operation and approval store. It supports `create_table`,
 `register_table`, `update_table`, `refresh_table` and `unregister_table`.
 

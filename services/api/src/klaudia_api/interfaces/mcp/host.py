@@ -31,13 +31,8 @@ def run_server(transport: str) -> None:
 
     Raises:
         RuntimeError: A network transport has no auth or explicit dev override.
-        ValueError: The transport is removed or unsupported.
+        ValueError: The transport or HTTP endpoint is unsupported.
     """
-    if transport == "sse":
-        raise ValueError(
-            "SSE transport was removed; supported transports are stdio and http. "
-            "Use --transport http with a Streamable HTTP endpoint such as /mcp."
-        )
     if transport not in {"stdio", "http"}:
         raise ValueError("Transport must be stdio or http (Streamable HTTP)")
     if transport == "stdio":
@@ -51,8 +46,8 @@ def run_server(transport: str) -> None:
         .endswith("/sse")
     ):
         raise ValueError(
-            "Legacy /sse endpoints were removed; configure FASTMCP_STREAMABLE_HTTP_PATH "
-            "with a Streamable HTTP path such as /mcp."
+            "Configure FASTMCP_STREAMABLE_HTTP_PATH with a Streamable HTTP "
+            "endpoint such as /mcp."
         )
 
     host = os.getenv("FASTMCP_HOST", "0.0.0.0")
@@ -94,7 +89,7 @@ def main() -> None:
         "--transport",
         metavar="{stdio,http}",
         default="stdio",
-        help="stdio (default) or Streamable HTTP; legacy SSE has been removed",
+        help="stdio (default) or Streamable HTTP",
     )
     args = parser.parse_args()
     try:

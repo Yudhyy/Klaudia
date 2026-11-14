@@ -14,9 +14,9 @@ from uuid import uuid4
 import asyncpg
 import pytest
 
-from ledger.formula_engine import Formula, evaluate_graph
-from ledger.store import LedgerStore
-from ledger.typed_storage import lock_workbook, read_snapshot
+from ledger_core.formula_engine import Formula, evaluate_graph
+from ledger_postgres.store import LedgerStore
+from ledger_postgres.typed_storage import lock_workbook, read_snapshot
 from tests.integration.postgres import POSTGRES_TEST_URL
 
 pytestmark = pytest.mark.skipif(
