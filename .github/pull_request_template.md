@@ -1,16 +1,12 @@
-## Problem and change
+## Context
 
-Explain the problem and resulting behavior.
+<!-- What problem does this solve? What was the behavior before, and what is it now? Add all relevant context. Link related issues/tickets. -->
 
-## Related issue
+## Steps to verify the change
 
-Link the issue. Use a partial reference if work remains.
+## Checklist
 
-## Verification
-
-List commands, outcomes, and checks that did not run. Identify the tested revision
-when results came from an earlier commit.
-
-## Limits and follow-up
-
-State remaining risks, behavior changes, and work left for another PR.
+- [ ] Title follows the [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/#summary) format: `type(scope): short description` (scope is optional, e.g., `fix: prevent crash on sync` or `fix(api): handle null response`). 
+- [ ] Tested locally
+- [ ] Updated docs (if needed)
+- [ ] Updated AGENTS.md files (if needed)
