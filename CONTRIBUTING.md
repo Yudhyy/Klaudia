@@ -1,118 +1,72 @@
 # Contributing to Klaudia
 
-Use GitHub issues to describe work and pull requests to review it. Start with the
-[issue workflow](docs/docs/05-development/contributing/issue-workflow.mdx).
-Coding agents should also read [AGENTS.md](AGENTS.md).
+First of all, thank you for being here.
 
-## Before a change
+Klaudia is still under active development. There are many things to improve, questions to answer, and ideas waiting to be explored. We're building this project step by step, and we'd love to have more people involved in that journey.
 
-Search existing issues and PRs. For a substantial change, agree on the problem,
-scope, and acceptance criteria in an issue before implementation. Report small
-fixes with enough context for a reviewer to reproduce and assess them.
+**You don't have to be an experienced developer to contribute.**
 
-Read the [current architecture](docs/docs/05-development/architecture/overview.mdx)
-and inspect the affected code before using the
-[target design](docs/docs/05-development/architecture/target.mdx) as an implementation
-guide. [Issue #3](https://github.com/Yudhyy/Klaudia/issues/3) tracks architecture
-documentation and gradual module changes. Its proposed layout is not the current
-repo map. Keep behavior changes separate from file moves where practical.
+Whether you're a developer, student, researcher, designer, accountant, or simply someone interested in what we're building, your contribution is welcome. You can share an idea, report a bug, improve documentation, suggest a better approach, help with testing, or contribute code.
 
-## Local setup and checks
+Every contribution that helps make Klaudia better is appreciated, no matter how small it may seem.
 
-The backend uses Python 3.11 or later and a uv workspace:
+If you're reading this, you're already one step away from contributing. Find something you care about, tell us what you think, and let's build something better together.
 
-```bash
-uv sync --all-packages --group dev
-uv run ruff check services/api/ klaudia/ packages/ tests/
-uv run ruff format --check services/api/ klaudia/ packages/ tests/
-uv run pytest tests/unit -q
-uv run pytest tests/packaging -q
-```
+## How can you contribute?
 
-The installed service lives in `services/api/src/klaudia_api/`. The root
-workspace selects its `api`, `worker` and `mcp` extras. Canonical process commands
-use `klaudia_api`; supported `app.*` and `config.*` imports remain aliases.
-The shared image runs installed wheels without a checkout Python path.
+There's no single way to contribute to Klaudia. Here are a few places to start:
 
-The workspace installs `agent-core`, `agent-skills`, `ledger-core`,
-`ledger-postgres`, `identity-core`, `workflow-core`, `memory-core`,
-`document-intelligence`, the MCP server, and the `klaudia` compatibility
-imports. New agent callers use
-`agent_core.agent` and `agent_skills.registry`. Provider construction belongs
-to `klaudia_api.adapters.llm.model_factory`. Packaging tests build and install the
-canonical agent wheels outside the checkout with provider libraries absent.
-Identity packaging checks install and run registration/login with only the
-standard library. HTTP, bcrypt, JWT and PostgreSQL implementations stay in the
-application adapters.
-Workflow packaging checks install and run task start/resume, recovery and
-cancellation with only the standard library. New callers use `workflow_core`;
-task SQL, locks, agent-state interpretation and ledger binding stay in application
-adapters. Former workflow interface and service paths retain compatibility imports.
-Memory packaging checks install the contracts and run an owner-scoped policy
-read with Pydantic as the only direct runtime dependency. New callers use
-`memory_core`. Application adapters supply persistence and ledger reconciliation.
-Document packaging checks run inline ingestion and queued page processing with
-only the standard library and supplied capabilities. Application adapters bind
-PostgreSQL, Redis, object storage, OCR, media libraries, and Taskiq.
-Ledger PostgreSQL adapters and migration assets install without an MCP host or
-application imports. Storage callers use `ledger_postgres`; pure contracts and
-calculations use `ledger_core`. The root `mcp-ledger` distribution and its
-`ledger.*` aliases have been removed. Launch MCP through the installed
-`klaudia_api.interfaces.mcp.host` module; see the [MCP guide](services/api/MCP.md).
+- **Ideas and feedback.** Have an idea for a feature, a different approach, or something that could make Klaudia more useful? We'd love to hear it.
+- **Bug reports.** Found something broken or behaving unexpectedly? Let us know so we can investigate.
+- **Documentation.** Spotted an unclear explanation, outdated information, or something missing? Help us make it easier for everyone to understand.
+- **Testing.** Try things out, explore different scenarios, and tell us what works and what doesn't.
+- **Code.** Interested in building a feature, fixing a bug, improving an existing implementation, or refactoring something? You're welcome to help.
 
-The mobile CI uses Node 24.12.0. Run these commands from `apps/mobile/`:
+You don't need to have the perfect solution before getting involved. Sometimes, a good question or a fresh perspective is exactly what a project needs.
 
-```bash
-npm ci
-npm run typecheck
-npm test
-```
+## Getting started
 
-See [README.md](README.md) for local services and
-[tests/e2e/README.md](tests/e2e/README.md) for integration and evaluation setup.
-Host API and worker processes require the release step first:
-`uv run python -m klaudia_api.adapters.persistence upgrade` with the intended
-`DATABASE_URL`. Compose runs this step through its `migrate` service. Read the
-[migration guide](docs/docs/05-development/contributing/database-migrations.mdx) before
-adopting an existing database or adding a revision.
-Use the root `alembic.ini` with `-n application` or `-n ledger` to generate
-revisions. Each environment includes its own template. Installed checks and
-upgrades use programmatic configuration without a checkout or bundled `.ini`.
-Autogeneration and `alembic check` use a current disposable database in read-only
-mode; release writes remain behind the coordinated runner.
-Check actual test-store targets before running service tests. Keep user stores
-separate. Live-model checks need model access and can incur charges.
+Not sure where to begin? Here's an easy way to get involved.
 
-Run tests for the changed behavior and the affected component. Use
-[.circleci/continue.yml](.circleci/continue.yml) for the CI command definitions.
-Record exact commands and results. State any checks that need services or access
-you do not have. Documentation-only changes need link and diff checks; they do
-not require model calls or application tests unless they change those contracts.
+**1. Explore the project**
 
-## Pull requests
+Take a look around the repository, read the [README](README.md), and explore existing [issues](https://github.com/Yudhyy/Klaudia/issues) and [pull requests](https://github.com/Yudhyy/Klaudia/pulls).
 
-Keep each PR focused. Include the problem, resulting behavior, linked issue,
-verification, and remaining limits. Add tests for new logic and bug fixes. Update
-public docs when a public contract changes. Reviewers must be able to assess the
-change without private session notes.
+**2. Find something you'd like to improve**
 
-Use Conventional Commit titles for commits and PRs:
+You can pick an existing issue or bring your own idea. Feel free to comment on an issue if you're interested in working on it. This helps avoid duplicated effort and gives us a chance to discuss the direction.
 
-```text
-fix(ledger): reject stale operation revisions
-docs(agent): add repository and issue workflow guidance
-```
+Don't see an issue that matches what you have in mind? Open a new one!
 
-Use `Related to #N` for partial work. Use a closing reference only when the PR
-satisfies the whole issue. Check the PR's base branch before relying on automatic
-issue closure. Leave merge and release decisions to maintainers.
+**3. Open an issue or pull request**
 
-## Project knowledge
+When opening an issue, choose the appropriate form:
 
-Keep current behavior, proposed architecture, and research distinct. Record a
-lasting design decision when it has a real tradeoff and would be costly to
-reverse. Include the reason, alternatives, consequences, and conditions for a
-new decision. Add these records when a decision exists, not as empty templates.
+- **Bug report:** Describe what happened, how to reproduce it, and what you expected instead.
+- **Feature request:** Explain the problem or opportunity, your proposed idea, and any useful context.
+- Or open **a blank issue** for anything else.
 
-Private notes and generated GitHub copies are optional. Contributors must be
-able to build, test, and review the public project without them.
+For larger changes, we encourage discussing the scope and approach in an issue before implementation. For small improvements, such as documentation fixes or typos, you're welcome to submit a pull request directly.
+
+**4. Contribute at your own pace**
+
+Once the direction is clear, fork the repository, create a branch, and work on your changes. When you're ready, open a pull request and explain what you've changed and how it can be verified.
+
+Don't worry about knowing everything beforehand. Ask questions whenever you need clarification.
+
+## A few things to keep in mind
+
+- Keep current implementations, proposed designs, and research findings clearly distinguished.
+- When making a significant architectural decision, document the reasoning, alternatives, and trade-offs.
+- Never commit credentials, API keys, private financial records, or sensitive user data. Use synthetic or properly sanitized data for examples and tests.
+- Keep the public documentation useful enough that others can understand, build, test, and review the project without relying on private notes.
+
+---
+
+**Thank you for considering contributing to Klaudia.**
+
+We're still learning, experimenting, and figuring things out as we build. Not every idea will become a feature, and not every approach will be the final one, but every thoughtful contribution helps us understand what Klaudia should become.
+
+Whether you contribute one line of code, report your first bug, suggest an idea, or help us see a problem from a different perspective, we're glad you're part of this journey.
+
+**Let's make Klaudia better, together.**
