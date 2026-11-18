@@ -1,0 +1,44 @@
+---
+title: "Database"
+description: "Where Klaudia stores records and how it manages schema changes."
+---
+
+Klaudia stores application state and ledger records in PostgreSQL. The standard
+installation uses one database. Uploaded files and document page assets live
+in S3-compatible object storage.
+
+## Stored records
+
+| Area | Records |
+| --- | --- |
+| Identity and conversations | User accounts, sessions, and messages |
+| Documents | File metadata, page records, and extracted fields |
+| Memory | User preferences, accounting policies, and their revision history |
+| Workflow | Task state, progress, and recovery information |
+| Ledger | Workbooks, sheets, registered tables, and operation records |
+
+PostgreSQL retains the records needed to resume work and inspect completed
+operations. Redis handles extraction queues and cached results.
+
+## Database access
+
+Core modules use storage interfaces. PostgreSQL adapters implement those
+interfaces and own database access. SQLAlchemy describes the schema, while
+runtime queries use asyncpg.
+
+Checked ledger changes save the record update and its operation receipt in one
+transaction. A retry can use that receipt to identify a completed operation.
+A task with several steps can span multiple transactions.
+
+## Schema changes
+
+Alembic manages two migration histories. The application history owns accounts,
+conversations, documents, memory, and workflow state. The ledger history owns
+workbook and ledger storage, which can also run independently.
+
+The release command applies ledger migrations before application migrations.
+The API and extraction worker check the required schema when they start. In
+Docker Compose, the migration service must finish before these processes start.
+
+Use the [database migration guide](/05-development/contributing/database-migrations)
+to create or apply a schema change.

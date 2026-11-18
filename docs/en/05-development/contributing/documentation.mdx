@@ -1,0 +1,83 @@
+---
+title: "Writing documentation"
+description: "Add, preview, and review pages for the Klaudia documentation site."
+---
+
+Update the documentation in the same pull request as the behavior it describes.
+Write for the person who needs to use or understand Klaudia.
+
+The English site lives in `docs/en/`. It uses Mintlify and accepts both `.md`
+and `.mdx` files.
+
+## Add a page
+
+Create a file in the section that matches its subject. Start with a title and
+a description:
+
+```mdx
+---
+title: "Page title"
+description: "The task or concept this page explains."
+---
+
+Start with what the reader needs to know or do.
+
+## First section
+
+Explain one part of the task or concept.
+```
+
+Mintlify displays the frontmatter title as the page heading. Use `##` for sections
+instead of repeating the title with a `#` heading.
+
+Add the page path to the appropriate group in `docs/en/docs.json`. Omit the file
+extension. For example, this page uses
+`05-development/contributing/documentation`.
+
+## Add links and images
+
+Link to another page with its path from the site root, without the file extension:
+
+```md
+[Backend architecture](/05-development/architecture/overview)
+```
+
+Keep images near the pages that use them. Use `05-development/img/` for shared
+development diagrams and `05-development/research/img/` for research figures.
+Include alt text that explains what the image shows:
+
+```md
+![Klaudia backend architecture](/05-development/img/app-architecture.avif)
+```
+
+## Preview and check
+
+Install the [Mintlify CLI](https://www.mintlify.com/docs/cli/install), then start
+the preview from the repository root:
+
+```bash
+cd docs/en
+mint dev
+```
+
+Open the local URL printed by the CLI. Read the changed page and check its
+navigation, links, tables, and images. From `docs/en`, run:
+
+```bash
+mint validate
+mint broken-links --check-anchors
+```
+
+## Writing guidance
+
+- Start with the task or concept. Give commands only where the reader needs them.
+- Keep architecture pages at the level of components and their responsibilities.
+  Put procedures in contributor guides and detailed implementation notes near the code.
+- Describe current behavior. Label research findings and proposed features.
+- Use short sentences, concrete examples, and headings that help readers find an answer.
+- Explain the expected result of each procedure and how to recover from known errors.
+- Link to an existing explanation instead of copying it into several pages.
+- Use public or synthetic records in examples. Remove credentials and private financial data.
+
+Follow the [contribution guide](https://github.com/Yudhyy/Klaudia/blob/development/CONTRIBUTING.md)
+when submitting the change. Include the documentation checks you ran.

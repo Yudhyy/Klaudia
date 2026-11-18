@@ -1,0 +1,44 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Klaudia",
+  "colors": {
+    "primary": "#CEF86D",
+    "light": "#486200",
+    "dark": "#CEF86D"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Development",
+        "pages": [
+          {
+            "group": "Architecture",
+            "pages": [
+              "05-development/architecture/overview",
+              "05-development/architecture/database"
+            ]
+          },
+          {
+            "group": "Contributing",
+            "pages": [
+              "05-development/contributing/documentation",
+              "05-development/contributing/database-migrations"
+            ]
+          }
+        ]
+      },
+      {
+        "group": "Research",
+        "pages": [
+          {
+            "group": "Fine-tuning",
+            "pages": [
+              "05-development/research/fine-tuning/qwen-3.5-4b-receipts"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

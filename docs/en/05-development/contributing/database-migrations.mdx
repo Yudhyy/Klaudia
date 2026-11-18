@@ -1,0 +1,103 @@
+---
+title: "Database migrations"
+description: "Create, check, and apply a PostgreSQL schema change."
+---
+
+Klaudia uses Alembic to manage database changes. Each change belongs to either
+the application history or the ledger history. Read [Database](/05-development/architecture/database)
+for the storage overview.
+
+Run the commands below from the repository root after installing the development
+dependencies with `uv sync --all-packages --group dev`.
+
+## Apply migrations
+
+Set `DATABASE_URL` to the intended database in your environment or local `.env`
+file. Before upgrading a database that contains useful records, take a backup
+and check how to restore it.
+
+```bash
+uv run python -m klaudia_api.adapters.persistence upgrade
+uv run python -m klaudia_api.adapters.persistence check
+```
+
+The upgrade applies ledger migrations before application migrations. The check
+command verifies the installed schema without changing it. Start the API and
+worker after the check passes. Docker Compose runs the upgrade through its
+`migrate` service before starting them.
+
+For a standalone ledger installation, use its own migration entrypoint:
+
+```bash
+uv run python -m ledger_postgres.migrations upgrade
+uv run python -m ledger_postgres.migrations check
+```
+
+## Choose the migration history
+
+| History | Owns | Revision directory |
+| --- | --- | --- |
+| `application` | Accounts, conversations, documents, memory, and workflow state | `services/api/migrations/versions/` |
+| `ledger` | Workbook and ledger storage | `packages/ledger-postgres/src/ledger_postgres/migrations/versions/` |
+
+The root `alembic.ini` selects these histories. Keep each change in the history
+that owns the affected records.
+
+## Create a revision
+
+Use a disposable database for this work. Set `DATABASE_URL` to that database and
+apply the current migrations before editing the schema.
+
+1. Update the owning module's SQLAlchemy metadata.
+2. Generate a candidate revision for that history. For an application change:
+
+   ```bash
+   uv run alembic -n application revision --autogenerate -m "add document index"
+   ```
+
+   Use `-n ledger` for a ledger change. For changes that need handwritten SQL,
+   omit `--autogenerate`.
+
+3. Review the generated operations and the preceding revision. Include changes
+   to constraints, indexes, functions, or triggers that autogeneration missed.
+4. Add the expected schema contract as `<revision_id>.json` in that history's
+   migration directory. Update the required revision in its `History` definition.
+5. Test the upgrade from the preceding revision with sample records. Check that
+   another upgrade leaves the records intact and that interrupted work can recover.
+
+Revision filenames use `YYYY-MM-DD-HHMM_slug.py` in UTC. Keep revisions that have
+been shared or applied unchanged. Add a new revision to correct an earlier one.
+
+## Check the change
+
+After applying the candidate to the disposable database, compare the schema
+with the metadata:
+
+```bash
+uv run alembic -n application check
+uv run alembic -n ledger check
+```
+
+Run the migration and packaging checks:
+
+```bash
+uv run pytest tests/unit/test_migration_metadata.py -q
+uv run pytest tests/integration/migrations -q
+uv run pytest tests/packaging -q
+```
+
+The integration tests use `PG_TEST_URL` to connect to a local test server. Its
+account must be able to create and remove disposable databases. Use an isolated
+test server, separate from development or production records.
+
+## If an upgrade fails
+
+Read the reported mismatch before retrying. The migration runner checks known
+existing layouts and rejects incomplete or unknown schemas. A completed ledger
+migration can remain applied when a later application migration fails.
+
+Fix the cause, run the upgrade again, and check the schema before starting
+services. Use the coordinated upgrade command for schema writes. Direct Alembic
+`upgrade`, `downgrade`, and `stamp` commands are blocked. Do not mark a revision
+as applied to hide a failed change. If recovery requires a rollback, restore a
+verified backup with the matching application version.
