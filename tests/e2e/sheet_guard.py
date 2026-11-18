@@ -1,22 +1,4 @@
-"""Deterministic Google Sheet reset for the in-process E2E suite.
-
-Mutating cases append rows to "Jun" and rewrite the "Juni" total in "Rangkuman
-Total" (double-entry: a Jun write is always paired with a Rangkuman Total
-update). The dataset's LLM `cleanup` prompts are best-effort and drift, so later
-read/routing cases (e.g. R01, which asserts the canonical Juni total) see a
-corrupted sheet.
-
-This guard restores the guarded sheets to the EXACT contents of docs/TABLE.md —
-the single source of truth for the fixture scheme — via direct MCP tool calls
-(no agent, no LLM), after every mutating case and at suite end. Because the
-source is TABLE.md (not a runtime snapshot), a dirty start state cannot poison
-the baseline: the sheet is always rewritten to the template. It also deletes any
-tab that TABLE.md does not define, cleaning up create/copy/rename leftovers.
-
-Values are written with USER_ENTERED (the MCP default); the spreadsheet locale
-is Indonesian, so the dotted strings from TABLE.md ("2.164.500", "12.000")
-parse back to the same numbers the sheet already stores.
-"""
+# TODO: Migrate legacy e2e sheet fixture to research benchmarks (SpreadsheetBench 2, MBABench).
 
 from __future__ import annotations
 
@@ -36,7 +18,7 @@ logger = logging.getLogger(__name__)
 # Sheets that mutating cases write to and that later cases assert amounts on.
 GUARDED_SHEETS = ("Jun", "Rangkuman Total")
 
-_TABLE_MD = Path(__file__).resolve().parents[2] / "docs" / "TABLE.md"
+_TABLE_MD = Path(__file__).resolve().parent / "fixtures" / "TABLE.md"
 
 
 def load_table_md(
