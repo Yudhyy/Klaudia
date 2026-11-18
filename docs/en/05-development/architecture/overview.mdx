@@ -1,0 +1,68 @@
+---
+title: "Backend architecture"
+description: "How Klaudia separates business rules, application services, and infrastructure."
+---
+
+Klaudia has a Python backend built with FastAPI. Clients communicate with it
+through HTTP. The API and document extraction worker share application code but
+run in separate processes.
+
+The backend follows domain-driven design and hexagonal architecture. Business
+rules belong to core modules. Interfaces connect those modules to the web API,
+databases, model providers, and other services.
+
+## Architecture diagram
+
+![Klaudia backend with core modules, inbound interfaces, and adapters for storage and external services](../img/app-architecture.avif)
+
+The diagram includes planned web and CLI clients, scheduled jobs, and IronCalc.
+Client framework choices are not final. The current client is an Expo and React
+Native prototype.
+
+## Core modules
+
+Domain-driven design groups code around the work it owns. Klaudia's core modules
+cover these areas:
+
+| Area | Responsibility |
+| --- | --- |
+| Identity | Account registration and login |
+| Documents | Document ingestion and extraction results |
+| Ledger | Workbook records, financial calculations, and record comparisons |
+| Workflow | Task progress, saved state, and review decisions |
+| Memory | User preferences, conventions, and accounting policies |
+
+Application services coordinate these modules to complete a task. The modules
+belong to one backend application and share a release.
+
+## Ports and adapters
+
+A port defines an operation that a core module needs, such as reading a document
+or saving a task. An adapter implements that operation with a specific service.
+For example, a PostgreSQL adapter stores records while a model adapter sends
+requests to a configured LLM provider.
+
+HTTP routes and background jobs call the application through inbound adapters.
+Core modules depend on interfaces, so their rules can be tested without starting
+FastAPI, PostgreSQL, or a model server. The service connects the adapters when
+it starts.
+
+## Backend services
+
+The current deployment has these parts:
+
+| Component | Role |
+| --- | --- |
+| API | Handles client requests, authentication, and application operations |
+| Extraction worker | Processes queued document pages through Taskiq |
+| PostgreSQL | Stores application state and ledger records |
+| Redis | Holds extraction queues and cache entries |
+| Object storage | Stores uploaded files and page assets through an S3-compatible interface |
+
+Docker Compose uses RustFS for object storage. Model providers run outside the
+application process and connect through configured endpoints. The MCP interface
+provides access to selected read tools for external AI clients.
+
+See [Database](/05-development/architecture/database) for data storage and
+[the service guide](https://github.com/Yudhyy/Klaudia/blob/development/services/api/README.md)
+for backend setup.
